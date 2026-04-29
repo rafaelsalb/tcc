@@ -11,13 +11,13 @@ import socket
 import time
 import urllib.error
 import urllib.parse
-import urllib.request
 import zipfile
 from typing import Any
 from dataclasses import dataclass
 from datetime import datetime, timezone
 
 from dotenv import load_dotenv
+import requests
 
 load_dotenv()
 
@@ -237,6 +237,8 @@ def is_dns_resolution_error(exc: BaseException) -> bool:
         if isinstance(reason, socket.gaierror):
             return True
         text = str(reason or exc).lower()
+    elif isinstance(exc, requests.RequestException):
+        text = str(exc).lower()
     else:
         text = str(exc).lower()
 
@@ -246,14 +248,25 @@ def is_dns_resolution_error(exc: BaseException) -> bool:
         "nodename nor servname provided",
         "failed to resolve",
         "getaddrinfo failed",
+        "name resolution",
+        "max retries exceeded",
     )
     return any(marker in text for marker in dns_markers)
 
 
+def build_http_session() -> requests.Session:
+    session = requests.Session()
+    adapter = requests.adapters.HTTPAdapter(pool_connections=32, pool_maxsize=32)
+    session.mount("http://", adapter)
+    session.mount("https://", adapter)
+    session.headers.update({"User-Agent": "tcc-gdelt-ingestor/1.0"})
+    return session
+
+
 def fetch_url_bytes_with_retry(
+    session: requests.Session,
     url: str,
     timeout_seconds: int,
-    user_agent: str,
     max_attempts: int,
     retry_base_seconds: float,
     retry_max_seconds: float,
@@ -261,16 +274,16 @@ def fetch_url_bytes_with_retry(
     last_exc: Exception | None = None
 
     for attempt in range(1, max_attempts + 1):
-        req = urllib.request.Request(url, headers={"User-Agent": user_agent})
         try:
-            with urllib.request.urlopen(req, timeout=timeout_seconds) as resp:
-                return resp.read()
-        except urllib.error.HTTPError as exc:
-            last_exc = exc
-            # Retry only transient HTTP status codes.
-            if exc.code not in {429, 500, 502, 503, 504}:
-                raise
-        except (urllib.error.URLError, TimeoutError) as exc:
+            response = session.get(url, timeout=timeout_seconds)
+            if response.status_code in {429, 500, 502, 503, 504}:
+                raise requests.HTTPError(
+                    f"HTTP {response.status_code}",
+                    response=response,
+                )
+            response.raise_for_status()
+            return response.content
+        except (requests.RequestException, TimeoutError) as exc:
             last_exc = exc
 
         if attempt >= max_attempts:
@@ -307,15 +320,16 @@ def is_brazilian_source(url: str) -> bool:
 
 
 def fetch_masterfilelist(
+    session: requests.Session,
     timeout_seconds: int = 60,
     max_attempts: int = 6,
     retry_base_seconds: float = 2.0,
     retry_max_seconds: float = 90.0,
 ) -> list[GdeltFile]:
     raw_payload = fetch_url_bytes_with_retry(
+        session=session,
         url=MASTERFILELIST_URL,
         timeout_seconds=timeout_seconds,
-        user_agent="tcc-gdelt-ingestor/1.0",
         max_attempts=max_attempts,
         retry_base_seconds=retry_base_seconds,
         retry_max_seconds=retry_max_seconds,
@@ -377,6 +391,7 @@ def get_existing_sourceurls(conn, sourceurls: list[str]) -> set[str]:
 
 def process_file(
     conn,
+    session: requests.Session,
     gdelt_file: GdeltFile,
     timeout_seconds: int = 120,
     max_attempts: int = 6,
@@ -385,9 +400,9 @@ def process_file(
 ) -> int:
     logging.info("Downloading %s", gdelt_file.name)
     zip_payload = fetch_url_bytes_with_retry(
+        session=session,
         url=gdelt_file.url,
         timeout_seconds=timeout_seconds,
-        user_agent="tcc-gdelt-ingestor/1.0",
         max_attempts=max_attempts,
         retry_base_seconds=retry_base_seconds,
         retry_max_seconds=retry_max_seconds,
@@ -478,13 +493,14 @@ def run_loop(
     retry_max_seconds: float,
 ) -> None:
     psycopg = importlib.import_module("psycopg")
-    with psycopg.connect(db_dsn) as conn:
+    with psycopg.connect(db_dsn) as conn, build_http_session() as session:
         init_db(conn)
         first_run = is_first_run(conn)
 
         while True:
             try:
                 all_files = fetch_masterfilelist(
+                    session=session,
                     max_attempts=request_max_attempts,
                     retry_base_seconds=retry_base_seconds,
                     retry_max_seconds=retry_max_seconds,
@@ -512,6 +528,7 @@ def run_loop(
                     logging.info("[%d/%d] Processing %s", i, len(pending), gdelt_file.name)
                     process_file(
                         conn,
+                        session,
                         gdelt_file,
                         max_attempts=request_max_attempts,
                         retry_base_seconds=retry_base_seconds,
@@ -526,7 +543,7 @@ def run_loop(
             except KeyboardInterrupt:
                 logging.info("Stopped by user.")
                 break
-            except (urllib.error.URLError, zipfile.BadZipFile, TimeoutError) as exc:
+            except (requests.RequestException, urllib.error.URLError, zipfile.BadZipFile, TimeoutError) as exc:
                 logging.exception("Transient failure: %s", exc)
                 logging.info("Sleeping %ds before retry.", poll_interval_seconds)
                 time.sleep(poll_interval_seconds)

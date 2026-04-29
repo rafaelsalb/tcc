@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import gzip
+import http.client
 import json
 import logging
 import os
@@ -72,7 +73,7 @@ def xml_local_name(tag: str) -> str:
 
 
 def randomized_sleep(base_seconds: float, jitter_seconds: float) -> None:
-	delay = max(1.0, base_seconds + np.random.normal(0.0, jitter_seconds))
+	delay = max(1.0, base_seconds + np.random.normal(0.0, 1.0))
 	if delay > 0:
 		logging.info("Cooldown %.2fs", delay)
 		time.sleep(delay)
@@ -134,6 +135,20 @@ def fetch_bytes(
 				raw_body = resp.read()
 				decoded = decode_body(raw_body, resp.headers.get("Content-Encoding", ""))
 				return decoded, final_url, status
+		except http.client.IncompleteRead as exc:
+			last_error = f"incomplete_read ({len(exc.partial or b'')} bytes partial)"
+			if attempt >= max_attempts:
+				break
+			backoff = min(60.0, base_cooldown_seconds * (2 ** (attempt - 1)))
+			logging.warning(
+				"Chunked response interrupted for %s (%s). Retrying in %.2fs [%d/%d]",
+				url,
+				last_error,
+				backoff,
+				attempt,
+				max_attempts,
+			)
+			randomized_sleep(backoff, jitter_seconds)
 		except urllib.error.HTTPError as exc:
 			last_error = f"HTTP {exc.code}"
 			last_status = exc.code
