@@ -59,6 +59,15 @@ def utc_now_iso() -> str:
 	return datetime.now(timezone.utc).isoformat()
 
 
+def parse_iso_date(value: str) -> date:
+	try:
+		return date.fromisoformat(value)
+	except ValueError as exc:
+		raise argparse.ArgumentTypeError(
+			f"Invalid date '{value}'. Expected ISO format YYYY-MM-DD."
+		) from exc
+
+
 def get_domain(url: str) -> str:
 	try:
 		return (urllib.parse.urlparse(url).hostname or "").lower().strip(".")
@@ -785,6 +794,7 @@ def run(
 	article_jitter_seconds: float,
 	dry_run: bool,
 	reprocess: bool,
+	backward_from: date | None = None,
 ) -> None:
 	with psycopg.connect(db_dsn) as conn:
 		ensure_tracking_tables(conn)
@@ -801,6 +811,18 @@ def run(
 
 		daily_sitemaps = list(sitemap_files)
 		daily_sitemaps.sort(key=sitemap_sort_key, reverse=True)
+
+		# If backward_from is provided, filter sitemaps to only include those on or before that date.
+		if backward_from is not None:
+			cutoff_datetime = datetime(
+				backward_from.year,
+				backward_from.month,
+				backward_from.day,
+				tzinfo=timezone.utc,
+			)
+			daily_sitemaps = [s for s in daily_sitemaps if sitemap_sort_key(s)[0] <= cutoff_datetime]
+			logging.info("Backward mode: filtering sitemaps to date <= %s", backward_from.isoformat())
+
 		if max_sitemaps and max_sitemaps > 0:
 			daily_sitemaps = daily_sitemaps[:max_sitemaps]
 
@@ -1026,6 +1048,12 @@ def parse_args() -> argparse.Namespace:
 		action="store_true",
 		help="Reprocess sitemap files even if already tracked as processed.",
 	)
+	parser.add_argument(
+		"--backward-from",
+		type=parse_iso_date,
+		default=None,
+		help="Only process sitemaps from this date backwards (YYYY-MM-DD). Never forwards.",
+	)
 	return parser.parse_args()
 
 
@@ -1056,6 +1084,7 @@ def main() -> None:
 		article_jitter_seconds=max(0.0, args.article_jitter_seconds),
 		dry_run=args.dry_run,
 		reprocess=args.reprocess,
+		backward_from=args.backward_from,
 	)
 
 

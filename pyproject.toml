@@ -22,6 +22,7 @@ dependencies = [
     "python-dotenv>=1.2.2",
     "seaborn>=0.13.2",
     "spacy>=3.8.13",
+    "sqlacodegen>=4.0.3",
     "sqlalchemy>=2.0.49",
     "torch==2.1.1",
     "trafilatura>=2.0.0",
