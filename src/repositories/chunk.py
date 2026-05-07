@@ -38,3 +38,22 @@ class ChunkRepository:
             stmt = select(G1Chunks).where(G1Chunks.article == article)
             results = session.execute(stmt).fetchall()
             return results
+
+    def get_all_with_no_embeddings(self, limit: int = 100, offset: int = 0):
+        with Session(self.engine) as session:
+            stmt = select(G1Chunks.id, G1Chunks.chunk).where(G1Chunks.embedding.is_(None)).limit(limit).offset(offset)
+            results = session.execute(stmt).fetchall()
+            return results
+
+    def update_embedding(self, chunk_id: int, embedding: np.ndarray):
+        with Session(self.engine) as session:
+            stmt = update(G1Chunks).where(G1Chunks.id == chunk_id).values(embedding=embedding)
+            session.execute(stmt)
+            session.commit()
+
+    def batch_update_embeddings(self, chunk_ids: list[int], embeddings: list[np.ndarray]):
+        with Session(self.engine) as session:
+            for chunk_id, embedding in zip(chunk_ids, embeddings):
+                stmt = update(G1Chunks).where(G1Chunks.id == chunk_id).values(embedding=embedding)
+                session.execute(stmt)
+            session.commit()

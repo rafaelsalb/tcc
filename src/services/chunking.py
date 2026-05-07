@@ -4,7 +4,7 @@ from models.models import G1Articles
 
 
 class ChunkingService:
-    def __init__(self, chunk_size: int = 2048, overlap: int = 0):
+    def __init__(self, chunk_size: int = 1024, overlap: int = 256):
         self.chunk_size = chunk_size
         self.overlap = overlap
         self.chunker = TokenChunker(chunk_size=self.chunk_size, chunk_overlap=self.overlap)
