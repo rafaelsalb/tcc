@@ -4,6 +4,7 @@ from db import engine
 from repositories.article import ArticleRepository
 from repositories.chunk import ChunkRepository
 from services.chunking import ChunkingService
+from services.search import SearchService
 from services.vectorizer import VectorizerService
 from ollama import Client
 
@@ -15,6 +16,7 @@ class App:
         self.chunking_service = ChunkingService()
         self.client = Client(host="http://paradiddle-earth:11434")
         self.vectorizer = VectorizerService(self.client, model="qwen3-embedding:0.6b", dimensions=768)
+        self.search_service = SearchService(self.article_repo, self.chunk_repo, self.vectorizer)
 
     def populate_chunks(self):
         while True:

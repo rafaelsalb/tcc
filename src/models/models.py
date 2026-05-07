@@ -380,7 +380,7 @@ class G1Articles(Base):
     author: Mapped[Optional[str]] = mapped_column(Text)
     hostname: Mapped[Optional[str]] = mapped_column(Text)
     sitename: Mapped[Optional[str]] = mapped_column(Text)
-    date_published: Mapped[Optional[str]] = mapped_column(Text)
+    date_published: Mapped[Optional[datetime.date]] = mapped_column(Date)
     language: Mapped[Optional[str]] = mapped_column(Text)
     excerpt: Mapped[Optional[str]] = mapped_column(Text)
     categories: Mapped[Optional[list[str]]] = mapped_column(ARRAY(Text()))
