@@ -34,6 +34,7 @@ class ArticleRepository:
                 select(G1Articles)
                 .outerjoin(ArticleEntities, ArticleEntities.g1_article_url == G1Articles.url)
                 .where(ArticleEntities.g1_article_url.is_(None))
+                .where(G1Articles.text_content.is_not(None))
                 .limit(limit)
                 .offset(offset)
             )
