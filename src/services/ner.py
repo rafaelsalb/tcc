@@ -27,6 +27,17 @@ class NERService:
     def batch_extract_entities_and_store(self, articles: list[G1Articles]):
         assert all(isinstance(article, G1Articles) for article in articles), "All items in articles must be instances of G1Articles"
         article_entities = self.batch_extract_entities(articles)
+        articles_batch: list[str] = []
+        texts_batch: list[str] = []
+        types_batch: list[str] = []
         for article, entities in article_entities.items():
             for entity in entities:
-                self.entity_repository.add_entity(article=article.url, text=entity["text"], type_=entity["label"])
+                articles_batch.append(article.url)
+                texts_batch.append(entity["text"])
+                types_batch.append(entity["label"])
+        if articles_batch:
+            self.entity_repository.batch_add_entities(
+                articles=articles_batch,
+                texts=texts_batch,
+                types=types_batch,
+            )

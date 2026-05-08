@@ -43,6 +43,17 @@ class EntityRepository:
             session.execute(stmt)
             session.commit()
 
+    def batch_add_entities(self, articles: list[str], texts: list[str], types: list[str]):
+        with Session(self.engine) as session:
+            rows = []
+            for article, text, type_ in zip(articles, texts, types):
+                entity_id = self._get_or_create(session=session, text=text, type_=type_)
+                rows.append({'g1_article_url': article, 'g1_entities_id': entity_id})
+            if rows:
+                stmt = insert(ArticleEntities).values(rows)
+                session.execute(stmt)
+            session.commit()
+
     def get_entities_by_article(self, article: str):
         with Session(self.engine) as session:
             stmt = (
