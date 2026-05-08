@@ -1,5 +1,6 @@
-from sqlalchemy import insert, select
+from sqlalchemy import insert, select, tuple_
 from sqlalchemy.orm import Session
+from sqlalchemy.exc import IntegrityError
 
 from models.models import ArticleEntities, G1Entities
 
@@ -26,9 +27,37 @@ class EntityRepository:
         if existing:
             return existing
 
+    def _create(self, session: Session, text: str, type_: str) -> int:
         stmt = insert(G1Entities).values(text=text, type=type_).returning(G1Entities.id)
-        entity_id = session.execute(stmt).scalar_one()
-        return entity_id
+        try:
+            entity_id = session.execute(stmt).scalar_one()
+            return entity_id
+        except Exception as e:
+            session.rollback()
+            raise e
+
+    def batch_create(self, session: Session, texts: list[str], types: list[str]) -> list[int]:
+        pairs = [(text, type_) for text, type_ in zip(texts, types)]
+        if not pairs:
+            return []
+
+        existing_stmt = (
+            select(G1Entities.text_, G1Entities.type)
+            .where(tuple_(G1Entities.text_, G1Entities.type).in_(pairs))
+        )
+        existing_pairs = set(session.execute(existing_stmt).fetchall())
+        to_insert = [{'text': text, 'type': type_} for text, type_ in pairs if (text, type_) not in existing_pairs]
+        if not to_insert:
+            return []
+
+        stmt = insert(G1Entities).values(to_insert).returning(G1Entities.id)
+        try:
+            result = session.execute(stmt)
+            entity_ids = [row[0] for row in result.fetchall()]
+            return entity_ids
+        except IntegrityError as e:
+            session.rollback()
+            raise e
 
     def add_entity_to_article(self, article: str, entity_id: int):
         with Session(self.engine) as session:
