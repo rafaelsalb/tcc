@@ -2,12 +2,18 @@ from typing import Any, Optional
 import datetime
 
 from pgvector.sqlalchemy.vector import VECTOR
-from sqlalchemy import ARRAY, BigInteger, Boolean, Column, Date, DateTime, Double, ForeignKeyConstraint, Index, Integer, PrimaryKeyConstraint, Table, Text, UniqueConstraint, text
+from sqlalchemy import ARRAY, BigInteger, Boolean, Column, Date, DateTime, Double, ForeignKeyConstraint, Index, Integer, Numeric, PrimaryKeyConstraint, Table, Text, UniqueConstraint, text
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
 class Base(DeclarativeBase):
     pass
+
+
+t_avg_g1_chunks_by_article = Table(
+    'avg_g1_chunks_by_article', Base.metadata,
+    Column('avg', Numeric)
+)
 
 
 t_dates = Table(
@@ -85,6 +91,25 @@ t_g1 = Table(
 )
 
 
+t_g1_chunk_count = Table(
+    'g1_chunk_count', Base.metadata,
+    Column('count', BigInteger)
+)
+
+
+t_g1_chunks_by_article = Table(
+    'g1_chunks_by_article', Base.metadata,
+    Column('url', Text),
+    Column('count', BigInteger)
+)
+
+
+t_g1_chunks_with_embeddings_count = Table(
+    'g1_chunks_with_embeddings_count', Base.metadata,
+    Column('count', BigInteger)
+)
+
+
 t_g1_count = Table(
     'g1_count', Base.metadata,
     Column('count', BigInteger)
@@ -96,6 +121,20 @@ t_g1_count_by_date = Table(
     Column('date_published', Text),
     Column('count', BigInteger)
 )
+
+
+class G1Entities(Base):
+    __tablename__ = 'g1_entities'
+    __table_args__ = (
+        PrimaryKeyConstraint('id', name='g1_entities_pkey'),
+        UniqueConstraint('text', 'type', name='unique_entity_text_type')
+    )
+
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
+    text_: Mapped[str] = mapped_column('text', Text, nullable=False)
+    type: Mapped[str] = mapped_column(Text, nullable=False)
+
+    article_entities: Mapped[list['ArticleEntities']] = relationship('ArticleEntities', back_populates='g1_entities')
 
 
 t_g1_gdelt = Table(
@@ -356,7 +395,9 @@ class G1Articles(Base):
         ForeignKeyConstraint(['sitemap_url'], ['g1_sitemaps.sitemap_url'], ondelete='SET NULL', name='g1_articles_sitemap_url_fkey'),
         PrimaryKeyConstraint('url', name='g1_articles_pkey'),
         Index('idx_g1_articles_fetch_status', 'fetch_status'),
-        Index('idx_g1_articles_last_seen', 'last_seen_at')
+        Index('idx_g1_articles_last_seen', 'last_seen_at'),
+        Index('idx_g1_articles_unchunked', 'url', postgresql_where='((is_chunked = false) AND (text_content IS NOT NULL))'),
+        Index('ix_g1_articles_date_published', 'date_published')
     )
 
     url: Mapped[str] = mapped_column(Text, primary_key=True)
@@ -390,7 +431,24 @@ class G1Articles(Base):
     raw_metadata: Mapped[Optional[dict]] = mapped_column(JSONB)
 
     g1_sitemaps: Mapped[Optional['G1Sitemaps']] = relationship('G1Sitemaps', back_populates='g1_articles')
+    article_entities: Mapped[list['ArticleEntities']] = relationship('ArticleEntities', back_populates='g1_articles')
     g1_chunks: Mapped[list['G1Chunks']] = relationship('G1Chunks', back_populates='g1_articles')
+
+
+class ArticleEntities(Base):
+    __tablename__ = 'article_entities'
+    __table_args__ = (
+        ForeignKeyConstraint(['g1_article_url'], ['g1_articles.url'], name='fk_article_entities_g1_articles'),
+        ForeignKeyConstraint(['g1_entities_id'], ['g1_entities.id'], name='fk_article_entities_g1_entities'),
+        PrimaryKeyConstraint('id', name='article_entities_pkey')
+    )
+
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
+    g1_article_url: Mapped[str] = mapped_column(Text, nullable=False)
+    g1_entities_id: Mapped[int] = mapped_column(BigInteger, nullable=False)
+
+    g1_articles: Mapped['G1Articles'] = relationship('G1Articles', back_populates='article_entities')
+    g1_entities: Mapped['G1Entities'] = relationship('G1Entities', back_populates='article_entities')
 
 
 class G1Chunks(Base):
@@ -398,12 +456,13 @@ class G1Chunks(Base):
     __table_args__ = (
         ForeignKeyConstraint(['article'], ['g1_articles.url'], name='fk_g1_chunks_g1_article'),
         PrimaryKeyConstraint('id', name='g1_chunks_pkey'),
-        Index('g1_chunks_embedding_idx', 'embedding', postgresql_ops={'embedding': 'vector_cosine_ops'}, postgresql_using='hnsw')
+        Index('g1_chunks_embedding_idx', 'embedding', postgresql_ops={'embedding': 'vector_cosine_ops'}, postgresql_using='hnsw'),
+        Index('ix_g1_chunks_no_embeddings', 'embedding', postgresql_where='(embedding IS NULL)')
     )
 
     id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
     article: Mapped[str] = mapped_column(Text, nullable=False)
+    chunk: Mapped[str] = mapped_column(Text, nullable=False)
     embedding: Mapped[Optional[Any]] = mapped_column(VECTOR(768))
-    chunk: Mapped[Optional[str]] = mapped_column(Text)
 
     g1_articles: Mapped['G1Articles'] = relationship('G1Articles', back_populates='g1_chunks')

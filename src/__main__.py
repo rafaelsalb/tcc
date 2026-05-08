@@ -19,6 +19,8 @@ def main(args):
         app.populate_chunks()
     elif args.populate_embeddings:
         app.populate_embeddings()
+    elif args.populate_entities:
+        app.populate_entities()
     elif args.search:
         results = app.search_service.search(args.search, top_k=100)
         for result in results:
@@ -27,11 +29,11 @@ def main(args):
             print(f"Chunk: {result['chunk']}")
             print("-" * 80)
 
-
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Run the G1 article processing app.")
     parser.add_argument("--populate-chunks", action="store_true", help="Populate the database with article chunks.")
     parser.add_argument("--populate-embeddings", action="store_true", help="Populate the database with chunk embeddings.")
+    parser.add_argument("--populate-entities", action="store_true", help="Populate the database with article entities.")
     parser.add_argument("--search", type=str, help="Search for a query in the chunks.")
     args = parser.parse_args()
 
