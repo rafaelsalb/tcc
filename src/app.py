@@ -1,6 +1,8 @@
 from time import sleep
 
+from config import OLLAMA_HOST
 from db import engine
+from models.models import G1Articles
 from repositories.article import ArticleRepository
 from repositories.chunk import ChunkRepository
 from repositories.entities import EntityRepository
@@ -17,7 +19,7 @@ class App:
         self.chunk_repo = ChunkRepository(engine)
         self.entity_repo = EntityRepository(engine)
         self.chunking_service = ChunkingService()
-        self.client = Client(host="http://paradiddle-earth:11434")
+        self.client = Client(host=OLLAMA_HOST)
         self.vectorizer = VectorizerService(self.client, model="qwen3-embedding:0.6b", dimensions=768)
         self.search_service = SearchService(self.article_repo, self.chunk_repo, self.vectorizer)
         self.ner_service = NERService(self.entity_repo)
@@ -60,24 +62,15 @@ class App:
             print("Finished processing batch of chunks.")
 
     def populate_entities(self):
-        iters = 0
         while True:
             print("Checking for articles without entities...")
             articles = self.article_repo.get_all_with_no_entities()
+            assert all(isinstance(article, G1Articles) for article in articles)
             if not articles:
                 print("No more articles to process.")
                 sleep(10)
                 continue
-            print(f"Found {len(articles)} articles to process.")
-            for i, article in enumerate(articles):
-                print(f"Processing article {i+1}/{len(articles)}: {article.title}")
-                print("Extracting entities...")
-                entities = self.ner_service.extract_entities(article)
-                print("Saving entities to database...")
-                self.entity_repo.batch_add_entities(article.url, entities)
-                sleep(0.01)
+            print("Extracting entities...")
+            entities = self.ner_service.batch_extract_entities_and_store(articles)
+            sleep(0.01)
             print("Finished processing batch of articles.")
-            iters += 1
-            if iters == 1:
-                print("ending")
-                break

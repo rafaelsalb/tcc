@@ -37,6 +37,6 @@ class ArticleRepository:
                 .limit(limit)
                 .offset(offset)
             )
-            results = session.execute(stmt).fetchall()
-            results = results[0]
+            results = session.scalars(stmt).all()
+            print(results)
             return results
