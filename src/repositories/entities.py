@@ -1,4 +1,5 @@
 from sqlalchemy import insert, select, tuple_
+from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError
 
@@ -36,28 +37,26 @@ class EntityRepository:
             session.rollback()
             raise e
 
-    def batch_create(self, session: Session, texts: list[str], types: list[str]) -> list[int]:
+    def batch_create(self, session: Session, texts: list[str], types: list[str]) -> list[G1Entities]:
         pairs = [(text, type_) for text, type_ in zip(texts, types)]
         if not pairs:
             return []
+        to_insert = [{'text': text, 'type': type_} for text, type_ in pairs]
 
-        existing_stmt = (
-            select(G1Entities.text_, G1Entities.type)
-            .where(tuple_(G1Entities.text_, G1Entities.type).in_(pairs))
+        stmt = (
+            pg_insert(G1Entities)
+            .values(to_insert)
+            .on_conflict_do_nothing(index_elements=[G1Entities.text_, G1Entities.type])
+            .returning(G1Entities)
         )
-        existing_pairs = set(session.execute(existing_stmt).fetchall())
-        to_insert = [{'text': text, 'type': type_} for text, type_ in pairs if (text, type_) not in existing_pairs]
-        if not to_insert:
-            return []
-
-        stmt = insert(G1Entities).values(to_insert).returning(G1Entities.id)
         try:
-            result = session.execute(stmt)
-            entity_ids = [row[0] for row in result.fetchall()]
-            return entity_ids
+            result = session.scalars(stmt).all()
+            return result
+            # return entity_ids
         except IntegrityError as e:
+            print("IntegrityError during batch_create:", e)
             session.rollback()
-            raise e
+            print("IntegrityError during batch_create:", e)
 
     def add_entity_to_article(self, article: str, entity_id: int):
         with Session(self.engine) as session:
@@ -73,14 +72,26 @@ class EntityRepository:
             session.commit()
 
     def batch_add_entities(self, articles: list[str], texts: list[str], types: list[str]):
+        assert len(articles) == len(texts) == len(types), "Length of articles, texts, and types must be the same"
         with Session(self.engine) as session:
             rows = []
             for article, text, type_ in zip(articles, texts, types):
                 entity_id = self._get_or_create(session=session, text=text, type_=type_)
+                if entity_id is None:
+                    entity_id = self._create(session=session, text=text, type_=type_)
                 rows.append({'g1_article_url': article, 'g1_entities_id': entity_id})
             if rows:
-                stmt = insert(ArticleEntities).values(rows)
-                session.execute(stmt)
+                try:
+                    stmt = (
+                        insert(ArticleEntities)
+                        .values(rows)
+                        .returning(ArticleEntities)
+                    )
+                    session.execute(stmt)
+                except IntegrityError as e:
+                    print("IntegrityError during batch_add_entities:", e)
+                    session.rollback()
+                    raise e
             session.commit()
 
     def get_entities_by_article(self, article: str):

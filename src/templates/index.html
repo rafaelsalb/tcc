@@ -1,0 +1,637 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Busca por assunto</title>
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            font-family: Arial, Helvetica, sans-serif;
+            background: #f7f7f9;
+            color: #222;
+        }
+
+        body.loading {
+            overflow: hidden;
+        }
+
+        .page {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 32px 20px 48px;
+        }
+
+        .layout {
+            display: grid;
+            grid-template-columns: 320px 1fr;
+            gap: 24px;
+            align-items: start;
+            min-height: calc(100vh - 96px);
+        }
+
+        h1 {
+            margin-bottom: 20px;
+        }
+
+        form {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 12px;
+            align-items: end;
+            background: #fff;
+            padding: 16px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.06);
+        }
+
+        form label {
+            display: block;
+            margin-bottom: 6px;
+            font-size: 14px;
+            color: #444;
+        }
+
+        input,
+        select,
+        button {
+            width: 100%;
+            padding: 10px 12px;
+            border: 1px solid #d0d4da;
+            border-radius: 6px;
+            font-size: 14px;
+        }
+
+        button {
+            background: #2563eb;
+            color: #fff;
+            border: none;
+            cursor: pointer;
+            font-weight: 600;
+        }
+
+        button:hover {
+            background: #1e4fd6;
+        }
+
+        #results {
+            margin-top: 0;
+            overflow-y: auto;
+            flex: 1;
+            min-height: 0;
+        }
+
+        .results-panel {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            height: calc(100vh - 140px);
+        }
+
+        .tabs {
+            display: flex;
+            gap: 8px;
+            background: #fff;
+            padding: 8px;
+            border-radius: 10px;
+            border: 1px solid #e5e7eb;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.06);
+        }
+
+        .tab-button {
+            flex: 1;
+            padding: 10px 12px;
+            border-radius: 8px;
+            border: 1px solid transparent;
+            background: #f3f4f6;
+            color: #374151;
+            font-weight: 600;
+            cursor: pointer;
+        }
+
+        .tab-button.active {
+            background: #2563eb;
+            color: #fff;
+        }
+
+        .tab-panel {
+            display: none;
+        }
+
+        .tab-panel.active {
+            display: block;
+        }
+
+        #results_panel.tab-panel.active {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            min-height: 0;
+            height: 100%;
+        }
+
+        .graph-card {
+            background: #fff;
+            border-radius: 10px;
+            border: 1px solid #e5e7eb;
+            padding: 12px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.06);
+        }
+
+        .graph-container {
+            height: 560px;
+            width: 100%;
+        }
+
+        .graph-legend {
+            display: flex;
+            gap: 12px;
+            margin-top: 8px;
+            font-size: 12px;
+            color: #4b5563;
+        }
+
+        .graph-tooltip {
+            position: absolute;
+            z-index: 10;
+            pointer-events: none;
+            background: rgba(15, 23, 42, 0.92);
+            color: #fff;
+            padding: 8px 10px;
+            border-radius: 8px;
+            font-size: 12px;
+            line-height: 1.4;
+            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.25);
+            opacity: 0;
+            transform: translateY(-6px);
+            transition: opacity 0.15s ease, transform 0.15s ease;
+        }
+
+        .graph-tooltip.visible {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        .loading-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(15, 23, 42, 0.55);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.2s ease;
+            z-index: 999;
+        }
+
+        .loading-overlay.visible {
+            opacity: 1;
+            pointer-events: all;
+        }
+
+        .loading-card {
+            background: #fff;
+            padding: 18px 24px;
+            border-radius: 12px;
+            box-shadow: 0 15px 35px rgba(0, 0, 0, 0.2);
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-size: 14px;
+            font-weight: 600;
+            color: #1f2937;
+        }
+
+        .spinner {
+            width: 22px;
+            height: 22px;
+            border-radius: 50%;
+            border: 3px solid #d1d5db;
+            border-top-color: #2563eb;
+            animation: spin 0.9s linear infinite;
+        }
+
+        @keyframes spin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+
+        .legend-dot {
+            display: inline-block;
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            margin-right: 6px;
+        }
+
+        .results-toolbar {
+            display: none;
+            position: sticky;
+            top: 0;
+            z-index: 1;
+            background: #fff;
+            padding: 12px 16px;
+            border-radius: 10px;
+            border: 1px solid #e5e7eb;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.06);
+        }
+
+        .results-toolbar.visible {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .results-toolbar label {
+            font-size: 14px;
+            color: #444;
+            margin-right: 8px;
+        }
+
+        .results-toolbar input[type="range"] {
+            flex: 1;
+        }
+
+        .results-count {
+            font-size: 14px;
+            color: #444;
+            white-space: nowrap;
+        }
+
+        #results ul {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        #results li {
+            background: #fff;
+            padding: 16px;
+            border-radius: 10px;
+            border: 1px solid #e5e7eb;
+            line-height: 1.5;
+        }
+
+        #results a {
+            color: #2563eb;
+            text-decoration: none;
+            word-break: break-all;
+        }
+
+        #results a:hover {
+            text-decoration: underline;
+        }
+
+        @media (max-width: 900px) {
+            .layout {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="loading-overlay" id="loading_overlay" aria-live="polite" aria-busy="true">
+        <div class="loading-card">
+            <div class="spinner" aria-hidden="true"></div>
+            Carregando resultados...
+        </div>
+    </div>
+    <div class="page">
+        <h1>Busca por assunto</h1>
+        <div class="layout">
+            <div class="panel">
+                <form action="/search" method="get">
+                    <div>
+                        <label for="query">Assunto:</label>
+                        <input type="text" id="query" name="query" required>
+                    </div>
+                    <div>
+                        <label for="limit">Limite de resultados:</label>
+                        <input type="number" id="limit" name="limit" placeholder="Ex: 100" min="1">
+                    </div>
+                    <div>
+                        <label for="top_k">Top K resultados:</label>
+                        <input type="number" id="top_k" name="top_k" placeholder="Opcional" min="1">
+                    </div>
+                    <div>
+                        <button type="submit">Buscar</button>
+                    </div>
+                </form>
+            </div>
+            <div class="results-panel">
+                <div class="tabs" role="tablist">
+                    <button class="tab-button active" type="button" data-tab="results_panel" aria-selected="true">Resultados</button>
+                    <button class="tab-button" type="button" data-tab="graph_panel" aria-selected="false">Grafo</button>
+                </div>
+                <div class="tab-panel active" id="results_panel">
+                <div class="results-toolbar" id="results_toolbar">
+                    <label for="score_threshold">Score mínimo:</label>
+                    <input type="range" id="score_threshold" name="score_threshold" min="0" max="1" step="0.01" value="0">
+                    <div id="score_value">0</div>
+                    <div class="results-count" id="results_count">0 resultados</div>
+                </div>
+                <div id="results"></div>
+                </div>
+                <div class="tab-panel" id="graph_panel">
+                    <div class="graph-card">
+                        <div style="display:flex; align-items:center; gap:10px; margin-bottom:10px; font-size:13px; color:#374151;">
+                            <label style="display:flex; align-items:center; gap:8px; cursor:pointer;">
+                                <input type="checkbox" id="only_articles" />
+                                Mostrar apenas artigos
+                            </label>
+                        </div>
+                        <div id="graph" class="graph-container"></div>
+                        <div id="graph_tooltip" class="graph-tooltip" role="tooltip"></div>
+                        <div class="graph-legend">
+                            <div><span class="legend-dot" style="background:#1f77b4"></span>Artigo</div>
+                            <div><span class="legend-dot" style="background:#ff7f0e"></span>Entidade</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <script>
+    let lastResponse = null;
+    let graphInitialized = false;
+
+    function setLoading(isLoading) {
+        const overlay = document.getElementById('loading_overlay');
+        if (!overlay) {
+            return;
+        }
+        overlay.classList.toggle('visible', isLoading);
+        document.body.classList.toggle('loading', isLoading);
+    }
+
+    function setActiveTab(tabId) {
+        document.querySelectorAll('.tab-button').forEach(button => {
+            const isActive = button.dataset.tab === tabId;
+            button.classList.toggle('active', isActive);
+            button.setAttribute('aria-selected', isActive ? 'true' : 'false');
+        });
+        document.querySelectorAll('.tab-panel').forEach(panel => {
+            panel.classList.toggle('active', panel.id === tabId);
+        });
+        if (tabId === 'graph_panel') {
+            renderGraph(lastResponse?.graph);
+        }
+    }
+
+    function renderGraph(graphData) {
+        const container = document.getElementById('graph');
+        const tooltip = document.getElementById('graph_tooltip');
+        const onlyArticles = document.getElementById('only_articles')?.checked;
+        if (!container) {
+            return;
+        }
+        if (!graphData || !Array.isArray(graphData.nodes) || graphData.nodes.length === 0) {
+            container.innerHTML = '<p>Nenhum grafo disponível.</p>';
+            graphInitialized = false;
+            return;
+        }
+        const filteredNodes = onlyArticles
+            ? graphData.nodes.filter(node => node.type === 'article')
+            : graphData.nodes;
+        const nodeIds = new Set(filteredNodes.map(node => node.id));
+        const filteredLinks = onlyArticles
+            ? graphData.links.filter(link => nodeIds.has(link.source) && nodeIds.has(link.target))
+            : graphData.links;
+        container.innerHTML = '';
+        const width = container.clientWidth || 800;
+        const height = container.clientHeight || 560;
+        const svg = d3.select(container)
+            .append('svg')
+            .attr('width', width)
+            .attr('height', height)
+            .attr('viewBox', `0 0 ${width} ${height}`);
+
+        const zoomLayer = svg.append('g');
+        svg.call(d3.zoom().scaleExtent([0.2, 4]).on('zoom', event => {
+            zoomLayer.attr('transform', event.transform);
+        }));
+
+        const link = zoomLayer.append('g')
+            .attr('stroke', '#b0b0b0')
+            .attr('stroke-opacity', 0.6)
+            .selectAll('line')
+            .data(filteredLinks)
+            .join('line')
+            .attr('stroke-width', 0.6);
+
+        const node = zoomLayer.append('g')
+            .selectAll('circle')
+            .data(filteredNodes)
+            .join('circle')
+            .attr('r', d => d.type === 'article' ? 6 : 4)
+            .attr('fill', d => d.type === 'article' ? '#1f77b4' : '#ff7f0e')
+            .on('mouseover', (event, d) => {
+                if (!tooltip) {
+                    return;
+                }
+                const label = d.label || d.id;
+                const typeLabel = d.type === 'article' ? 'Artigo' : 'Entidade';
+                const score = Number(d.score || 0).toFixed(4);
+                const degree = d.degree ?? 0;
+                tooltip.innerHTML = `
+                    <strong>${label}</strong><br>
+                    Tipo: ${typeLabel}<br>
+                    Score: ${score}<br>
+                    Grau: ${degree}<br>
+                    ID: ${d.id}
+                `;
+                tooltip.classList.add('visible');
+            })
+            .on('mousemove', event => {
+                if (!tooltip) {
+                    return;
+                }
+                const offset = 12;
+                tooltip.style.left = `${event.pageX + offset}px`;
+                tooltip.style.top = `${event.pageY + offset}px`;
+            })
+            .on('mouseout', () => {
+                if (!tooltip) {
+                    return;
+                }
+                tooltip.classList.remove('visible');
+            })
+            .call(d3.drag()
+                .on('start', (event, d) => {
+                    if (!event.active) simulation.alphaTarget(0.3).restart();
+                    d.fx = d.x;
+                    d.fy = d.y;
+                })
+                .on('drag', (event, d) => {
+                    d.fx = event.x;
+                    d.fy = event.y;
+                })
+                .on('end', (event, d) => {
+                    if (!event.active) simulation.alphaTarget(0);
+                    d.fx = null;
+                    d.fy = null;
+                }));
+
+        const simulation = d3.forceSimulation(filteredNodes)
+            .force('link', d3.forceLink(filteredLinks).id(d => d.id).distance(60))
+            .force('charge', d3.forceManyBody().strength(-80))
+            .force('center', d3.forceCenter(width / 2, height / 2))
+            .force('collision', d3.forceCollide().radius(d => d.type === 'article' ? 10 : 8));
+
+        simulation.on('tick', () => {
+            link
+                .attr('x1', d => d.source.x)
+                .attr('y1', d => d.source.y)
+                .attr('x2', d => d.target.x)
+                .attr('y2', d => d.target.y);
+
+            node
+                .attr('cx', d => d.x)
+                .attr('cy', d => d.y);
+        });
+
+        graphInitialized = true;
+    }
+
+    function displayResults(results) {
+        const resultsDiv = document.getElementById('results');
+        const toolbar = document.getElementById('results_toolbar');
+        const countLabel = document.getElementById('results_count');
+        resultsDiv.innerHTML = '';
+        if (!results || results.length === 0) {
+            toolbar.classList.remove('visible');
+            countLabel.textContent = '0 resultados';
+            resultsDiv.innerHTML = '<p>Nenhum resultado encontrado.</p>';
+            return;
+        }
+        toolbar.classList.add('visible');
+        countLabel.textContent = `${results.length} resultados`;
+        const ul = document.createElement('ul');
+        const scores = lastResponse?.articles_scores || {};
+        results.forEach(result => {
+            const li = document.createElement('li');
+            const title = document.createElement('strong');
+            title.textContent = result.title;
+            const link = document.createElement('a');
+            link.href = result.url;
+            link.textContent = result.url;
+            link.target = '_blank';
+            const date = document.createElement('div');
+            date.textContent = result.date_published ? `Publicado em: ${result.date_published}` : '';
+            const score = document.createElement('div');
+            const scoreValue = scores[result.url];
+            score.textContent = scoreValue !== undefined ? `Score: ${scoreValue}` : '';
+            const excerpt = document.createElement('div');
+            excerpt.textContent = result.excerpt || '';
+            li.appendChild(title);
+            li.appendChild(document.createElement('br'));
+            li.appendChild(link);
+            if (date.textContent) {
+                li.appendChild(document.createElement('br'));
+                li.appendChild(date);
+            }
+            if (excerpt.textContent) {
+                li.appendChild(document.createElement('br'));
+                li.appendChild(excerpt);
+            }
+            if (score.textContent) {
+                li.appendChild(document.createElement('br'));
+                li.appendChild(score);
+            }
+            ul.appendChild(li);
+        });
+        resultsDiv.appendChild(ul);
+    }
+
+    function getSelectedResults() {
+        if (!lastResponse) {
+            return [];
+        }
+        const threshold = Number(document.getElementById('score_threshold').value || 0);
+        const scores = lastResponse.articles_scores || {};
+        return (lastResponse.articles || []).filter(article => (scores[article.url] ?? 0) >= threshold);
+    }
+
+    function updateScoreSlider() {
+        const slider = document.getElementById('score_threshold');
+        const valueLabel = document.getElementById('score_value');
+        const scores = lastResponse?.articles_scores ? Object.values(lastResponse.articles_scores) : [];
+        if (scores.length === 0) {
+            slider.min = '0';
+            slider.max = '1';
+            slider.step = '0.01';
+            slider.value = '0.5';
+            valueLabel.textContent = '0.5';
+            document.getElementById('results_toolbar').classList.remove('visible');
+            return;
+        }
+        const minScore = Math.min(...scores);
+        const maxScore = Math.max(...scores);
+        const range = maxScore - minScore;
+        const step = range > 0 ? range / 100 : 0.01;
+        slider.min = String(minScore);
+        slider.max = String(maxScore);
+        slider.step = String(step);
+        const midpoint = minScore + range / 2;
+        slider.value = String(midpoint);
+        valueLabel.textContent = slider.value;
+    }
+
+    document.querySelector('form').addEventListener('submit', function(event) {
+        event.preventDefault();
+        const query = document.getElementById('query').value;
+        const limit = document.getElementById('limit').value;
+        const top_k = document.getElementById('top_k').value;
+        const params = new URLSearchParams({
+            query,
+            limit,
+        });
+        if (top_k !== '') {
+            params.set('top_k', top_k);
+        }
+        setLoading(true);
+        fetch(`/search?${params.toString()}`)
+            .then(response => response.ok ? response.json() : Promise.reject(new Error('Erro ao buscar')))
+            .then(data => {
+                lastResponse = data;
+                updateScoreSlider();
+                displayResults(getSelectedResults());
+                if (document.querySelector('.tab-button.active')?.dataset.tab === 'graph_panel') {
+                    renderGraph(data.graph);
+                }
+            })
+            .catch(error => {
+                alert('Erro ao buscar:', error);
+            })
+            .finally(() => {
+                setLoading(false);
+            });
+    });
+
+    document.getElementById('score_threshold').addEventListener('input', function(event) {
+        document.getElementById('score_value').textContent = event.target.value;
+        displayResults(getSelectedResults());
+    });
+
+    document.querySelectorAll('.tab-button').forEach(button => {
+        button.addEventListener('click', () => setActiveTab(button.dataset.tab));
+    });
+
+    const onlyArticlesCheckbox = document.getElementById('only_articles');
+    if (onlyArticlesCheckbox) {
+        onlyArticlesCheckbox.addEventListener('change', () => {
+            renderGraph(lastResponse?.graph);
+        });
+    }
+    </script>
+</body>
+</html>

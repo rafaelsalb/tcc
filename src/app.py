@@ -8,6 +8,7 @@ from repositories.chunk import ChunkRepository
 from repositories.entities import EntityRepository
 from services.chunking import ChunkingService
 from services.ner import NERService
+from services.ranking import RankingService
 from services.search import SearchService
 from services.vectorizer import VectorizerService
 from ollama import Client
@@ -21,8 +22,9 @@ class App:
         self.chunking_service = ChunkingService()
         self.client = Client(host=OLLAMA_HOST)
         self.vectorizer = VectorizerService(self.client, model="qwen3-embedding:0.6b", dimensions=768)
-        self.search_service = SearchService(self.article_repo, self.chunk_repo, self.vectorizer)
+        self.search_service = SearchService(self.article_repo, self.chunk_repo, self.vectorizer, self.client)
         self.ner_service = NERService(self.entity_repo)
+        self.ranking_service = RankingService(self.article_repo, self.ner_service)
 
     def populate_chunks(self):
         while True:
@@ -74,3 +76,7 @@ class App:
             entities = self.ner_service.batch_extract_entities_and_store(articles)
             sleep(0.01)
             print("Finished processing batch of articles.")
+
+    def rank_results(self, results: list[str]) -> list[G1Articles]:
+        _, ranked_articles, _ = self.ranking_service.ppr(results)
+        return ranked_articles
