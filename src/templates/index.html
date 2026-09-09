@@ -21,7 +21,7 @@
         }
 
         .page {
-            max-width: 1200px;
+            max-width: 1780px;
             margin: 0 auto;
             padding: 32px 20px 48px;
         }
@@ -140,6 +140,8 @@
             border: 1px solid #e5e7eb;
             padding: 12px;
             box-shadow: 0 2px 10px rgba(0, 0, 0, 0.06);
+            max-width: 860px;
+            flex: 1;
         }
 
         .graph-container {
@@ -325,6 +327,10 @@
                         <button type="submit">Buscar</button>
                     </div>
                 </form>
+                <!-- <div style="margin-top:12px; display:flex; gap:8px;">
+                    <button type="button" id="save_json" style="padding:8px 12px;">Salvar JSON</button>
+                    <button type="button" id="load_json" style="padding:8px 12px;">Carregar JSON</button>
+                </div> -->
             </div>
             <div class="results-panel">
                 <div class="tabs" role="tablist">
@@ -333,26 +339,43 @@
                 </div>
                 <div class="tab-panel active" id="results_panel">
                 <div class="results-toolbar" id="results_toolbar">
-                    <label for="score_threshold">Score mínimo:</label>
+                    <label for="score_threshold">Abrangência:</label>
                     <input type="range" id="score_threshold" name="score_threshold" min="0" max="1" step="0.01" value="0">
                     <div id="score_value">0</div>
-                    <div class="results-count" id="results_count">0 resultados</div>
+                    <div class="results-count" id="results_count">0 resultados mais relevantes</div>
                 </div>
                 <div id="results"></div>
                 </div>
                 <div class="tab-panel" id="graph_panel">
-                    <div class="graph-card">
-                        <div style="display:flex; align-items:center; gap:10px; margin-bottom:10px; font-size:13px; color:#374151;">
-                            <label style="display:flex; align-items:center; gap:8px; cursor:pointer;">
-                                <input type="checkbox" id="only_articles" />
-                                Mostrar apenas artigos
-                            </label>
+                    <div style="display:flex; gap:12px; height:100%; flex: 1;">
+                        <div class="graph-card">
+                            <div style="display:flex; align-items:center; gap:10px; margin-bottom:10px; font-size:13px; color:#374151;">
+                                <label style="display:flex; align-items:center; gap:8px; cursor:pointer;">
+                                    <input type="checkbox" id="only_articles" />
+                                    Mostrar apenas artigos
+                                </label>
+                            </div>
+                            <div id="graph" class="graph-container"></div>
+                            <div id="graph_tooltip" class="graph-tooltip" role="tooltip"></div>
+                            <div class="graph-legend">
+                                <div><span class="legend-dot" style="background:#1f77b4"></span>Artigo</div>
+                                <div><span class="legend-dot" style="background:#ff7f0e"></span>Entidade</div>
+                            </div>
                         </div>
-                        <div id="graph" class="graph-container"></div>
-                        <div id="graph_tooltip" class="graph-tooltip" role="tooltip"></div>
-                        <div class="graph-legend">
-                            <div><span class="legend-dot" style="background:#1f77b4"></span>Artigo</div>
-                            <div><span class="legend-dot" style="background:#ff7f0e"></span>Entidade</div>
+
+                        <div style="flex: 0 0 250px; overflow-y: auto; max-height: 560px;">
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <!-- <th>Artigo</th> -->
+                                        <th>Entidade</th>
+                                        <th>Score</th>
+                                        <th>Grau</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="graph_table_body">
+                                </tbody>
+                            </table>
                         </div>
                     </div>
                 </div>
@@ -384,6 +407,7 @@
         });
         if (tabId === 'graph_panel') {
             renderGraph(lastResponse?.graph);
+            updateGraphTable(lastResponse?.graph);
         }
     }
 
@@ -502,6 +526,36 @@
         graphInitialized = true;
     }
 
+    function updateGraphTable(graphData) {
+        const tableBody = document.getElementById('graph_table_body');
+        if (!tableBody) {
+            return;
+        }
+        tableBody.innerHTML = '';
+        if (!graphData || !Array.isArray(graphData.nodes)) {
+            return;
+        }
+        const sortedNodes = graphData.nodes.toSorted((a, b) => (b.degree ?? 0) - (a.degree ?? 0));
+        sortedNodes.forEach(node => {
+            if (node.type === 'entity') {
+                const row = document.createElement('tr');
+                // const articleCell = document.createElement('td');
+                // articleCell.textContent = node.type === 'article' ? node.label || node.id : '';
+                const entityCell = document.createElement('td');
+                entityCell.textContent = node.label;
+                const scoreCell = document.createElement('td');
+                scoreCell.textContent = Number(node.score ?? 0).toFixed(4);
+                const degreeCell = document.createElement('td');
+                degreeCell.textContent = node.degree ?? 0;
+                // row.appendChild(articleCell);
+                row.appendChild(entityCell);
+                row.appendChild(scoreCell);
+                row.appendChild(degreeCell);
+                tableBody.appendChild(row);
+            }
+        });
+    }
+
     function displayResults(results) {
         const resultsDiv = document.getElementById('results');
         const toolbar = document.getElementById('results_toolbar');
@@ -509,15 +563,16 @@
         resultsDiv.innerHTML = '';
         if (!results || results.length === 0) {
             toolbar.classList.remove('visible');
-            countLabel.textContent = '0 resultados';
+            countLabel.textContent = '0 resultados mais relevantes.';
             resultsDiv.innerHTML = '<p>Nenhum resultado encontrado.</p>';
             return;
         }
         toolbar.classList.add('visible');
-        countLabel.textContent = `${results.length} resultados`;
+        countLabel.textContent = `${results.length} resultados mais relevantes.`;
         const ul = document.createElement('ul');
         const scores = lastResponse?.articles_scores || {};
-        results.forEach(result => {
+        let articles = results.toSorted((a, b) => (a.date_published || '').localeCompare(b.date_published || ''));
+        articles.forEach(result => {
             const li = document.createElement('li');
             const title = document.createElement('strong');
             title.textContent = result.title;
@@ -557,32 +612,29 @@
             return [];
         }
         const threshold = Number(document.getElementById('score_threshold').value || 0);
-        const scores = lastResponse.articles_scores || {};
-        return (lastResponse.articles || []).filter(article => (scores[article.url] ?? 0) >= threshold);
+        let articles = lastResponse.articles.map(article => {
+            const score = lastResponse.articles_scores[article.url] ?? 0;
+            return { ...article, score };
+        });
+        articles = articles.toSorted((a, b) => { return (b.score ?? 0) - (a.score ?? 0); });
+        articles = articles.slice(0, threshold);
+        return articles;
+        // let articles = lastResponse.articles.filter(article => {
+        //     const score = lastResponse.articles_scores[article.url] ?? 0;
+        //     return score >= threshold;
+        // });
+        // console.log(articles);
+        // return articles;
     }
 
-    function updateScoreSlider() {
+     function updateScoreSlider() {
         const slider = document.getElementById('score_threshold');
         const valueLabel = document.getElementById('score_value');
         const scores = lastResponse?.articles_scores ? Object.values(lastResponse.articles_scores) : [];
-        if (scores.length === 0) {
-            slider.min = '0';
-            slider.max = '1';
-            slider.step = '0.01';
-            slider.value = '0.5';
-            valueLabel.textContent = '0.5';
-            document.getElementById('results_toolbar').classList.remove('visible');
-            return;
-        }
-        const minScore = Math.min(...scores);
-        const maxScore = Math.max(...scores);
-        const range = maxScore - minScore;
-        const step = range > 0 ? range / 100 : 0.01;
-        slider.min = String(minScore);
-        slider.max = String(maxScore);
-        slider.step = String(step);
-        const midpoint = minScore + range / 2;
-        slider.value = String(midpoint);
+        slider.min = '1';
+        slider.max = `${lastResponse.articles.length}`;
+        slider.step = '1';
+        slider.value = lastResponse.articles.length;
         valueLabel.textContent = slider.value;
     }
 
@@ -600,17 +652,29 @@
         }
         setLoading(true);
         fetch(`/search?${params.toString()}`)
-            .then(response => response.ok ? response.json() : Promise.reject(new Error('Erro ao buscar')))
+            .then(response => {
+                console.log("Depois de tentar fetch")
+                if (response.ok) {
+                    console.log("Depois de tentar response.json()")
+                    return response.json();
+                } else {
+                    throw new Error(`Erro na requisição: ${response.status}`);
+                }
+            })
             .then(data => {
+                console.log("Depois de tentar data.json()")
                 lastResponse = data;
                 updateScoreSlider();
+                console.log("Depois de tentar updateScoreSlider()")
                 displayResults(getSelectedResults());
+                console.log("Depois de tentar displayResults()")
                 if (document.querySelector('.tab-button.active')?.dataset.tab === 'graph_panel') {
                     renderGraph(data.graph);
                 }
             })
             .catch(error => {
-                alert('Erro ao buscar:', error);
+                console.log("Depois de tentar display")
+                alert('Erro ao mostrar:', error);
             })
             .finally(() => {
                 setLoading(false);
@@ -632,6 +696,63 @@
             renderGraph(lastResponse?.graph);
         });
     }
+
+    // Hidden file input for loading saved JSON responses
+    const loadJsonInput = document.createElement('input');
+    loadJsonInput.type = 'file';
+    loadJsonInput.accept = 'application/json';
+    loadJsonInput.id = 'load_json_input';
+    loadJsonInput.style.display = 'none';
+    document.body.appendChild(loadJsonInput);
+
+    function downloadResponseJSON() {
+        if (!lastResponse) {
+            alert('Nenhuma resposta disponível para salvar.');
+            return;
+        }
+        const dataStr = JSON.stringify(lastResponse, null, 2);
+        const blob = new Blob([dataStr], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        const now = new Date();
+        const timestamp = now.toISOString().replace(/[:.]/g, '-');
+        a.href = url;
+        a.download = `response_${timestamp}.json`;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        URL.revokeObjectURL(url);
+    }
+
+    function handleLoadJsonFile(file) {
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            try {
+                const parsed = JSON.parse(e.target.result);
+                lastResponse = parsed;
+                updateScoreSlider();
+                displayResults(getSelectedResults());
+                if (document.querySelector('.tab-button.active')?.dataset.tab === 'graph_panel') {
+                    renderGraph(parsed.graph);
+                }
+                alert('Resposta carregada com sucesso.');
+            } catch (err) {
+                alert('Erro ao ler o arquivo JSON: ' + err.message);
+            }
+        };
+        reader.readAsText(file);
+    }
+
+    document.getElementById('save_json')?.addEventListener('click', downloadResponseJSON);
+    document.getElementById('load_json')?.addEventListener('click', () => loadJsonInput.click());
+    loadJsonInput.addEventListener('change', (ev) => {
+        const file = ev.target.files && ev.target.files[0];
+        if (file) {
+            handleLoadJsonFile(file);
+        }
+        // reset so the same file can be loaded again if needed
+        ev.target.value = '';
+    });
     </script>
 </body>
 </html>

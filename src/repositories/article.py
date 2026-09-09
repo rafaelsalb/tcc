@@ -30,8 +30,9 @@ class ArticleRepository:
         with Session(self.engine) as session:
             stmt = select(G1Articles).where(G1Articles.text_content.is_not(None)).where(G1Articles.is_chunked.is_not(True)).limit(limit).offset(offset)
             results = session.execute(stmt).fetchall()
-            results = results[0]
-            return results
+            if results:
+                results = results[0]
+                return results
 
     def get_all_with_no_entities(self, limit: int = 50, offset: int = 0) -> list[G1Articles]:
         with Session(self.engine) as session:

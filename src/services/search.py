@@ -29,7 +29,7 @@ class SearchService:
                 'distance': cosine_distance(query_embedding, chunk["G1Chunks"].embedding),
                 'rrf_score': chunk.get("rrf_score"),
                 'text_rank': chunk.get("text_rank")
-            }, chunks)
+            }, [chunk for chunk in chunks if chunk["G1Chunks"].embedding is not None])
         )
         unique_articles = set(result['article_url'] for result in results)
         articles = self.article_repository.get_all(in_=list(unique_articles))

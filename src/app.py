@@ -10,6 +10,7 @@ from services.chunking import ChunkingService
 from services.ner import NERService
 from services.ranking import RankingService
 from services.search import SearchService
+from services.summarizer import SummarizerService
 from services.vectorizer import VectorizerService
 from ollama import Client
 
@@ -25,14 +26,16 @@ class App:
         self.search_service = SearchService(self.article_repo, self.chunk_repo, self.vectorizer, self.client)
         self.ner_service = NERService(self.entity_repo)
         self.ranking_service = RankingService(self.article_repo, self.ner_service)
+        self.summarizer_service = SummarizerService()
 
     def populate_chunks(self):
         while True:
             print("Checking for articles without chunks...")
             articles = self.article_repo.get_all_with_no_chunks()
             if not articles:
-                print("No more articles to process.")
-                break
+                print("No more articles to process. Sleeping for 10 seconds before checking again...")
+                sleep(10)
+                continue
             print(f"Found {len(articles)} articles to process.")
             for i, article in enumerate(articles):
                 print(f"Processing article {i+1}/{len(articles)}: {article.title}")
@@ -80,3 +83,9 @@ class App:
     def rank_results(self, results: list[str]) -> list[G1Articles]:
         _, ranked_articles, _ = self.ranking_service.ppr(results)
         return ranked_articles
+
+    def summarize(self, articles: list[G1Articles]) -> str:
+        """ temporariamente estou passando articles como uma string que contém os conteúdos dos artigos, separados por quebras de linha"""
+        # article_texts = [article.text for article in articles]
+        summary = self.summarizer_service._completion(articles)
+        return summary

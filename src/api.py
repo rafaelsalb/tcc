@@ -1,11 +1,14 @@
+import json
+
 from flask import Flask, render_template, request, jsonify
 from app import App as G1App
-import numpy as np
+from redis import Redis
+import urllib
 
 
 app = Flask(__name__)
 g1_app = G1App()
-
+r = Redis(decode_responses=True)  # Initialize Redis client with decode_responses=True
 
 @app.route("/search", methods=["GET"])
 def search():
@@ -28,6 +31,13 @@ def search():
     date_to = params.get("date_to")
     if not query:
         return jsonify({"error": "Query is required"}), 400
+
+    query_encoded = urllib.parse.quote(query)
+    cached_result = r.hget("search_cache", f"{query_encoded}:{top_k}:{limit}:{offset}:{date_from}:{date_to}")
+
+    if cached_result:
+        return jsonify(json.loads(cached_result))
+
     results = g1_app.search_service.search(query, top_k=top_k, limit=limit, offset=offset, date_from=date_from, date_to=date_to)
     urls = [result['url'] for result in results['articles']]
     page_rank, ranked, graph_data = g1_app.ranking_service.ppr(urls)
@@ -37,6 +47,9 @@ def search():
     # definir o limiar como o terceiro quartil dos scores de PageRank dos artigos retornados
     articles_scores = {article['url']: results["page_rank"].get(article['url'], 0) for article in results['articles']}
     results["articles_scores"] = articles_scores
+
+    r.hset("search_cache", f"{query_encoded}:{top_k}:{limit}:{offset}:{date_from}:{date_to}", json.dumps(results, default=str))
+
     return jsonify(results)
 
 @app.get("/")
