@@ -75,19 +75,26 @@ class RankingService:
         entities_by_text: dict[str, str] = {}
         node_names: dict[str, str] = {article.url: article.title for article in articles}
         for article in articles:
-            G.add_node(article.url)
-            for entity in entities[article.url]:
-                entity_text = entity.text_
-                if entity_text in ["g1", "G1", "Foto", "foto", "Vídeo", "vídeo", "“", "”"]:
+            try:
+                if not entities.get(article.url):
+                    print(f"No entities found for article {article.url}. Skipping.")
                     continue
-                entity_node = entities_by_text.get(entity_text)
-                if entity_node is None:
-                    entity_node = f"entity:{entity_text}"
-                    entities_by_text[entity_text] = entity_node
-                    G.add_node(entity_node)
-                    node_names[entity_node] = entity_text
-                G.add_edge(entity_node, article.url)
-                G.add_edge(article.url, entity_node)
+                G.add_node(article.url)
+                for entity in entities[article.url]:
+                    entity_text = entity.text_
+                    if entity_text in ["g1", "G1", "Foto", "foto", "Vídeo", "vídeo", "“", "”"]:
+                        continue
+                    entity_node = entities_by_text.get(entity_text)
+                    if entity_node is None:
+                        entity_node = f"entity:{entity_text}"
+                        entities_by_text[entity_text] = entity_node
+                        G.add_node(entity_node)
+                        node_names[entity_node] = entity_text
+                    G.add_edge(entity_node, article.url)
+                    G.add_edge(article.url, entity_node)
+            except Exception as e:
+                print(f"Error processing entities for article {article.url}: {e}")
+                continue
         degrees = G.degree()
         # print("Graph degrees:")
         # pprint(degrees)
@@ -109,7 +116,13 @@ class RankingService:
         #     top_entities_with_text.append((entity.text_, score))
         # pprint(top_entities_with_text)
         pprint(top_entities)
-        personalized_page_rank = nx.pagerank(G, alpha=alpha, personalization={node: 1.0 / top_k if node in results else 0.0 for node in G.nodes()})
+        personalized_page_rank = nx.pagerank(
+            G,
+            alpha=alpha,
+            personalization={
+                node: (1.0 / top_k) if node in results else 0.0 for node in G.nodes()
+            }
+        )
         pprint(page_rank)
         article_degrees = {node: degree for node, degree in degrees if node in results}
         print("Degrees for articles:")

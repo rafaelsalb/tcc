@@ -18,6 +18,14 @@ class SearchService:
         query_embedding = self.vectorizer.embed([query])[0]
         # chunks = self.chunk_repository.query_chunks(query_embedding, top_k, limit, offset, date_from, date_to)
         chunks = self.chunk_repository.query_chunks_hybrid(query, query_embedding, top_k, limit, offset, date_from, date_to)
+        if not chunks:
+            return {
+                'results': [],
+                'articles': [],
+                'total': 0,
+                'limit': limit,
+                'offset': offset
+            }
         # results = []
         cosine_distance = lambda a, b: np.dot(a, b) / (np.linalg.norm(a) * np.linalg.norm(b))
         # results = sorted(results, key=lambda x: x["date_published"])

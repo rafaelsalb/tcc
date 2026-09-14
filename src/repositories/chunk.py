@@ -119,8 +119,9 @@ class ChunkRepository:
                 stmt = stmt.limit(top_k)
             stmt = stmt.limit(limit).offset(offset)
             results = session.execute(stmt).mappings().all()
-            print("first result:", results[0])
-            return results
+            if results:
+                print("first result:", results[0])
+                return results
 
     def get_chunks_by_article(self, article: str):
         with Session(self.engine) as session:

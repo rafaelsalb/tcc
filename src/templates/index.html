@@ -1,758 +1,143 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="pt-BR">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Busca por assunto</title>
-    <style>
-        * {
-            box-sizing: border-box;
-        }
-
-        body {
-            margin: 0;
-            font-family: Arial, Helvetica, sans-serif;
-            background: #f7f7f9;
-            color: #222;
-        }
-
-        body.loading {
-            overflow: hidden;
-        }
-
-        .page {
-            max-width: 1780px;
-            margin: 0 auto;
-            padding: 32px 20px 48px;
-        }
-
-        .layout {
-            display: grid;
-            grid-template-columns: 320px 1fr;
-            gap: 24px;
-            align-items: start;
-            min-height: calc(100vh - 96px);
-        }
-
-        h1 {
-            margin-bottom: 20px;
-        }
-
-        form {
-            display: grid;
-            grid-template-columns: 1fr;
-            gap: 12px;
-            align-items: end;
-            background: #fff;
-            padding: 16px;
-            border-radius: 10px;
-            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.06);
-        }
-
-        form label {
-            display: block;
-            margin-bottom: 6px;
-            font-size: 14px;
-            color: #444;
-        }
-
-        input,
-        select,
-        button {
-            width: 100%;
-            padding: 10px 12px;
-            border: 1px solid #d0d4da;
-            border-radius: 6px;
-            font-size: 14px;
-        }
-
-        button {
-            background: #2563eb;
-            color: #fff;
-            border: none;
-            cursor: pointer;
-            font-weight: 600;
-        }
-
-        button:hover {
-            background: #1e4fd6;
-        }
-
-        #results {
-            margin-top: 0;
-            overflow-y: auto;
-            flex: 1;
-            min-height: 0;
-        }
-
-        .results-panel {
-            display: flex;
-            flex-direction: column;
-            gap: 12px;
-            height: calc(100vh - 140px);
-        }
-
-        .tabs {
-            display: flex;
-            gap: 8px;
-            background: #fff;
-            padding: 8px;
-            border-radius: 10px;
-            border: 1px solid #e5e7eb;
-            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.06);
-        }
-
-        .tab-button {
-            flex: 1;
-            padding: 10px 12px;
-            border-radius: 8px;
-            border: 1px solid transparent;
-            background: #f3f4f6;
-            color: #374151;
-            font-weight: 600;
-            cursor: pointer;
-        }
-
-        .tab-button.active {
-            background: #2563eb;
-            color: #fff;
-        }
-
-        .tab-panel {
-            display: none;
-        }
-
-        .tab-panel.active {
-            display: block;
-        }
-
-        #results_panel.tab-panel.active {
-            display: flex;
-            flex-direction: column;
-            gap: 12px;
-            min-height: 0;
-            height: 100%;
-        }
-
-        .graph-card {
-            background: #fff;
-            border-radius: 10px;
-            border: 1px solid #e5e7eb;
-            padding: 12px;
-            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.06);
-            max-width: 860px;
-            flex: 1;
-        }
-
-        .graph-container {
-            height: 560px;
-            width: 100%;
-        }
-
-        .graph-legend {
-            display: flex;
-            gap: 12px;
-            margin-top: 8px;
-            font-size: 12px;
-            color: #4b5563;
-        }
-
-        .graph-tooltip {
-            position: absolute;
-            z-index: 10;
-            pointer-events: none;
-            background: rgba(15, 23, 42, 0.92);
-            color: #fff;
-            padding: 8px 10px;
-            border-radius: 8px;
-            font-size: 12px;
-            line-height: 1.4;
-            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.25);
-            opacity: 0;
-            transform: translateY(-6px);
-            transition: opacity 0.15s ease, transform 0.15s ease;
-        }
-
-        .graph-tooltip.visible {
-            opacity: 1;
-            transform: translateY(0);
-        }
-
-        .loading-overlay {
-            position: fixed;
-            inset: 0;
-            background: rgba(15, 23, 42, 0.55);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            opacity: 0;
-            pointer-events: none;
-            transition: opacity 0.2s ease;
-            z-index: 999;
-        }
-
-        .loading-overlay.visible {
-            opacity: 1;
-            pointer-events: all;
-        }
-
-        .loading-card {
-            background: #fff;
-            padding: 18px 24px;
-            border-radius: 12px;
-            box-shadow: 0 15px 35px rgba(0, 0, 0, 0.2);
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            font-size: 14px;
-            font-weight: 600;
-            color: #1f2937;
-        }
-
-        .spinner {
-            width: 22px;
-            height: 22px;
-            border-radius: 50%;
-            border: 3px solid #d1d5db;
-            border-top-color: #2563eb;
-            animation: spin 0.9s linear infinite;
-        }
-
-        @keyframes spin {
-            from { transform: rotate(0deg); }
-            to { transform: rotate(360deg); }
-        }
-
-        .legend-dot {
-            display: inline-block;
-            width: 10px;
-            height: 10px;
-            border-radius: 50%;
-            margin-right: 6px;
-        }
-
-        .results-toolbar {
-            display: none;
-            position: sticky;
-            top: 0;
-            z-index: 1;
-            background: #fff;
-            padding: 12px 16px;
-            border-radius: 10px;
-            border: 1px solid #e5e7eb;
-            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.06);
-        }
-
-        .results-toolbar.visible {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-        }
-
-        .results-toolbar label {
-            font-size: 14px;
-            color: #444;
-            margin-right: 8px;
-        }
-
-        .results-toolbar input[type="range"] {
-            flex: 1;
-        }
-
-        .results-count {
-            font-size: 14px;
-            color: #444;
-            white-space: nowrap;
-        }
-
-        #results ul {
-            list-style: none;
-            padding: 0;
-            margin: 0;
-            display: flex;
-            flex-direction: column;
-            gap: 16px;
-        }
-
-        #results li {
-            background: #fff;
-            padding: 16px;
-            border-radius: 10px;
-            border: 1px solid #e5e7eb;
-            line-height: 1.5;
-        }
-
-        #results a {
-            color: #2563eb;
-            text-decoration: none;
-            word-break: break-all;
-        }
-
-        #results a:hover {
-            text-decoration: underline;
-        }
-
-        @media (max-width: 900px) {
-            .layout {
-                grid-template-columns: 1fr;
-            }
-        }
-    </style>
+    <title>Busca por assunto · G1</title>
+    <link rel="stylesheet" href="/static/css/main.css">
 </head>
 <body>
-    <div class="loading-overlay" id="loading_overlay" aria-live="polite" aria-busy="true">
+    <div class="loading-overlay" id="loading-overlay" aria-live="polite">
         <div class="loading-card">
             <div class="spinner" aria-hidden="true"></div>
-            Carregando resultados...
+            Carregando resultados…
         </div>
     </div>
+
     <div class="page">
-        <h1>Busca por assunto</h1>
+        <header class="page-header">
+            <h1>Busca por assunto</h1>
+            <p class="page-subtitle">busca híbrida + reordenação PPR sobre o acervo do G1</p>
+        </header>
+
         <div class="layout">
-            <div class="panel">
-                <form action="/search" method="get">
-                    <div>
-                        <label for="query">Assunto:</label>
-                        <input type="text" id="query" name="query" required>
+            <aside class="sidebar">
+                <form class="search-form" id="search-form">
+                    <div class="field">
+                        <label for="query">Assunto</label>
+                        <input type="text" id="query" name="query" placeholder="Ex.: guerra Irã Estados Unidos" required>
                     </div>
-                    <div>
-                        <label for="limit">Limite de resultados:</label>
-                        <input type="number" id="limit" name="limit" placeholder="Ex: 100" min="1">
+                    <div class="field-row">
+                        <div class="field">
+                            <label for="limit">Limite</label>
+                            <input type="number" id="limit" name="limit" min="1" placeholder="100">
+                        </div>
+                        <div class="field">
+                            <label for="top_k">Top K (busca)</label>
+                            <input type="number" id="top_k" name="top_k" min="1" placeholder="opcional">
+                        </div>
                     </div>
-                    <div>
-                        <label for="top_k">Top K resultados:</label>
-                        <input type="number" id="top_k" name="top_k" placeholder="Opcional" min="1">
+                    <div class="field-row">
+                        <div class="field">
+                            <label for="date_from">De</label>
+                            <input type="date" id="date_from" name="date_from">
+                        </div>
+                        <div class="field">
+                            <label for="date_to">Até</label>
+                            <input type="date" id="date_to" name="date_to">
+                        </div>
                     </div>
-                    <div>
-                        <button type="submit">Buscar</button>
-                    </div>
+                    <button type="submit" class="btn-primary">Buscar</button>
+                    <p class="form-hint">Limite e Top K controlam a recuperação híbrida; o período restringe as datas de publicação.</p>
                 </form>
-                <!-- <div style="margin-top:12px; display:flex; gap:8px;">
-                    <button type="button" id="save_json" style="padding:8px 12px;">Salvar JSON</button>
-                    <button type="button" id="load_json" style="padding:8px 12px;">Carregar JSON</button>
-                </div> -->
-            </div>
-            <div class="results-panel">
-                <div class="tabs" role="tablist">
-                    <button class="tab-button active" type="button" data-tab="results_panel" aria-selected="true">Resultados</button>
-                    <button class="tab-button" type="button" data-tab="graph_panel" aria-selected="false">Grafo</button>
+            </aside>
+
+            <main class="main">
+                <div class="error-banner" id="error-banner" hidden>
+                    <span id="error-text"></span>
+                    <button type="button" class="error-close" id="error-close" aria-label="Fechar erro">×</button>
                 </div>
-                <div class="tab-panel active" id="results_panel">
-                <div class="results-toolbar" id="results_toolbar">
-                    <label for="score_threshold">Abrangência:</label>
-                    <input type="range" id="score_threshold" name="score_threshold" min="0" max="1" step="0.01" value="0">
-                    <div id="score_value">0</div>
-                    <div class="results-count" id="results_count">0 resultados mais relevantes</div>
+
+                <div class="tabs" role="tablist" aria-label="Visualizações">
+                    <button class="tab-button active" type="button" role="tab" data-tab="panel-timeline" aria-selected="true">Linha do tempo</button>
+                    <button class="tab-button" type="button" role="tab" data-tab="panel-graph" aria-selected="false">Grafo de entidades</button>
                 </div>
-                <div id="results"></div>
-                </div>
-                <div class="tab-panel" id="graph_panel">
-                    <div style="display:flex; gap:12px; height:100%; flex: 1;">
+
+                <section class="tab-panel active" id="panel-timeline" role="tabpanel">
+                    <div class="stat-strip" id="stat-strip" hidden>
+                        <div class="stat">
+                            <div class="stat-value" id="stat-count">—</div>
+                            <div class="stat-label">Artigos</div>
+                        </div>
+                        <div class="stat">
+                            <div class="stat-value" id="stat-span">—</div>
+                            <div class="stat-label">Período</div>
+                        </div>
+                        <div class="stat">
+                            <div class="stat-value" id="stat-avg">—</div>
+                            <div class="stat-label">PPR médio</div>
+                        </div>
+                        <div class="stat">
+                            <div class="stat-value" id="stat-entities">—</div>
+                            <div class="stat-label">Entidades</div>
+                        </div>
+                    </div>
+
+                    <div class="toolbar" id="timeline-toolbar" hidden>
+                        <div class="toolbar-group">
+                            <label for="sort-select">Ordenar por</label>
+                            <select id="sort-select">
+                                <option value="date_desc">Data · mais recentes</option>
+                                <option value="date_asc">Data · mais antigas</option>
+                                <option value="ppr_desc">Score PPR</option>
+                            </select>
+                        </div>
+                        <div class="toolbar-group">
+                            <label for="top-n">Top N por score</label>
+                            <input type="number" id="top-n" min="1" step="1">
+                            <button type="button" class="btn-ghost" id="top-n-all">todos</button>
+                        </div>
+                        <div class="toolbar-group" id="entity-chip-slot"></div>
+                    </div>
+
+                    <div class="timeline" id="timeline"></div>
+                </section>
+
+                <section class="tab-panel" id="panel-graph" role="tabpanel">
+                    <div class="graph-layout">
                         <div class="graph-card">
-                            <div style="display:flex; align-items:center; gap:10px; margin-bottom:10px; font-size:13px; color:#374151;">
-                                <label style="display:flex; align-items:center; gap:8px; cursor:pointer;">
-                                    <input type="checkbox" id="only_articles" />
-                                    Mostrar apenas artigos
+                            <div class="graph-controls">
+                                <label>
+                                    <input type="checkbox" id="only-articles">
+                                    Só artigos (arestas por entidades compartilhadas)
                                 </label>
                             </div>
                             <div id="graph" class="graph-container"></div>
-                            <div id="graph_tooltip" class="graph-tooltip" role="tooltip"></div>
-                            <div class="graph-legend">
-                                <div><span class="legend-dot" style="background:#1f77b4"></span>Artigo</div>
-                                <div><span class="legend-dot" style="background:#ff7f0e"></span>Entidade</div>
+                            <div id="graph-tooltip" class="graph-tooltip" role="tooltip"></div>
+                            <div class="graph-legend" id="graph-legend"></div>
+                        </div>
+                        <div class="entity-table-card">
+                            <h3>Entidades</h3>
+                            <div class="entity-table-scroll">
+                                <table>
+                                    <thead>
+                                        <tr>
+                                            <th>Entidade</th>
+                                            <th class="num-cell">PPR</th>
+                                            <th class="num-cell">Grau</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="entity-table-body"></tbody>
+                                </table>
                             </div>
                         </div>
-
-                        <div style="flex: 0 0 250px; overflow-y: auto; max-height: 560px;">
-                            <table>
-                                <thead>
-                                    <tr>
-                                        <!-- <th>Artigo</th> -->
-                                        <th>Entidade</th>
-                                        <th>Score</th>
-                                        <th>Grau</th>
-                                    </tr>
-                                </thead>
-                                <tbody id="graph_table_body">
-                                </tbody>
-                            </table>
-                        </div>
                     </div>
-                </div>
-            </div>
+                </section>
+            </main>
         </div>
     </div>
+
     <script src="https://d3js.org/d3.v7.min.js"></script>
-    <script>
-    let lastResponse = null;
-    let graphInitialized = false;
-
-    function setLoading(isLoading) {
-        const overlay = document.getElementById('loading_overlay');
-        if (!overlay) {
-            return;
-        }
-        overlay.classList.toggle('visible', isLoading);
-        document.body.classList.toggle('loading', isLoading);
-    }
-
-    function setActiveTab(tabId) {
-        document.querySelectorAll('.tab-button').forEach(button => {
-            const isActive = button.dataset.tab === tabId;
-            button.classList.toggle('active', isActive);
-            button.setAttribute('aria-selected', isActive ? 'true' : 'false');
-        });
-        document.querySelectorAll('.tab-panel').forEach(panel => {
-            panel.classList.toggle('active', panel.id === tabId);
-        });
-        if (tabId === 'graph_panel') {
-            renderGraph(lastResponse?.graph);
-            updateGraphTable(lastResponse?.graph);
-        }
-    }
-
-    function renderGraph(graphData) {
-        const container = document.getElementById('graph');
-        const tooltip = document.getElementById('graph_tooltip');
-        const onlyArticles = document.getElementById('only_articles')?.checked;
-        if (!container) {
-            return;
-        }
-        if (!graphData || !Array.isArray(graphData.nodes) || graphData.nodes.length === 0) {
-            container.innerHTML = '<p>Nenhum grafo disponível.</p>';
-            graphInitialized = false;
-            return;
-        }
-        const filteredNodes = onlyArticles
-            ? graphData.nodes.filter(node => node.type === 'article')
-            : graphData.nodes;
-        const nodeIds = new Set(filteredNodes.map(node => node.id));
-        const filteredLinks = onlyArticles
-            ? graphData.links.filter(link => nodeIds.has(link.source) && nodeIds.has(link.target))
-            : graphData.links;
-        container.innerHTML = '';
-        const width = container.clientWidth || 800;
-        const height = container.clientHeight || 560;
-        const svg = d3.select(container)
-            .append('svg')
-            .attr('width', width)
-            .attr('height', height)
-            .attr('viewBox', `0 0 ${width} ${height}`);
-
-        const zoomLayer = svg.append('g');
-        svg.call(d3.zoom().scaleExtent([0.2, 4]).on('zoom', event => {
-            zoomLayer.attr('transform', event.transform);
-        }));
-
-        const link = zoomLayer.append('g')
-            .attr('stroke', '#b0b0b0')
-            .attr('stroke-opacity', 0.6)
-            .selectAll('line')
-            .data(filteredLinks)
-            .join('line')
-            .attr('stroke-width', 0.6);
-
-        const node = zoomLayer.append('g')
-            .selectAll('circle')
-            .data(filteredNodes)
-            .join('circle')
-            .attr('r', d => d.type === 'article' ? 6 : 4)
-            .attr('fill', d => d.type === 'article' ? '#1f77b4' : '#ff7f0e')
-            .on('mouseover', (event, d) => {
-                if (!tooltip) {
-                    return;
-                }
-                const label = d.label || d.id;
-                const typeLabel = d.type === 'article' ? 'Artigo' : 'Entidade';
-                const score = Number(d.score || 0).toFixed(4);
-                const degree = d.degree ?? 0;
-                tooltip.innerHTML = `
-                    <strong>${label}</strong><br>
-                    Tipo: ${typeLabel}<br>
-                    Score: ${score}<br>
-                    Grau: ${degree}<br>
-                    ID: ${d.id}
-                `;
-                tooltip.classList.add('visible');
-            })
-            .on('mousemove', event => {
-                if (!tooltip) {
-                    return;
-                }
-                const offset = 12;
-                tooltip.style.left = `${event.pageX + offset}px`;
-                tooltip.style.top = `${event.pageY + offset}px`;
-            })
-            .on('mouseout', () => {
-                if (!tooltip) {
-                    return;
-                }
-                tooltip.classList.remove('visible');
-            })
-            .call(d3.drag()
-                .on('start', (event, d) => {
-                    if (!event.active) simulation.alphaTarget(0.3).restart();
-                    d.fx = d.x;
-                    d.fy = d.y;
-                })
-                .on('drag', (event, d) => {
-                    d.fx = event.x;
-                    d.fy = event.y;
-                })
-                .on('end', (event, d) => {
-                    if (!event.active) simulation.alphaTarget(0);
-                    d.fx = null;
-                    d.fy = null;
-                }));
-
-        const simulation = d3.forceSimulation(filteredNodes)
-            .force('link', d3.forceLink(filteredLinks).id(d => d.id).distance(60))
-            .force('charge', d3.forceManyBody().strength(-80))
-            .force('center', d3.forceCenter(width / 2, height / 2))
-            .force('collision', d3.forceCollide().radius(d => d.type === 'article' ? 10 : 8));
-
-        simulation.on('tick', () => {
-            link
-                .attr('x1', d => d.source.x)
-                .attr('y1', d => d.source.y)
-                .attr('x2', d => d.target.x)
-                .attr('y2', d => d.target.y);
-
-            node
-                .attr('cx', d => d.x)
-                .attr('cy', d => d.y);
-        });
-
-        graphInitialized = true;
-    }
-
-    function updateGraphTable(graphData) {
-        const tableBody = document.getElementById('graph_table_body');
-        if (!tableBody) {
-            return;
-        }
-        tableBody.innerHTML = '';
-        if (!graphData || !Array.isArray(graphData.nodes)) {
-            return;
-        }
-        const sortedNodes = graphData.nodes.toSorted((a, b) => (b.degree ?? 0) - (a.degree ?? 0));
-        sortedNodes.forEach(node => {
-            if (node.type === 'entity') {
-                const row = document.createElement('tr');
-                // const articleCell = document.createElement('td');
-                // articleCell.textContent = node.type === 'article' ? node.label || node.id : '';
-                const entityCell = document.createElement('td');
-                entityCell.textContent = node.label;
-                const scoreCell = document.createElement('td');
-                scoreCell.textContent = Number(node.score ?? 0).toFixed(4);
-                const degreeCell = document.createElement('td');
-                degreeCell.textContent = node.degree ?? 0;
-                // row.appendChild(articleCell);
-                row.appendChild(entityCell);
-                row.appendChild(scoreCell);
-                row.appendChild(degreeCell);
-                tableBody.appendChild(row);
-            }
-        });
-    }
-
-    function displayResults(results) {
-        const resultsDiv = document.getElementById('results');
-        const toolbar = document.getElementById('results_toolbar');
-        const countLabel = document.getElementById('results_count');
-        resultsDiv.innerHTML = '';
-        if (!results || results.length === 0) {
-            toolbar.classList.remove('visible');
-            countLabel.textContent = '0 resultados mais relevantes.';
-            resultsDiv.innerHTML = '<p>Nenhum resultado encontrado.</p>';
-            return;
-        }
-        toolbar.classList.add('visible');
-        countLabel.textContent = `${results.length} resultados mais relevantes.`;
-        const ul = document.createElement('ul');
-        const scores = lastResponse?.articles_scores || {};
-        let articles = results.toSorted((a, b) => (a.date_published || '').localeCompare(b.date_published || ''));
-        articles.forEach(result => {
-            const li = document.createElement('li');
-            const title = document.createElement('strong');
-            title.textContent = result.title;
-            const link = document.createElement('a');
-            link.href = result.url;
-            link.textContent = result.url;
-            link.target = '_blank';
-            const date = document.createElement('div');
-            date.textContent = result.date_published ? `Publicado em: ${result.date_published}` : '';
-            const score = document.createElement('div');
-            const scoreValue = scores[result.url];
-            score.textContent = scoreValue !== undefined ? `Score: ${scoreValue}` : '';
-            const excerpt = document.createElement('div');
-            excerpt.textContent = result.excerpt || '';
-            li.appendChild(title);
-            li.appendChild(document.createElement('br'));
-            li.appendChild(link);
-            if (date.textContent) {
-                li.appendChild(document.createElement('br'));
-                li.appendChild(date);
-            }
-            if (excerpt.textContent) {
-                li.appendChild(document.createElement('br'));
-                li.appendChild(excerpt);
-            }
-            if (score.textContent) {
-                li.appendChild(document.createElement('br'));
-                li.appendChild(score);
-            }
-            ul.appendChild(li);
-        });
-        resultsDiv.appendChild(ul);
-    }
-
-    function getSelectedResults() {
-        if (!lastResponse) {
-            return [];
-        }
-        const threshold = Number(document.getElementById('score_threshold').value || 0);
-        let articles = lastResponse.articles.map(article => {
-            const score = lastResponse.articles_scores[article.url] ?? 0;
-            return { ...article, score };
-        });
-        articles = articles.toSorted((a, b) => { return (b.score ?? 0) - (a.score ?? 0); });
-        articles = articles.slice(0, threshold);
-        return articles;
-        // let articles = lastResponse.articles.filter(article => {
-        //     const score = lastResponse.articles_scores[article.url] ?? 0;
-        //     return score >= threshold;
-        // });
-        // console.log(articles);
-        // return articles;
-    }
-
-     function updateScoreSlider() {
-        const slider = document.getElementById('score_threshold');
-        const valueLabel = document.getElementById('score_value');
-        const scores = lastResponse?.articles_scores ? Object.values(lastResponse.articles_scores) : [];
-        slider.min = '1';
-        slider.max = `${lastResponse.articles.length}`;
-        slider.step = '1';
-        slider.value = lastResponse.articles.length;
-        valueLabel.textContent = slider.value;
-    }
-
-    document.querySelector('form').addEventListener('submit', function(event) {
-        event.preventDefault();
-        const query = document.getElementById('query').value;
-        const limit = document.getElementById('limit').value;
-        const top_k = document.getElementById('top_k').value;
-        const params = new URLSearchParams({
-            query,
-            limit,
-        });
-        if (top_k !== '') {
-            params.set('top_k', top_k);
-        }
-        setLoading(true);
-        fetch(`/search?${params.toString()}`)
-            .then(response => {
-                console.log("Depois de tentar fetch")
-                if (response.ok) {
-                    console.log("Depois de tentar response.json()")
-                    return response.json();
-                } else {
-                    throw new Error(`Erro na requisição: ${response.status}`);
-                }
-            })
-            .then(data => {
-                console.log("Depois de tentar data.json()")
-                lastResponse = data;
-                updateScoreSlider();
-                console.log("Depois de tentar updateScoreSlider()")
-                displayResults(getSelectedResults());
-                console.log("Depois de tentar displayResults()")
-                if (document.querySelector('.tab-button.active')?.dataset.tab === 'graph_panel') {
-                    renderGraph(data.graph);
-                }
-            })
-            .catch(error => {
-                console.log("Depois de tentar display")
-                alert('Erro ao mostrar:', error);
-            })
-            .finally(() => {
-                setLoading(false);
-            });
-    });
-
-    document.getElementById('score_threshold').addEventListener('input', function(event) {
-        document.getElementById('score_value').textContent = event.target.value;
-        displayResults(getSelectedResults());
-    });
-
-    document.querySelectorAll('.tab-button').forEach(button => {
-        button.addEventListener('click', () => setActiveTab(button.dataset.tab));
-    });
-
-    const onlyArticlesCheckbox = document.getElementById('only_articles');
-    if (onlyArticlesCheckbox) {
-        onlyArticlesCheckbox.addEventListener('change', () => {
-            renderGraph(lastResponse?.graph);
-        });
-    }
-
-    // Hidden file input for loading saved JSON responses
-    const loadJsonInput = document.createElement('input');
-    loadJsonInput.type = 'file';
-    loadJsonInput.accept = 'application/json';
-    loadJsonInput.id = 'load_json_input';
-    loadJsonInput.style.display = 'none';
-    document.body.appendChild(loadJsonInput);
-
-    function downloadResponseJSON() {
-        if (!lastResponse) {
-            alert('Nenhuma resposta disponível para salvar.');
-            return;
-        }
-        const dataStr = JSON.stringify(lastResponse, null, 2);
-        const blob = new Blob([dataStr], { type: 'application/json' });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        const now = new Date();
-        const timestamp = now.toISOString().replace(/[:.]/g, '-');
-        a.href = url;
-        a.download = `response_${timestamp}.json`;
-        document.body.appendChild(a);
-        a.click();
-        a.remove();
-        URL.revokeObjectURL(url);
-    }
-
-    function handleLoadJsonFile(file) {
-        const reader = new FileReader();
-        reader.onload = function(e) {
-            try {
-                const parsed = JSON.parse(e.target.result);
-                lastResponse = parsed;
-                updateScoreSlider();
-                displayResults(getSelectedResults());
-                if (document.querySelector('.tab-button.active')?.dataset.tab === 'graph_panel') {
-                    renderGraph(parsed.graph);
-                }
-                alert('Resposta carregada com sucesso.');
-            } catch (err) {
-                alert('Erro ao ler o arquivo JSON: ' + err.message);
-            }
-        };
-        reader.readAsText(file);
-    }
-
-    document.getElementById('save_json')?.addEventListener('click', downloadResponseJSON);
-    document.getElementById('load_json')?.addEventListener('click', () => loadJsonInput.click());
-    loadJsonInput.addEventListener('change', (ev) => {
-        const file = ev.target.files && ev.target.files[0];
-        if (file) {
-            handleLoadJsonFile(file);
-        }
-        // reset so the same file can be loaded again if needed
-        ev.target.value = '';
-    });
-    </script>
+    <script type="module" src="/static/js/app.js"></script>
 </body>
 </html>

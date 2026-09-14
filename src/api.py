@@ -39,6 +39,8 @@ def search():
         return jsonify(json.loads(cached_result))
 
     results = g1_app.search_service.search(query, top_k=top_k, limit=limit, offset=offset, date_from=date_from, date_to=date_to)
+    if not results["articles"]:
+        return jsonify(results)
     urls = [result['url'] for result in results['articles']]
     page_rank, ranked, graph_data = g1_app.ranking_service.ppr(urls)
     results["page_rank"] = page_rank
@@ -47,6 +49,11 @@ def search():
     # definir o limiar como o terceiro quartil dos scores de PageRank dos artigos retornados
     articles_scores = {article['url']: results["page_rank"].get(article['url'], 0) for article in results['articles']}
     results["articles_scores"] = articles_scores
+    scores_sum = sum(articles_scores.values())
+    results["articles_scores"] = {url: score / scores_sum if scores_sum > 0 else 0 for url, score in articles_scores.items()}
+
+    for article in results['articles']:
+        article['date_published'] = str(article['date_published']) if article['date_published'] else None
 
     r.hset("search_cache", f"{query_encoded}:{top_k}:{limit}:{offset}:{date_from}:{date_to}", json.dumps(results, default=str))
 
