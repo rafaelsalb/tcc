@@ -69,7 +69,7 @@ class RankingService:
 
         return output_path
 
-    def ppr(self, results: list[str], seed_ratio: float = 0.1) -> tuple[dict[str, float], list[dict[str, object]], dict[str, object]]:
+    def ppr(self, results: list[str], seed_ratio: float = 1.0) -> tuple[dict[str, float], list[dict[str, object]], dict[str, object]]:
         if not 0 < seed_ratio <= 1:
             raise ValueError(f"seed_ratio must be in the interval (0, 1], got {seed_ratio}")
         G = nx.DiGraph()
@@ -117,10 +117,26 @@ class RankingService:
         page_rank = nx.pagerank(G, alpha=alpha)
         # graph_image_path = self._save_graph_image(G, set(results), page_rank, node_names)
         # print(f"Graph image saved to: {graph_image_path}")
+
+        # HITS seed selection: keep only article->entity edges (entity->article
+        # ignored), so entities rank as authorities by how much the articles cite them
+        article_set = set(results)
+        G_hits = nx.DiGraph((source, target) for source, target in G.edges() if source in article_set)
+        print("Calculating HITS...")
+        if G_hits.number_of_edges() > 0:
+            _, authorities = nx.hits(G_hits)
+        else:
+            authorities = {}
+        authorities = {node: (0.0 if node in article_set else score) for node, score in authorities.items()}
+
         entity_node_count = len([node for node in page_rank if node not in results])
         seed_count = math.ceil(entity_node_count * seed_ratio)
-        top_entities = sorted([(node, score) for node, score in page_rank.items() if node not in results], key=lambda x: x[1], reverse=True)[:seed_count]
-        print(f"Top {seed_count} of {entity_node_count} entities by PageRank score:")
+        top_entities = sorted(
+            [(node, authorities.get(node, 0.0)) for node in page_rank if node not in results],
+            key=lambda x: x[1],
+            reverse=True,
+        )[:seed_count]
+        print(f"Top {seed_count} of {entity_node_count} entities by HITS authority score:")
         # top_entities_with_text = []
         # for node, score in top_entities:
         #     entity = self.entity_repository.get_by_id(int(node))
@@ -129,7 +145,7 @@ class RankingService:
         pprint(top_entities)
         top_entity_ids = {node for node, _ in top_entities}
         if top_entity_ids:
-            # PPR personalized by the most influential entities (top PageRank)
+            # PPR personalized by the most influential entities (HITS authorities)
             personalization = {
                 node: (1.0 / len(top_entity_ids)) if node in top_entity_ids else 0.0
                 for node in G.nodes()
