@@ -133,6 +133,8 @@ class G1Entities(Base):
     id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
     text_: Mapped[str] = mapped_column('text', Text, nullable=False)
     type: Mapped[str] = mapped_column(Text, nullable=False)
+    canonical: Mapped[Optional[str]] = mapped_column(Text)
+    is_junk: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default=text("false"))
 
     article_entities: Mapped[list['ArticleEntities']] = relationship('ArticleEntities', back_populates='g1_entities')
 

@@ -17,7 +17,7 @@
     <div class="page">
         <header class="page-header">
             <h1>Busca por assunto</h1>
-            <p class="page-subtitle">busca híbrida + reordenação PPR sobre o acervo do G1</p>
+            <p class="page-subtitle">explorador de cobertura noticiosa do G1 por assunto, data e tópicos</p>
         </header>
 
         <div class="layout">
@@ -27,29 +27,42 @@
                         <label for="query">Assunto</label>
                         <input type="text" id="query" name="query" placeholder="Ex.: guerra Irã Estados Unidos" required>
                     </div>
-                    <div class="field-row">
-                        <div class="field">
-                            <label for="limit">Limite</label>
-                            <input type="number" id="limit" name="limit" min="1" placeholder="100">
-                        </div>
-                        <div class="field">
-                            <label for="top_k">Top K (busca)</label>
-                            <input type="number" id="top_k" name="top_k" min="1" placeholder="opcional">
+                    <div class="field">
+                        <label for="search-level">Nível de busca</label>
+                        <select id="search-level">
+                            <option value="rapido">Rápido</option>
+                            <option value="balanceado" selected>Balanceado</option>
+                            <option value="profundo">Profundo</option>
+                        </select>
+                    </div>
+                    <button type="button" class="advanced-toggle" id="advanced-toggle" aria-expanded="false">+ Filtros avançados</button>
+                    <div id="advanced-filters" hidden>
+                        <div class="field-row field-row-dates">
+                            <div class="field">
+                                <label for="date_from">De</label>
+                                <input type="date" id="date_from" name="date_from">
+                            </div>
+                            <div class="field">
+                                <label for="date_to">Até</label>
+                                <input type="date" id="date_to" name="date_to">
+                            </div>
                         </div>
                     </div>
-                    <div class="field-row">
-                        <div class="field">
-                            <label for="date_from">De</label>
-                            <input type="date" id="date_from" name="date_from">
-                        </div>
-                        <div class="field">
-                            <label for="date_to">Até</label>
-                            <input type="date" id="date_to" name="date_to">
-                        </div>
+                    <div class="form-actions">
+                        <button type="submit" class="btn-primary">Buscar</button>
+                        <button type="button" class="btn-lucky" id="lucky-button" title="Ver artigo mais relevante" disabled>Estou com sorte</button>
                     </div>
-                    <button type="submit" class="btn-primary">Buscar</button>
-                    <p class="form-hint">Limite e Top K controlam a recuperação híbrida; o período restringe as datas de publicação.</p>
+                    <p class="form-hint">Níveis mais profundos exploram mais artigos e levam mais tempo; o período restringe as datas de publicação.</p>
                 </form>
+                <section class="entity-picker" id="entity-picker" hidden>
+                    <label for="entity-picker-input">Filtrar por tópicos</label>
+                    <input type="text" id="entity-picker-input" placeholder="Buscar tópico…" autocomplete="off">
+                    <ul class="entity-picker-list" id="entity-picker-list"></ul>
+                </section>
+                <section class="help-card" aria-label="Sobre tópicos principais">
+                    <h3><span class="seed-mark" title="Tópico Principal">★</span>Tópico principal</h3>
+                    <p>Os tópicos marcados com <span class="seed-mark" title="Tópico Principal">★</span> são os mais citados no mapa de tópicos: eles guiam a ordenação dos resultados. Os artigos que mencionam esses tópicos recebem maior relevância.</p>
+                </section>
             </aside>
 
             <main class="main">
@@ -60,7 +73,7 @@
 
                 <div class="tabs" role="tablist" aria-label="Visualizações">
                     <button class="tab-button active" type="button" role="tab" data-tab="panel-timeline" aria-selected="true">Linha do tempo</button>
-                    <button class="tab-button" type="button" role="tab" data-tab="panel-graph" aria-selected="false">Grafo de entidades</button>
+                    <button class="tab-button" type="button" role="tab" data-tab="panel-graph" aria-selected="false">Mapa de tópicos</button>
                 </div>
 
                 <section class="tab-panel active" id="panel-timeline" role="tabpanel">
@@ -75,12 +88,20 @@
                         </div>
                         <div class="stat">
                             <div class="stat-value" id="stat-avg">—</div>
-                            <div class="stat-label">PPR médio</div>
+                            <div class="stat-label">Relevância média</div>
                         </div>
                         <div class="stat">
                             <div class="stat-value" id="stat-entities">—</div>
-                            <div class="stat-label">Entidades</div>
+                            <div class="stat-label">Tópicos</div>
                         </div>
+                    </div>
+
+                    <div class="score-plot-card" id="score-plot-card" hidden>
+                        <div class="score-plot-header">
+                            <h3>Relevância ao longo do tempo</h3>
+                        </div>
+                        <div id="score-plot" class="score-plot"></div>
+                        <div id="score-plot-tooltip" class="graph-tooltip" role="tooltip"></div>
                     </div>
 
                     <div class="toolbar" id="timeline-toolbar" hidden>
@@ -89,15 +110,22 @@
                             <select id="sort-select">
                                 <option value="date_desc">Data · mais recentes</option>
                                 <option value="date_asc">Data · mais antigas</option>
-                                <option value="ppr_desc">Score PPR</option>
+                                <option value="ppr_desc">Mais relevantes</option>
                             </select>
                         </div>
                         <div class="toolbar-group">
-                            <label for="top-n">Top N por score</label>
-                            <input type="number" id="top-n" min="1" step="1">
+                            <label for="top-n">Destaques</label>
+                            <input type="range" id="top-n" min="1" max="1" step="1" value="1">
+                            <span class="top-n-value" id="top-n-value">—</span>
                             <button type="button" class="btn-ghost" id="top-n-all">todos</button>
                         </div>
-                        <div class="toolbar-group" id="entity-chip-slot"></div>
+                        <div class="toolbar-group" id="entity-filters" hidden>
+                            <div class="match-toggle" id="match-toggle" role="group" aria-label="Modo de combinação dos tópicos">
+                                <button type="button" data-match="any" class="active">Qualquer</button>
+                                <button type="button" data-match="all">Todas</button>
+                            </div>
+                            <div id="entity-chip-slot" style="display: flex; flex-wrap: wrap; gap: 6px;"></div>
+                        </div>
                     </div>
 
                     <div class="timeline" id="timeline"></div>
@@ -109,22 +137,29 @@
                             <div class="graph-controls">
                                 <label>
                                     <input type="checkbox" id="only-articles">
-                                    Só artigos (arestas por entidades compartilhadas)
+                                    Só artigos (conectados por tópicos em comum)
                                 </label>
+                                <div class="graph-controls-group">
+                                    <label for="top-n-graph">Destaques</label>
+                                    <input type="range" id="top-n-graph" min="1" max="1" step="1" value="1">
+                                    <span class="top-n-value" id="top-n-graph-value">—</span>
+                                    <button type="button" class="btn-ghost" id="top-n-graph-all">todos</button>
+                                </div>
                             </div>
                             <div id="graph" class="graph-container"></div>
                             <div id="graph-tooltip" class="graph-tooltip" role="tooltip"></div>
                             <div class="graph-legend" id="graph-legend"></div>
                         </div>
                         <div class="entity-table-card">
-                            <h3>Entidades</h3>
+                            <h3>Tópicos</h3>
+                            <input type="text" id="topic-search" class="topic-search" placeholder="Buscar tópico…" autocomplete="off">
                             <div class="entity-table-scroll">
                                 <table>
                                     <thead>
                                         <tr>
-                                            <th>Entidade</th>
-                                            <th class="num-cell">PPR</th>
-                                            <th class="num-cell">Grau</th>
+                                            <th>Tópico</th>
+                                            <th class="num-cell">Relevância</th>
+                                            <th class="num-cell">Citações</th>
                                         </tr>
                                     </thead>
                                     <tbody id="entity-table-body"></tbody>

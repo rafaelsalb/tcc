@@ -18,6 +18,28 @@ export function parseDate(value) {
     return Number.isNaN(date.getTime()) ? null : date;
 }
 
+export function normalizeText(value) {
+    return (value ?? "")
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .toLowerCase()
+        .trim();
+}
+
+export function matchEntities(response, queryString, limit = 50) {
+    const graph = response?.graph;
+    if (!graph || !Array.isArray(graph.nodes)) return [];
+    const needle = normalizeText(queryString);
+    const entities = graph.nodes.filter((node) => node.type !== "article");
+    const matched = needle
+        ? entities.filter((node) => normalizeText(node.label || node.id).includes(needle))
+        : entities;
+    return matched
+        .sort((a, b) => (b.degree ?? 0) - (a.degree ?? 0)
+            || (a.label || "").localeCompare(b.label || "", "pt-BR"))
+        .slice(0, limit);
+}
+
 function groupChunksByArticle(response) {
     const map = new Map();
     for (const result of response?.results ?? []) {
@@ -33,6 +55,36 @@ function groupChunksByArticle(response) {
     for (const chunks of map.values()) {
         chunks.sort((a, b) => (b.rrfScore ?? -Infinity) - (a.rrfScore ?? -Infinity)
             || (b.similarity ?? -Infinity) - (a.similarity ?? -Infinity));
+    }
+    return map;
+}
+
+function buildArticleEntities(response) {
+    const graph = response?.graph;
+    const map = new Map();
+    if (!graph || !Array.isArray(graph.nodes) || !Array.isArray(graph.links)) return map;
+
+    const nodeById = new Map(graph.nodes.map((node) => [node.id, node]));
+    for (const link of graph.links) {
+        const source = typeof link.source === "object" ? link.source.id : link.source;
+        const target = typeof link.target === "object" ? link.target.id : link.target;
+        for (const [articleId, otherId] of [[source, target], [target, source]]) {
+            const article = nodeById.get(articleId);
+            const other = nodeById.get(otherId);
+            if (!article || !other || article.type !== "article" || other.type === "article") continue;
+            if (!map.has(articleId)) map.set(articleId, []);
+            const list = map.get(articleId);
+            if (list.some((e) => e.id === other.id)) continue;
+            list.push({
+                id: other.id,
+                label: other.label || other.id,
+                degree: other.degree ?? 0,
+                pprSeed: Boolean(other.ppr_seed),
+            });
+        }
+    }
+    for (const list of map.values()) {
+        list.sort((a, b) => (b.degree ?? 0) - (a.degree ?? 0) || a.label.localeCompare(b.label, "pt-BR"));
     }
     return map;
 }
@@ -54,10 +106,27 @@ function viewArticles(state) {
     if (state.topN != null && state.topN >= 1 && state.topN < articles.length) {
         selection = [...articles].sort((a, b) => b.score - a.score).slice(0, state.topN);
     }
-    if (state.entityFilter) {
-        selection = selection.filter((article) => state.entityFilter.urls.has(article.url));
+    if (state.entityFilters && state.entityFilters.size > 0) {
+        const filters = [...state.entityFilters.values()];
+        selection = state.entityMatch === "all"
+            ? selection.filter((article) => filters.every((f) => f.urls.has(article.url)))
+            : selection.filter((article) => filters.some((f) => f.urls.has(article.url)));
     }
     return selection;
+}
+
+/**
+ * URLs of the top-N articles by relevance score (the same ranking the
+ * timeline's Top-N filter uses). Returns all URLs when topN covers the set.
+ */
+export function topArticleUrls(response, topN) {
+    const scores = response?.articles_scores ?? {};
+    const articles = [...(response?.articles ?? [])]
+        .sort((a, b) => (scores[b.url] ?? 0) - (scores[a.url] ?? 0));
+    if (topN != null && topN >= 1 && topN < articles.length) {
+        return new Set(articles.slice(0, topN).map((article) => article.url));
+    }
+    return new Set(articles.map((article) => article.url));
 }
 
 export function computeView(state) {
@@ -105,9 +174,10 @@ function buildChunkBlock(chunks) {
         item.className = "chunk";
         const chips = document.createElement("div");
         chips.className = "chunk-chips";
-        if (chunk.similarity != null) chips.appendChild(chunkChip("sim", Number(chunk.similarity).toFixed(3)));
-        if (chunk.rrfScore != null) chips.appendChild(chunkChip("rrf", Number(chunk.rrfScore).toFixed(4)));
-        if (chunk.textRank != null) chips.appendChild(chunkChip("rank", String(chunk.textRank)));
+        if (chunk.similarity != null) {
+            const percent = Math.max(0, Math.min(100, Math.round(Number(chunk.similarity) * 100)));
+            chips.appendChild(chunkChip("Afinidade", `${percent}%`));
+        }
         const text = document.createElement("p");
         text.className = "chunk-text";
         text.textContent = chunk.text;
@@ -117,7 +187,47 @@ function buildChunkBlock(chunks) {
     return block;
 }
 
-function buildCard(article, maxScore) {
+function buildEntityTag(entity, active) {
+    const tag = document.createElement("button");
+    tag.type = "button";
+    tag.className = `entity-tag${active ? " active" : ""}`;
+    tag.textContent = entity.label;
+    if (entity.pprSeed) {
+        tag.title = "Tópico Principal";
+        const star = document.createElement("span");
+        star.className = "seed-mark";
+        star.textContent = "★";
+        star.setAttribute("aria-label", "Tópico Principal");
+        tag.appendChild(star);
+    }
+    tag.addEventListener("click", () => {
+        tag.dispatchEvent(new CustomEvent("entity-toggle", {
+            detail: { id: entity.id, label: entity.label },
+            bubbles: true,
+        }));
+    });
+    return tag;
+}
+
+function buildTagRow(entities, state) {
+    const row = document.createElement("div");
+    row.className = "card-tags";
+    const MAX_TAGS = 8;
+    const selected = state.entityFilters ?? new Map();
+    for (const entity of entities.slice(0, MAX_TAGS)) {
+        row.appendChild(buildEntityTag(entity, selected.has(entity.id)));
+    }
+    if (entities.length > MAX_TAGS) {
+        const more = document.createElement("span");
+        more.className = "entity-tag-more";
+        more.textContent = `+${entities.length - MAX_TAGS}`;
+        more.title = entities.slice(MAX_TAGS).map((e) => e.label).join(", ");
+        row.appendChild(more);
+    }
+    return row;
+}
+
+function buildCard(article, maxScore, entities, state, rank) {
     const card = document.createElement("article");
     card.className = "card";
     card.dataset.url = article.url;
@@ -137,13 +247,19 @@ function buildCard(article, maxScore) {
 
     const meta = document.createElement("div");
     meta.className = "card-meta";
+    if (rank != null) {
+        const rankChip = document.createElement("span");
+        rankChip.className = "rank-chip";
+        rankChip.textContent = `#${rank}`;
+        meta.appendChild(rankChip);
+    }
     const dateSpan = document.createElement("span");
     dateSpan.className = "num";
     dateSpan.textContent = article.date ? SHORT_DATE_FORMAT.format(article.date) : "sem data";
     meta.appendChild(dateSpan);
     if (article.chunks.length > 0) {
         const chunkCount = document.createElement("span");
-        chunkCount.textContent = `${article.chunks.length} trecho${article.chunks.length > 1 ? "s" : ""} recuperado${article.chunks.length > 1 ? "s" : ""}`;
+        chunkCount.textContent = `${article.chunks.length} trecho${article.chunks.length > 1 ? "s" : ""} relacionado${article.chunks.length > 1 ? "s" : ""}`;
         meta.appendChild(chunkCount);
     }
     titleWrap.appendChild(meta);
@@ -154,7 +270,7 @@ function buildCard(article, maxScore) {
     value.className = "score-value";
     const valueLabel = document.createElement("span");
     valueLabel.className = "score-label";
-    valueLabel.textContent = "PPR";
+    valueLabel.textContent = "Relevância";
     value.append(valueLabel, document.createTextNode(article.score.toFixed(3)));
     const bar = document.createElement("div");
     bar.className = "score-bar";
@@ -179,16 +295,20 @@ function buildCard(article, maxScore) {
         toggle.type = "button";
         toggle.className = "chunk-toggle";
         toggle.setAttribute("aria-expanded", "false");
-        toggle.textContent = `Ver trechos recuperados (${article.chunks.length})`;
+        toggle.textContent = `Ver trechos relacionados (${article.chunks.length})`;
         toggle.addEventListener("click", () => {
             const expanded = !chunkBlock.hidden;
             chunkBlock.hidden = expanded;
             toggle.setAttribute("aria-expanded", String(!expanded));
             toggle.textContent = expanded
-                ? `Ver trechos recuperados (${article.chunks.length})`
-                : `Ocultar trechos recuperados (${article.chunks.length})`;
+                ? `Ver trechos relacionados (${article.chunks.length})`
+                : `Ocultar trechos relacionados (${article.chunks.length})`;
         });
         card.append(toggle, chunkBlock);
+    }
+
+    if (entities.length > 0) {
+        card.appendChild(buildTagRow(entities, state));
     }
 
     return card;
@@ -199,24 +319,28 @@ export function renderTimeline(container, state) {
         emptyState(
             container,
             "Busque um assunto para começar",
-            "A busca híbrida recupera os trechos mais relevantes do acervo do G1; o PPR reordena os artigos pela centralidade no grafo de entidades. Use os filtros de data para recortar o período de interesse."
+            "Explore a cobertura do G1 sobre um assunto: os resultados são organizados em uma linha do tempo, e o mapa de tópicos mostra os assuntos que conectam as matérias."
         );
         return;
     }
 
     const { articles } = computeView(state);
     if (articles.length === 0) {
+        const hasFilters = state.entityFilters && state.entityFilters.size > 0;
         emptyState(
             container,
             "Nenhum artigo para exibir",
-            state.entityFilter
-                ? "Nenhum dos artigos recuperados menciona a entidade selecionada."
+            hasFilters
+                ? (state.entityMatch === "all"
+                    ? "Nenhum artigo menciona todos os tópicos selecionados. Tente o modo \u201cQualquer\u201d ou remova alguns filtros."
+                    : "Nenhum artigo menciona os tópicos selecionados.")
                 : "Nenhum artigo encontrado para essa busca."
         );
         return;
     }
 
     const maxScore = Math.max(...articles.map((article) => article.score), 0.000001);
+    const entitiesByArticle = buildArticleEntities(state.response);
     const groups = new Map();
     for (const article of articles) {
         const key = article.date ? article.date.toISOString().slice(0, 10) : "sem-data";
@@ -233,6 +357,23 @@ export function renderTimeline(container, state) {
     container.replaceChildren();
     const fragment = document.createDocumentFragment();
 
+    if (state.sort === "ppr_desc") {
+        // Score ordering is global: a flat list makes the PPR ranking visible,
+        // unlike per-date groups where reordering is barely perceptible.
+        container.classList.add("flat");
+        const cards = document.createElement("div");
+        cards.className = "timeline-cards timeline-cards-flat";
+        articles.forEach((article, index) => {
+            cards.appendChild(
+                buildCard(article, maxScore, entitiesByArticle.get(article.url) ?? [], state, index + 1)
+            );
+        });
+        fragment.appendChild(cards);
+        container.appendChild(fragment);
+        return;
+    }
+
+    container.classList.remove("flat");
     for (const key of groupKeys) {
         const groupArticles = groups.get(key);
         const group = document.createElement("section");
@@ -253,7 +394,7 @@ export function renderTimeline(container, state) {
         const cards = document.createElement("div");
         cards.className = "timeline-cards";
         for (const article of groupArticles) {
-            cards.appendChild(buildCard(article, maxScore));
+            cards.appendChild(buildCard(article, maxScore, entitiesByArticle.get(article.url) ?? [], state));
         }
 
         group.append(header, cards);

@@ -9,5 +9,5 @@ def test_load_schema():
     results = g1_app.search_service.search("homem", top_k=5, limit=5)
     print("Search results:", results['articles'])
     schema = SearchResultSchema(many=True)
-    loaded = schema.load(results['article'])
+    loaded = schema.load(results['articles'])
     assert len(loaded) == 5

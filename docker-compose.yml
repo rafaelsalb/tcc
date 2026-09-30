@@ -25,5 +25,16 @@ services:
     ports:
       - "6379:6379"
 
+  dbpedia-spotlight:
+    image: "dbpedia/dbpedia-spotlight"
+    container_name: tcc-dbpedia-spotlight
+    restart: unless-stopped
+    command: spotlight.sh pt
+    ports:
+      - "2222:80"
+    volumes:
+      - spotlight_models:/opt/spotlight
+
 volumes:
   postgres_data:
+  spotlight_models:

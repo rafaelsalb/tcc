@@ -1,14 +1,21 @@
 const ARTICLE_COLOR = "#4f46e5";
 const ENTITY_COLOR = "#d97706";
+const SEED_RING = "#4f46e5";
 const LINK_COLOR = "#b6bdd0";
 const MAX_PROJECTED_LINKS = 1200;
+
+import { normalizeText } from "./timeline.js";
 
 let nodesSel = null;
 let linksSel = null;
 let simulation = null;
+let nodesById = new Map();
 let hoverData = null;
-let selectedEntity = null;
+let selectedEntities = [];
+let lastTooltipTargetId = null;
 let lastOpts = null;
+let lastGraph = null;
+let topicQuery = "";
 let initialized = false;
 
 const graphContainer = () => document.getElementById("graph");
@@ -69,9 +76,48 @@ function projectedLinks(nodes, links) {
     return projected;
 }
 
+function filterGraphToUrls(graph, urls) {
+    const articles = graph.nodes.filter((node) => node.type === "article" && urls.has(node.id));
+    const articleIds = new Set(articles.map((node) => node.id));
+    // Bipartite graph (article <-> entity): keep every link whose article end
+    // is selected; the entity end then defines which entities survive.
+    const links = graph.links.filter((link) => {
+        const sIn = articleIds.has(link.source);
+        const tIn = articleIds.has(link.target);
+        return (sIn && !tIn) || (tIn && !sIn);
+    });
+    const entityIds = new Set();
+    for (const link of links) {
+        if (!articleIds.has(link.source)) entityIds.add(link.source);
+        if (!articleIds.has(link.target)) entityIds.add(link.target);
+    }
+    const entities = graph.nodes.filter((node) => node.type !== "article" && entityIds.has(node.id));
+    return {
+        nodes: [...articles, ...entities],
+        links,
+        meta: {
+            article_count: articles.length,
+            entity_count: entities.length,
+            ppr_seed_count: entities.filter((node) => node.ppr_seed).length,
+        },
+    };
+}
+
 function radiusOf(node, maxScore) {
     const scale = maxScore > 0 ? Math.sqrt((node.score ?? 0) / maxScore) : 0;
     return node.type === "article" ? 5 + 10 * scale : 3.5 + 7 * scale;
+}
+
+function relevancePct(score) {
+    return `${((score ?? 0) * 100).toFixed(2)}%`;
+}
+
+function seedRingAttrs() {
+    return {
+        stroke: (d) => (d.ppr_seed ? SEED_RING : null),
+        strokeWidth: (d) => (d.ppr_seed ? 1.5 : null),
+        dasharray: (d) => (d.ppr_seed ? "2 2" : null),
+    };
 }
 
 function tooltipContent(data) {
@@ -80,15 +126,22 @@ function tooltipContent(data) {
     label.textContent = data.label || data.id;
     const lines = document.createElement("span");
     lines.textContent = data.type === "article"
-        ? `Artigo · PPR ${(data.score ?? 0).toFixed(4)} · grau ${data.degree ?? 0}`
-        : `Entidade · PPR ${(data.score ?? 0).toFixed(4)} · grau ${data.degree ?? 0}`;
+        ? `Artigo · Relevância ${relevancePct(data.score)} · ${data.degree ?? 0} citações`
+        : `Tópico · Relevância ${relevancePct(data.score)} · ${data.degree ?? 0} citações`;
+    const fragment = document.createDocumentFragment();
+    fragment.append(label, lines);
+    if (data.ppr_seed) {
+        const seed = document.createElement("span");
+        seed.className = "tooltip-seed";
+        seed.textContent = "Tópico principal";
+        fragment.appendChild(seed);
+    }
     const hint = document.createElement("span");
     hint.className = "tooltip-hint";
     hint.textContent = data.type === "article"
         ? "Clique para localizar na linha do tempo"
         : "Clique para filtrar a linha do tempo";
-    const fragment = document.createDocumentFragment();
-    fragment.append(label, lines, hint);
+    fragment.appendChild(hint);
     return fragment;
 }
 
@@ -97,9 +150,12 @@ function renderTooltip() {
     const container = graphContainer();
     if (!tooltip || !container) return;
 
-    const target = hoverData ?? selectedEntity;
+    const target = hoverData ?? (selectedEntities.length > 0
+        ? selectedEntities[selectedEntities.length - 1]
+        : null);
     if (!target || !nodesSel) {
         tooltip.classList.remove("visible");
+        lastTooltipTargetId = null;
         return;
     }
 
@@ -109,11 +165,13 @@ function renderTooltip() {
     });
     if (!svgNode) {
         tooltip.classList.remove("visible");
+        lastTooltipTargetId = null;
         return;
     }
 
-    if (!tooltip.classList.contains("visible")) {
+    if (target.id !== lastTooltipTargetId) {
         tooltip.replaceChildren(tooltipContent(target));
+        lastTooltipTargetId = target.id;
     }
 
     const containerRect = container.getBoundingClientRect();
@@ -124,53 +182,71 @@ function renderTooltip() {
 }
 
 function updateStyles() {
-    const highlightId = selectedEntity ? selectedEntity.id : (hoverData ? hoverData.id : null);
     if (!nodesSel || !linksSel) return;
+    const ring = seedRingAttrs();
 
-    if (!highlightId) {
-        nodesSel.attr("opacity", 1).attr("stroke", null).attr("stroke-width", null);
+    const selectedIdSet = new Set(selectedEntities.map((e) => e.id));
+    const hoverId = selectedIdSet.size === 0 && hoverData ? hoverData.id : null;
+    const highlightIds = selectedIdSet.size > 0 ? selectedIdSet : (hoverId ? new Set([hoverId]) : null);
+
+    if (!highlightIds) {
+        nodesSel.attr("opacity", 1)
+            .attr("stroke", ring.stroke)
+            .attr("stroke-width", ring.strokeWidth)
+            .attr("stroke-dasharray", ring.dasharray);
         linksSel.attr("stroke-opacity", 0.55).attr("stroke", LINK_COLOR);
     } else {
-        const connected = new Set([highlightId]);
+        const connected = new Set(highlightIds);
         linksSel.each(function (l) {
-            if (l.source.id === highlightId) connected.add(l.target.id);
-            if (l.target.id === highlightId) connected.add(l.source.id);
+            if (highlightIds.has(l.source.id)) connected.add(l.target.id);
+            if (highlightIds.has(l.target.id)) connected.add(l.source.id);
         });
         nodesSel
             .attr("opacity", (d) => (connected.has(d.id) ? 1 : 0.12))
-            .attr("stroke", (d) => (d.id === highlightId ? "#23293b" : null))
-            .attr("stroke-width", (d) => (d.id === highlightId ? 1.6 : null));
+            .attr("stroke", (d) => (highlightIds.has(d.id) ? "#23293b" : ring.stroke(d)))
+            .attr("stroke-width", (d) => (highlightIds.has(d.id) ? 1.6 : ring.strokeWidth(d)))
+            .attr("stroke-dasharray", (d) => (highlightIds.has(d.id) ? null : ring.dasharray(d)));
         linksSel
-            .attr("stroke-opacity", (l) => (l.source.id === highlightId || l.target.id === highlightId) ? 0.55 : 0.04)
+            .attr("stroke-opacity", (l) => (highlightIds.has(l.source.id) || highlightIds.has(l.target.id)) ? 0.55 : 0.04)
             .attr("stroke", LINK_COLOR);
     }
 
     const rows = tableBodyEl()?.querySelectorAll("tr") ?? [];
     rows.forEach((row) => {
         row.classList.remove("selected", "hovered");
-        if (selectedEntity && row.dataset.nodeId === selectedEntity.id) {
+        if (selectedIdSet.has(row.dataset.nodeId)) {
             row.classList.add("selected");
-        } else if (!selectedEntity && hoverData && row.dataset.nodeId === hoverData.id) {
+        } else if (hoverId && row.dataset.nodeId === hoverId) {
             row.classList.add("hovered");
         }
     });
 }
 
-function selectEntity(node, opts) {
-    if (node && selectedEntity && selectedEntity.id === node.id) {
-        selectedEntity = null;
-    } else {
-        selectedEntity = node ?? null;
-    }
+function notifySelection(opts) {
     if (opts.onEntitySelect) {
-        opts.onEntitySelect(selectedEntity ? { id: selectedEntity.id, label: selectedEntity.label } : null);
+        opts.onEntitySelect(selectedEntities.map((e) => ({ id: e.id, label: e.label })));
     }
+}
+
+function selectEntity(node, opts) {
+    const index = selectedEntities.findIndex((e) => e.id === node.id);
+    if (index >= 0) selectedEntities.splice(index, 1);
+    else selectedEntities.push(node);
+    notifySelection(opts);
+    updateStyles();
+    renderTooltip();
+}
+
+export function setEntitySelection(ids) {
+    selectedEntities = (ids ?? [])
+        .map((id) => nodesById.get(id))
+        .filter(Boolean);
     updateStyles();
     renderTooltip();
 }
 
 export function clearEntitySelection() {
-    selectedEntity = null;
+    selectedEntities = [];
     updateStyles();
     renderTooltip();
 }
@@ -182,6 +258,7 @@ function renderLegend(graph, onlyArticles) {
     const meta = graph.meta ?? {};
     const articleCount = meta.article_count ?? graph.nodes.filter((n) => n.type === "article").length;
     const entityCount = meta.entity_count ?? graph.nodes.filter((n) => n.type !== "article").length;
+    const seedCount = graph.nodes.filter((n) => n.ppr_seed).length;
 
     const articleItem = document.createElement("span");
     articleItem.className = "legend-item";
@@ -196,16 +273,30 @@ function renderLegend(graph, onlyArticles) {
     entityDot.className = "legend-dot";
     entityDot.style.background = ENTITY_COLOR;
     entityItem.append(entityDot, document.createTextNode(
-        onlyArticles ? `Entidades ocultas (${entityCount})` : `Entidades (${entityCount})`
+        onlyArticles ? `Tópicos ocultos (${entityCount})` : `Tópicos (${entityCount})`
     ));
 
     legend.append(articleItem, entityItem);
+
+    if (seedCount > 0 && !onlyArticles) {
+        const seedItem = document.createElement("span");
+        seedItem.className = "legend-item";
+        const seedDot = document.createElement("span");
+        seedDot.className = "legend-dot";
+        seedDot.style.width = "11px";
+        seedDot.style.height = "11px";
+        seedDot.style.background = "transparent";
+        seedDot.style.border = `2px dashed ${SEED_RING}`;
+        seedItem.append(seedDot, document.createTextNode(`Tópicos principais (${seedCount})`));
+        legend.appendChild(seedItem);
+    }
+
     if (onlyArticles) {
         const note = document.createElement("span");
         note.className = "legend-item";
         note.style.color = "var(--text-3)";
         note.style.fontWeight = "500";
-        note.textContent = "Arestas = artigos que compartilham entidades";
+        note.textContent = "Conexões = artigos que compartilham tópicos";
         legend.appendChild(note);
     }
 }
@@ -216,9 +307,22 @@ function renderEntityTable(graph, opts) {
     body.replaceChildren();
     if (!graph || !Array.isArray(graph.nodes)) return;
 
+    const needle = normalizeText(topicQuery);
     const entities = graph.nodes
         .filter((node) => node.type !== "article")
+        .filter((node) => !needle || normalizeText(node.label || node.id).includes(needle))
         .sort((a, b) => (b.degree ?? 0) - (a.degree ?? 0));
+
+    if (entities.length === 0) {
+        const row = document.createElement("tr");
+        const cell = document.createElement("td");
+        cell.colSpan = 3;
+        cell.className = "entity-table-empty";
+        cell.textContent = topicQuery ? "Nenhum tópico encontrado." : "Nenhum tópico nesta seleção.";
+        row.appendChild(cell);
+        body.appendChild(row);
+        return;
+    }
 
     for (const node of entities) {
         const row = document.createElement("tr");
@@ -226,21 +330,29 @@ function renderEntityTable(graph, opts) {
 
         row.addEventListener("mouseenter", () => {
             hoverData = node;
-            if (!selectedEntity) updateStyles();
+            if (selectedEntities.length === 0) updateStyles();
             renderTooltip();
         });
         row.addEventListener("mouseleave", () => {
             hoverData = null;
-            if (!selectedEntity) updateStyles();
+            if (selectedEntities.length === 0) updateStyles();
             renderTooltip();
         });
         row.addEventListener("click", () => selectEntity(node, opts));
 
         const nameCell = document.createElement("td");
         nameCell.textContent = node.label || node.id;
+        if (node.ppr_seed) {
+            const star = document.createElement("span");
+            star.className = "seed-mark";
+            star.textContent = "★";
+            star.title = "Tópico Principal";
+            star.setAttribute("aria-label", "Tópico Principal");
+            nameCell.appendChild(star);
+        }
         const scoreCell = document.createElement("td");
         scoreCell.className = "num-cell";
-        scoreCell.textContent = (node.score ?? 0).toFixed(4);
+        scoreCell.textContent = relevancePct(node.score);
         const degreeCell = document.createElement("td");
         degreeCell.className = "num-cell";
         degreeCell.textContent = String(node.degree ?? 0);
@@ -250,15 +362,25 @@ function renderEntityTable(graph, opts) {
     }
 }
 
+export function setTopicFilter(query) {
+    topicQuery = query ?? "";
+    if (lastGraph) {
+        renderEntityTable(lastGraph, lastOpts);
+        updateStyles();
+    }
+}
+
 export function clearGraph() {
     const container = graphContainer();
     if (container) container.replaceChildren();
     const tooltip = tooltipEl();
     if (tooltip) tooltip.classList.remove("visible");
+    lastTooltipTargetId = null;
     nodesSel = null;
     linksSel = null;
     hoverData = null;
-    selectedEntity = null;
+    selectedEntities = [];
+    lastGraph = null;
     if (simulation) {
         simulation.stop();
         simulation = null;
@@ -276,6 +398,8 @@ function showPlaceholder(message) {
     container.appendChild(div);
     const tooltip = tooltipEl();
     if (tooltip) tooltip.classList.remove("visible");
+    lastTooltipTargetId = null;
+    lastGraph = null;
     nodesSel = null;
     linksSel = null;
     initialized = false;
@@ -283,7 +407,7 @@ function showPlaceholder(message) {
 
 export function renderGraph(opts) {
     lastOpts = opts;
-    const { response, onlyArticles = false } = opts;
+    const { response, onlyArticles = false, topUrls = null } = opts;
     const container = graphContainer();
     if (!container) return;
 
@@ -291,24 +415,27 @@ export function renderGraph(opts) {
     renderTooltip();
 
     if (!hasGraph(response)) {
-        showPlaceholder("Nenhum grafo disponível para esta busca.");
+        showPlaceholder("Nenhum mapa disponível para esta busca.");
         renderLegend({ nodes: [] }, onlyArticles);
         renderEntityTable({ nodes: [] }, opts);
-        selectedEntity = null;
+        selectedEntities = [];
         return;
     }
 
     if (typeof d3 === "undefined") {
-        showPlaceholder("Falha ao carregar a biblioteca D3.");
+        showPlaceholder("Não foi possível carregar o mapa.");
         return;
     }
 
     if (simulation) simulation.stop();
 
-    const graph = response.graph;
-    if (selectedEntity && !graph.nodes.some((node) => node.id === selectedEntity.id)) {
-        selectedEntity = null;
-    }
+    // Top-N filter first: only the selected articles, their entities and the
+    // links between them survive (the "Só artigos" projection builds on this).
+    const graph = topUrls ? filterGraphToUrls(response.graph, topUrls) : response.graph;
+    lastGraph = graph;
+    nodesById = new Map(graph.nodes.map((node) => [node.id, node]));
+    selectedEntities = selectedEntities.filter((e) => nodesById.has(e.id));
+
     const nodes = onlyArticles
         ? graph.nodes.filter((node) => node.type === "article").map((node) => ({ ...node }))
         : graph.nodes.map((node) => ({ ...node }));
@@ -320,7 +447,7 @@ export function renderGraph(opts) {
         }));
 
     if (nodes.length === 0) {
-        showPlaceholder("Nenhum nó para exibir.");
+        showPlaceholder("Nada para exibir aqui.");
         return;
     }
 
@@ -342,12 +469,12 @@ export function renderGraph(opts) {
         .attr("fill", "transparent")
         .on("click", () => {
             hoverData = null;
-            if (selectedEntity) {
-                selectEntity(null, opts);
-            } else {
-                updateStyles();
-                renderTooltip();
+            if (selectedEntities.length > 0) {
+                selectedEntities = [];
+                notifySelection(opts);
             }
+            updateStyles();
+            renderTooltip();
         });
 
     const zoomLayer = svg.append("g");
@@ -374,21 +501,21 @@ export function renderGraph(opts) {
         .attr("fill", (d) => (d.type === "article" ? ARTICLE_COLOR : ENTITY_COLOR))
         .on("mouseover", (event, d) => {
             hoverData = d;
-            if (!selectedEntity) updateStyles();
+            if (selectedEntities.length === 0) updateStyles();
             renderTooltip();
         })
         .on("mouseout", () => {
             hoverData = null;
-            if (!selectedEntity) updateStyles();
+            if (selectedEntities.length === 0) updateStyles();
             renderTooltip();
         })
         .on("click", (event, d) => {
             event.stopPropagation();
             if (d.type === "article") {
                 hoverData = null;
-                if (selectedEntity) {
-                    selectedEntity = null;
-                    if (opts.onEntitySelect) opts.onEntitySelect(null);
+                if (selectedEntities.length > 0) {
+                    selectedEntities = [];
+                    notifySelection(opts);
                 }
                 if (opts.onArticleClick) opts.onArticleClick(d.id);
             } else {

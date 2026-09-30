@@ -1,6 +1,6 @@
 from time import sleep
 
-from config import OLLAMA_HOST
+from config import OLLAMA_HOST, SPOTLIGHT_ENDPOINT
 from db import engine
 from models.models import G1Articles
 from repositories.article import ArticleRepository
@@ -79,6 +79,14 @@ class App:
             entities = self.ner_service.batch_extract_entities_and_store(articles)
             sleep(0.01)
             print("Finished processing batch of articles.")
+
+    def canonicalize_entities(self, limit: int | None = None):
+        """Backfill entity linking: flag junk rows and set g1_entities.canonical
+        (DBpedia URIs) so alias surfaces collapse into single graph nodes."""
+        from services.linking import EntityCanonicalizer
+
+        canonicalizer = EntityCanonicalizer(self.entity_repo.engine, SPOTLIGHT_ENDPOINT)
+        canonicalizer.run(limit=limit)
 
     def rank_results(self, results: list[str]) -> list[G1Articles]:
         _, ranked_articles, _ = self.ranking_service.ppr(results)

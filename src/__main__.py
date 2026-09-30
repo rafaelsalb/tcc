@@ -21,6 +21,8 @@ def main(args):
         app.populate_embeddings()
     elif args.populate_entities:
         app.populate_entities()
+    elif args.canonicalize_entities:
+        app.canonicalize_entities(limit=args.limit)
     elif args.search:
         results = app.search_service.search(args.search, top_k=100)
         for result in results:
@@ -34,6 +36,8 @@ if __name__ == "__main__":
     parser.add_argument("--populate-chunks", action="store_true", help="Populate the database with article chunks.")
     parser.add_argument("--populate-embeddings", action="store_true", help="Populate the database with chunk embeddings.")
     parser.add_argument("--populate-entities", action="store_true", help="Populate the database with article entities.")
+    parser.add_argument("--canonicalize-entities", action="store_true", help="Link existing entities to DBpedia URIs (junk flags + alias canonicalization).")
+    parser.add_argument("--limit", type=int, default=None, help="Limit entities processed by --canonicalize-entities (for trial runs).")
     parser.add_argument("--search", type=str, help="Search for a query in the chunks.")
     args = parser.parse_args()
 
