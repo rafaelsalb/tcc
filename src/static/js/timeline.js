@@ -14,6 +14,31 @@ const SHORT_DATE_FORMAT = new Intl.DateTimeFormat("pt-BR", {
 
 import { helpDot } from "./help.js";
 
+const TOP_K_TIERS = [1, 3, 5, 10, 20];
+
+/**
+ * Smallest top-K tier the rank qualifies for, or null when the article is
+ * outside every tier (rank 21+).
+ */
+export function topKTierFor(rank) {
+    if (rank == null || rank < 1) return null;
+    return TOP_K_TIERS.find((tier) => rank <= tier) ?? null;
+}
+
+/**
+ * Global relevance rank of every article in the search (1 = most relevant),
+ * derived from articles_scores over all retrieved articles — independent of
+ * the current view filters or sort mode.
+ */
+export function globalRelevanceRanks(response) {
+    const scores = response?.articles_scores ?? {};
+    const articles = [...(response?.articles ?? [])]
+        .sort((a, b) => (scores[b.url] ?? 0) - (scores[a.url] ?? 0) || (a.url || "").localeCompare(b.url || ""));
+    const ranks = new Map();
+    articles.forEach((article, index) => ranks.set(article.url, index + 1));
+    return ranks;
+}
+
 export function parseDate(value) {
     if (!value) return null;
     const date = new Date(value);
@@ -236,10 +261,16 @@ function buildTagRow(entities, state) {
     return row;
 }
 
-function buildCard(article, maxScore, entities, state, rank) {
+function buildCard(article, maxScore, entities, state, rank, ranks) {
     const card = document.createElement("article");
     card.className = "card";
     card.dataset.url = article.url;
+
+    const globalRank = ranks?.get(article.url) ?? null;
+    const tier = topKTierFor(globalRank);
+    if (tier) {
+        card.classList.add(`top-${tier}`);
+    }
     if (article.mmr) {
         card.classList.add("mmr-tagged");
     }
@@ -273,6 +304,14 @@ function buildCard(article, maxScore, entities, state, rank) {
         mmrChip.title = "Selecionado por diversidade (MMR)";
         mmrChip.setAttribute("aria-label", "Selecionado por diversidade (MMR)");
         meta.appendChild(mmrChip);
+    }
+    if (tier) {
+        const topkChip = document.createElement("span");
+        topkChip.className = `topk-chip top-${tier}`;
+        topkChip.textContent = tier === 1 ? "O mais relevante" : `Entre os ${tier} mais relevantes`;
+        topkChip.setAttribute("aria-label", topkChip.textContent);
+        meta.appendChild(topkChip);
+        topkChip.appendChild(helpDot(`Este artigo está entre os ${tier} mais relevantes da busca atual.`, "help-dot--inline"));
     }
     const dateSpan = document.createElement("span");
     dateSpan.className = "num";
@@ -364,6 +403,7 @@ export function renderTimeline(container, state) {
 
     const maxScore = Math.max(...articles.map((article) => article.score), 0.000001);
     const entitiesByArticle = buildArticleEntities(state.response);
+    const ranks = globalRelevanceRanks(state.response);
     const groups = new Map();
     for (const article of articles) {
         const key = article.date ? article.date.toISOString().slice(0, 10) : "sem-data";
@@ -388,7 +428,7 @@ export function renderTimeline(container, state) {
         cards.className = "timeline-cards timeline-cards-flat";
         articles.forEach((article, index) => {
             cards.appendChild(
-                buildCard(article, maxScore, entitiesByArticle.get(article.url) ?? [], state, index + 1)
+                buildCard(article, maxScore, entitiesByArticle.get(article.url) ?? [], state, index + 1, ranks)
             );
         });
         fragment.appendChild(cards);
@@ -417,7 +457,7 @@ export function renderTimeline(container, state) {
         const cards = document.createElement("div");
         cards.className = "timeline-cards";
         for (const article of groupArticles) {
-            cards.appendChild(buildCard(article, maxScore, entitiesByArticle.get(article.url) ?? [], state));
+            cards.appendChild(buildCard(article, maxScore, entitiesByArticle.get(article.url) ?? [], state, null, ranks));
         }
 
         group.append(header, cards);

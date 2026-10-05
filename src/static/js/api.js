@@ -5,6 +5,7 @@ export async function searchArticles(params) {
     if (params.topK) qs.set("top_k", params.topK);
     if (params.dateFrom) qs.set("date_from", params.dateFrom);
     if (params.dateTo) qs.set("date_to", params.dateTo);
+    if (params.seedMethod) qs.set("seed_method", params.seedMethod);
 
     let response;
     try {

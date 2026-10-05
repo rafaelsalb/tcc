@@ -63,6 +63,7 @@ const els = {
     errorClose: document.getElementById("error-close"),
     loadingOverlay: document.getElementById("loading-overlay"),
     onlyArticles: document.getElementById("only-articles"),
+    seedMethod: document.getElementById("seed-method"),
     topNGraph: document.getElementById("top-n-graph"),
     topNGraphValue: document.getElementById("top-n-graph-value"),
     topNGraphAll: document.getElementById("top-n-graph-all"),
@@ -109,6 +110,7 @@ function readForm() {
         topK: String(SEARCH_LEVELS[level].topK),
         dateFrom: els.dateFrom.value,
         dateTo: els.dateTo.value,
+        seedMethod: els.seedMethod.value === "louvain" ? "louvain" : "hits",
     };
 }
 
@@ -117,7 +119,8 @@ function fillForm(params) {
     els.searchLevel.value = SEARCH_LEVELS[params.get("level")] ? params.get("level") : DEFAULT_LEVEL;
     els.dateFrom.value = params.get("date_from") ?? "";
     els.dateTo.value = params.get("date_to") ?? "";
-    if (params.get("date_from") || params.get("date_to")) {
+    els.seedMethod.value = params.get("seed_method") === "louvain" ? "louvain" : "hits";
+    if (params.get("date_from") || params.get("date_to") || params.get("seed_method")) {
         setAdvancedExpanded(true);
     }
 }
@@ -136,6 +139,7 @@ function pushUrl(params) {
     const qs = new URLSearchParams();
     qs.set("query", params.query);
     qs.set("level", params.level);
+    qs.set("seed_method", params.seedMethod);
     if (params.dateFrom) qs.set("date_from", params.dateFrom);
     if (params.dateTo) qs.set("date_to", params.dateTo);
     history.pushState(null, "", `/?${qs.toString()}`);
@@ -263,6 +267,11 @@ function setTopN(value) {
     els.topNValue.textContent = String(state.topN);
     els.topNGraph.value = String(state.topN);
     els.topNGraphValue.textContent = String(state.topN);
+    for (const container of document.querySelectorAll(".topk-buttons")) {
+        for (const button of container.querySelectorAll("button[data-k]")) {
+            button.classList.toggle("active", Number(button.dataset.k) === state.topN);
+        }
+    }
     graphDirty = true;
     renderAll();
 }
@@ -460,6 +469,14 @@ els.topNAll.addEventListener("click", () => {
     if (graphTabActive()) renderGraphNow();
 });
 
+for (const container of document.querySelectorAll(".topk-buttons")) {
+    container.addEventListener("click", (event) => {
+        const button = event.target.closest("button[data-k]");
+        if (!button) return;
+        setTopN(Number.parseInt(button.dataset.k, 10));
+    });
+}
+
 els.topNGraph.addEventListener("input", () => {
     setTopN(Number.parseInt(els.topNGraph.value, 10));
 });
@@ -472,6 +489,15 @@ els.topNGraphAll.addEventListener("click", () => {
     setTopN(Math.max(1, state.response?.articles?.length ?? 0));
     if (graphTabActive()) renderGraphNow();
 });
+
+for (const container of document.querySelectorAll("#topk-buttons-graph")) {
+    container.addEventListener("click", (event) => {
+        const button = event.target.closest("button[data-k]");
+        if (!button) return;
+        setTopN(Number.parseInt(button.dataset.k, 10));
+        if (graphTabActive()) renderGraphNow();
+    });
+}
 
 els.topicSearch.addEventListener("input", () => {
     setTopicFilter(els.topicSearch.value);

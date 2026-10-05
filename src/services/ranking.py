@@ -110,9 +110,64 @@ class RankingService:
             remaining.remove(best_url)
         return mmr
 
-    def ppr(self, results: list[str], mmr_enabled: bool = False, seed_ratio: float = 1.0, mmr_lambda: float = 0.5, mmr_top_n: int | None = 5) -> tuple[dict[str, float], list[dict[str, object]], dict[str, object]]:
+    @staticmethod
+    def _louvain_seed_selection(
+        G: nx.DiGraph,
+        article_set: set[str],
+        opposite_count: dict[str, int],
+        topics_per_community: int,
+        community_min_ratio: float,
+    ) -> set[str]:
+        """Louvain Community-Stratified Seeding.
+
+        Projects the pruned bipartite graph onto the topic nodes (edge weight =
+        number of shared articles), finds communities with Louvain, discards
+        communities below `community_min_ratio` of the topic total (skipping
+        the filter when nothing survives), and pools the top
+        `topics_per_community` topics of each surviving community by bipartite
+        opposite-node count.
+        """
+        B = G.to_undirected()
+        topic_nodes = [node for node in B.nodes if node not in article_set]
+        if not topic_nodes:
+            return set()
+        projected = nx.algorithms.bipartite.weighted_projected_graph(B, topic_nodes)
+        communities = nx.community.louvain_communities(projected, weight="weight", seed=42)
+        communities = sorted(
+            (sorted(community) for community in communities),
+            key=lambda community: (-len(community), community[0] if community else ""),
+        )
+        print(f"Louvain found {len(communities)} communities (sizes {[len(c) for c in communities]}):")
+
+        threshold = community_min_ratio * len(topic_nodes)
+        surviving = [community for community in communities if len(community) >= threshold]
+        if not surviving:
+            # the filter targets tangent removal; on a graph where every
+            # community is small it is counterproductive, so skip it
+            print(f"No community >= {threshold:.1f} topics; skipping the macro-community filter.")
+            surviving = communities
+        else:
+            discarded = len(communities) - len(surviving)
+            print(f"Macro-community filter (>= {threshold:.1f} topics): {len(surviving)} survive, {discarded} discarded.")
+
+        seeds: set[str] = set()
+        for community in surviving:
+            top = sorted(community, key=lambda node: (-opposite_count.get(node, 0), node))[:topics_per_community]
+            print(f"  community ({len(community)} topics) seeds: {[node.replace('entity:', '') for node in top]}")
+            seeds.update(top)
+        print(f"Pooled {len(seeds)} seed topics (top-{topics_per_community} per community):")
+        pprint(sorted(seeds))
+        return seeds
+
+    def ppr(self, results: list[str], mmr_enabled: bool = False, seed_method: str = "hits", seed_ratio: float = 1.0, topics_per_community: int = 3, community_min_ratio: float = 0.05, mmr_lambda: float = 0.5, mmr_top_n: int | None = 5) -> tuple[dict[str, float], list[dict[str, object]], dict[str, object]]:
         if not 0 < seed_ratio <= 1:
             raise ValueError(f"seed_ratio must be in the interval (0, 1], got {seed_ratio}")
+        if seed_method not in ("hits", "louvain"):
+            raise ValueError(f"seed_method must be 'hits' or 'louvain', got {seed_method!r}")
+        if topics_per_community < 1:
+            raise ValueError(f"topics_per_community must be >= 1, got {topics_per_community}")
+        if not 0 <= community_min_ratio <= 1:
+            raise ValueError(f"community_min_ratio must be in the interval [0, 1], got {community_min_ratio}")
         if not 0 <= mmr_lambda <= 1:
             raise ValueError(f"mmr_lambda must be in the interval [0, 1], got {mmr_lambda}")
         if mmr_top_n is not None and mmr_top_n < 1:
@@ -165,32 +220,42 @@ class RankingService:
         # graph_image_path = self._save_graph_image(G, set(results), page_rank, node_names)
         # print(f"Graph image saved to: {graph_image_path}")
 
-        # HITS seed selection: keep only article->entity edges (entity->article
-        # ignored), so entities rank as authorities by how much the articles cite them
+        # --- seed selection (switchable for A/B testing) -------------------
+        # HITS: keep only article->entity edges (entity->article ignored), so
+        # entities rank as authorities by how much the articles cite them
+        # Louvain: community-stratified seeding over the projected topic graph
         G_hits = nx.DiGraph((source, target) for source, target in G.edges() if source in article_set)
-        print("Calculating HITS...")
-        if G_hits.number_of_edges() > 0:
-            hubs, authorities = nx.hits(G_hits)
-        else:
-            hubs = {}
-            authorities = {}
-        authorities = {node: (0.0 if node in article_set else score) for node, score in authorities.items()}
+        # opposite-node counts (degree // 2) used by both the Louvain seeding
+        # and the sqrt normalization downstream
+        opposite_count = {node: degree // 2 for node, degree in degrees}
+        if seed_method == "hits":
+            print("Calculating HITS...")
+            if G_hits.number_of_edges() > 0:
+                hubs, authorities = nx.hits(G_hits)
+            else:
+                hubs = {}
+                authorities = {}
+            authorities = {node: (0.0 if node in article_set else score) for node, score in authorities.items()}
 
-        entity_node_count = len([node for node in page_rank if node not in results])
-        seed_count = math.ceil(entity_node_count * seed_ratio)
-        top_entities = sorted(
-            [(node, authorities.get(node, 0.0)) for node in page_rank if node not in results],
-            key=lambda x: x[1],
-            reverse=True,
-        )[:seed_count]
-        print(f"Top {seed_count} of {entity_node_count} entities by HITS authority score:")
-        # top_entities_with_text = []
-        # for node, score in top_entities:
-        #     entity = self.entity_repository.get_by_id(int(node))
-        #     top_entities_with_text.append((entity.text_, score))
-        # pprint(top_entities_with_text)
-        pprint(top_entities)
-        top_entity_ids = {node for node, _ in top_entities}
+            entity_node_count = len([node for node in page_rank if node not in results])
+            seed_count = math.ceil(entity_node_count * seed_ratio)
+            top_entities = sorted(
+                [(node, authorities.get(node, 0.0)) for node in page_rank if node not in results],
+                key=lambda x: x[1],
+                reverse=True,
+            )[:seed_count]
+            print(f"Top {seed_count} of {entity_node_count} entities by HITS authority score:")
+            pprint(top_entities)
+            top_entity_ids = {node for node, _ in top_entities}
+        else:
+            print("Calculating HITS (for the Peso field)...")
+            if G_hits.number_of_edges() > 0:
+                hubs, authorities = nx.hits(G_hits)
+            else:
+                hubs = {}
+            top_entity_ids = self._louvain_seed_selection(
+                G, article_set, opposite_count, topics_per_community, community_min_ratio
+            )
         if top_entity_ids:
             # PPR personalized by the most influential entities (HITS authorities)
             personalization = {
@@ -215,7 +280,6 @@ class RankingService:
 
         # square-root degree normalization: PPR divided by sqrt(out-degree),
         # a gentler hub-bias correction than dividing by the raw degree
-        opposite_count = {node: degree // 2 for node, degree in degrees}
         normalized = {
             node: personalized_page_rank.get(node, 0.0) / math.sqrt(opposite_count[node])
             if opposite_count.get(node, 0) > 0 else 0.0
@@ -287,6 +351,7 @@ class RankingService:
                 "article_count": len(results),
                 "entity_count": len([node for node in G.nodes() if node not in results]),
                 "ppr_seed_count": len(top_entity_ids),
+                "seed_method": seed_method,
             },
         }
         return page_rank, ranked, graph_data

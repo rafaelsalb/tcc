@@ -37,7 +37,10 @@ def search():
         return jsonify({"error": "Query is required"}), 400
 
     query_encoded = urllib.parse.quote(query)
-    cache_key = f"v5:{query_encoded}:{top_k}:{limit}:{offset}:{date_from}:{date_to}"
+    seed_method = (params.get("seed_method") or "hits").strip().lower()
+    if seed_method not in ("hits", "louvain"):
+        return jsonify({"error": "seed_method must be 'hits' or 'louvain'"}), 400
+    cache_key = f"v6:{query_encoded}:{top_k}:{limit}:{offset}:{date_from}:{date_to}:{seed_method}"
     cached_result = r.hget("search_cache", cache_key)
 
     if cached_result:
@@ -47,7 +50,7 @@ def search():
     if not results["articles"]:
         return jsonify(results)
     urls = [result['url'] for result in results['articles']]
-    page_rank, ranked, graph_data = g1_app.ranking_service.ppr(urls)
+    page_rank, ranked, graph_data = g1_app.ranking_service.ppr(urls, seed_method=seed_method)
     results["page_rank"] = page_rank
     results["ranked"] = ranked
     results["graph"] = graph_data
