@@ -64,6 +64,8 @@ const els = {
     loadingOverlay: document.getElementById("loading-overlay"),
     onlyArticles: document.getElementById("only-articles"),
     seedMethod: document.getElementById("seed-method"),
+    quorum: document.getElementById("quorum"),
+    quorumValue: document.getElementById("quorum-value"),
     topNGraph: document.getElementById("top-n-graph"),
     topNGraphValue: document.getElementById("top-n-graph-value"),
     topNGraphAll: document.getElementById("top-n-graph-all"),
@@ -111,16 +113,27 @@ function readForm() {
         dateFrom: els.dateFrom.value,
         dateTo: els.dateTo.value,
         seedMethod: els.seedMethod.value === "louvain" ? "louvain" : "hits",
+        quorum: String(els.quorum.value),
     };
 }
+
+const QUORUM_VALUES = ["0", "0.1", "0.2", "0.3", "0.4", "0.5", "0.6", "0.7", "0.8", "0.9", "1"];
+const DEFAULT_QUORUM = "0.7";
 
 function fillForm(params) {
     els.query.value = params.get("query") ?? "";
     els.searchLevel.value = SEARCH_LEVELS[params.get("level")] ? params.get("level") : DEFAULT_LEVEL;
     els.dateFrom.value = params.get("date_from") ?? "";
     els.dateTo.value = params.get("date_to") ?? "";
-    els.seedMethod.value = params.get("seed_method") === "louvain" ? "louvain" : "hits";
-    if (params.get("date_from") || params.get("date_to") || params.get("seed_method")) {
+    const seedMethodParam = params.get("seed_method");
+    if (seedMethodParam === "hits" || seedMethodParam === "louvain") {
+        els.seedMethod.value = seedMethodParam;
+    }
+    const quorumParam = (params.get("quorum") ?? "").trim();
+    const quorum = QUORUM_VALUES.includes(quorumParam) ? quorumParam : DEFAULT_QUORUM;
+    els.quorum.value = quorum;
+    els.quorumValue.textContent = `${Math.round(Number(quorum) * 100)}%`;
+    if (params.get("date_from") || params.get("date_to") || params.get("seed_method") || params.get("quorum")) {
         setAdvancedExpanded(true);
     }
 }
@@ -140,6 +153,7 @@ function pushUrl(params) {
     qs.set("query", params.query);
     qs.set("level", params.level);
     qs.set("seed_method", params.seedMethod);
+    qs.set("quorum", params.quorum);
     if (params.dateFrom) qs.set("date_from", params.dateFrom);
     if (params.dateTo) qs.set("date_to", params.dateTo);
     history.pushState(null, "", `/?${qs.toString()}`);
@@ -505,6 +519,10 @@ els.topicSearch.addEventListener("input", () => {
 
 els.advancedToggle.addEventListener("click", () => {
     setAdvancedExpanded(els.advancedFilters.hidden);
+});
+
+els.quorum.addEventListener("input", () => {
+    els.quorumValue.textContent = `${Math.round(Number(els.quorum.value) * 100)}%`;
 });
 
 for (const button of els.matchButtons) {

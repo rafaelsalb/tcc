@@ -12,12 +12,12 @@ class SearchService:
         self.vectorizer = vectorizer
         self.ollama = ollama_client
 
-    def search(self, query: str, top_k: int = 5, limit: int = 100, offset: int = 0, date_from: str = None, date_to: str = None, order_by: str = "date_published"):
+    def search(self, query: str, top_k: int = 5, limit: int = 100, offset: int = 0, date_from: str = None, date_to: str = None, order_by: str = "date_published", quorum_threshold: float = 0.7, candidate_cap: int = 20000):
         # augmented_query = self.ollama.generate(model="llama3.2:3b", prompt=f"Esta é uma query de busca para um sistema de busca semântica: \"{query}\". Gere uma query expandida, adicionando sinônimos e termos relacionados, para melhorar a recuperação de informações relevantes. Responda com a nova query, e com a nova query apenas.", options={'max_tokens': 50}).response
         # print("Augmented query:", augmented_query)
         query_embedding = self.vectorizer.embed([query])[0]
         # chunks = self.chunk_repository.query_chunks(query_embedding, top_k, limit, offset, date_from, date_to)
-        chunks = self.chunk_repository.query_chunks_hybrid(query, query_embedding, top_k, limit, offset, date_from, date_to)
+        chunks = self.chunk_repository.query_chunks_hybrid(query, query_embedding, top_k, limit, offset, date_from, date_to, quorum_threshold=quorum_threshold, candidate_cap=candidate_cap)
         if not chunks:
             return {
                 'results': [],

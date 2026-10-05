@@ -50,9 +50,14 @@
                         <div class="field">
                             <label for="seed-method">Método de tópicos<button type="button" class="help-dot" data-help="Escolhe como os tópicos que guiam a ordenação dos resultados são selecionados: pelos mais citados no conjunto, ou por representantes de grupos de tópicos relacionados, o que favorece a variedade.">?</button></label>
                             <select id="seed-method">
-                                <option value="hits" selected>Mais citados</option>
-                                <option value="louvain">Por comunidades</option>
+                                <option value="hits">Mais citados</option>
+                                <option value="louvain" selected>Por comunidades</option>
                             </select>
+                        </div>
+                        <div class="field">
+                            <label for="quorum">Exigência de correspondência<button type="button" class="help-dot" data-help="Define quantas palavras da busca um trecho deve conter. Valores altos pedem quase todas as palavras (menos resultados); valores baixos aceitam poucas (mais resultados, mas a busca pode ficar consideravelmente mais lenta em assuntos comuns).">?</button></label>
+                            <input type="range" id="quorum" min="0" max="1" step="0.1" value="0.7">
+                            <span class="top-n-value" id="quorum-value">70%</span>
                         </div>
                     </div>
                     <div class="form-actions">

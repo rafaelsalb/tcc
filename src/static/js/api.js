@@ -6,6 +6,7 @@ export async function searchArticles(params) {
     if (params.dateFrom) qs.set("date_from", params.dateFrom);
     if (params.dateTo) qs.set("date_to", params.dateTo);
     if (params.seedMethod) qs.set("seed_method", params.seedMethod);
+    if (params.quorum) qs.set("quorum", params.quorum);
 
     let response;
     try {

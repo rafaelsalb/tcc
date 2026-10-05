@@ -40,13 +40,23 @@ def search():
     seed_method = (params.get("seed_method") or "hits").strip().lower()
     if seed_method not in ("hits", "louvain"):
         return jsonify({"error": "seed_method must be 'hits' or 'louvain'"}), 400
-    cache_key = f"v6:{query_encoded}:{top_k}:{limit}:{offset}:{date_from}:{date_to}:{seed_method}"
+    quorum_param = (params.get("quorum") or "").strip()
+    if quorum_param:
+        try:
+            quorum = float(quorum_param)
+        except ValueError:
+            return jsonify({"error": "quorum must be a number between 0 and 1"}), 400
+        if not 0 <= quorum <= 1:
+            return jsonify({"error": "quorum must be a number between 0 and 1"}), 400
+    else:
+        quorum = 0.7
+    cache_key = f"v8:{query_encoded}:{top_k}:{limit}:{offset}:{date_from}:{date_to}:{seed_method}:{quorum}"
     cached_result = r.hget("search_cache", cache_key)
 
     if cached_result:
         return jsonify(json.loads(cached_result))
 
-    results = g1_app.search_service.search(query, top_k=top_k, limit=limit, offset=offset, date_from=date_from, date_to=date_to)
+    results = g1_app.search_service.search(query, top_k=top_k, limit=limit, offset=offset, date_from=date_from, date_to=date_to, quorum_threshold=quorum)
     if not results["articles"]:
         return jsonify(results)
     urls = [result['url'] for result in results['articles']]
