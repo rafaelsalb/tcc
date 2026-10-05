@@ -33,7 +33,8 @@ def search():
         return jsonify({"error": "Query is required"}), 400
 
     query_encoded = urllib.parse.quote(query)
-    cached_result = r.hget("search_cache", f"{query_encoded}:{top_k}:{limit}:{offset}:{date_from}:{date_to}")
+    cache_key = f"v3:{query_encoded}:{top_k}:{limit}:{offset}:{date_from}:{date_to}"
+    cached_result = r.hget("search_cache", cache_key)
 
     if cached_result:
         return jsonify(json.loads(cached_result))
@@ -46,16 +47,16 @@ def search():
     results["page_rank"] = page_rank
     results["ranked"] = ranked
     results["graph"] = graph_data
-    # definir o limiar como o terceiro quartil dos scores de PageRank dos artigos retornados
-    articles_scores = {article['url']: results["page_rank"].get(article['url'], 0) for article in results['articles']}
-    results["articles_scores"] = articles_scores
+    # UI ranking = normalized personalized PPR (the same metric that orders
+    # `ranked` and drives the MMR pass), renormalized to shares of the total
+    articles_scores = {entry['article']: entry['score'] for entry in ranked}
     scores_sum = sum(articles_scores.values())
     results["articles_scores"] = {url: score / scores_sum if scores_sum > 0 else 0 for url, score in articles_scores.items()}
 
     for article in results['articles']:
         article['date_published'] = str(article['date_published']) if article['date_published'] else None
 
-    r.hset("search_cache", f"{query_encoded}:{top_k}:{limit}:{offset}:{date_from}:{date_to}", json.dumps(results, default=str))
+    r.hset("search_cache", cache_key, json.dumps(results, default=str))
 
     return jsonify(results)
 

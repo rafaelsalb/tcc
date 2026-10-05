@@ -686,6 +686,23 @@ body.is-loading {
     font-variant-numeric: tabular-nums;
 }
 
+.mmr-chip {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 24px;
+    height: 18px;
+    padding: 0 6px;
+    border: 1px solid #99f6e4;
+    border-radius: 999px;
+    background: #f0fdfa;
+    color: #0f766e;
+    font-size: 10.5px;
+    font-weight: 700;
+    font-family: var(--mono);
+    letter-spacing: 0.06em;
+}
+
 .timeline-group {
     position: relative;
 }
@@ -747,6 +764,10 @@ body.is-loading {
 .card.card-flash {
     border-color: var(--accent);
     box-shadow: 0 0 0 3px var(--accent-soft);
+}
+
+.card.mmr-tagged {
+    border-left: 3px solid #0d9488;
 }
 
 .card-head {
@@ -1155,6 +1176,16 @@ body.is-loading {
     display: block;
     margin-top: 4px;
     color: #a5b4fc;
+    font-size: 10.5px;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+}
+
+.graph-tooltip .tooltip-mmr {
+    display: block;
+    margin-top: 4px;
+    color: #5eead4;
     font-size: 10.5px;
     font-weight: 700;
     letter-spacing: 0.05em;

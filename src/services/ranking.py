@@ -69,9 +69,55 @@ class RankingService:
 
         return output_path
 
-    def ppr(self, results: list[str], seed_ratio: float = 1.0) -> tuple[dict[str, float], list[dict[str, object]], dict[str, object]]:
+    @staticmethod
+    def _jaccard(set_a: set, set_b: set) -> float:
+        union = set_a | set_b
+        if not union:
+            return 0.0
+        return len(set_a & set_b) / len(union)
+
+    @classmethod
+    def _mmr_scores(
+        cls,
+        scores: dict[str, float],
+        entity_sets: dict[str, set],
+        article_urls: list[str],
+        lam: float,
+    ) -> dict[str, float]:
+        """Carbonell–Goldstein greedy MMR over article URLs.
+
+        Relevance is the (normalized) score in `scores`; similarity between two
+        articles is the Jaccard index of their entity-neighbor sets.
+        """
+        remaining = [url for url in article_urls if url in scores]
+        mmr: dict[str, float] = {}
+        selected: list[str] = []
+        while remaining:
+            best_url = None
+            best_value = -math.inf
+            for url in remaining:
+                penalty = max(
+                    (cls._jaccard(entity_sets.get(url, set()), entity_sets.get(s, set())) for s in selected),
+                    default=0.0,
+                )
+                value = scores[url] - lam * penalty
+                if value > best_value or (value == best_value and (best_url is None or (scores[url], url) > (scores[best_url], best_url))):
+                    best_value = value
+                    best_url = url
+            # the anchor pick has nothing selected yet, so no penalty applies
+            mmr[best_url] = scores[best_url] if not selected else best_value
+            selected.append(best_url)
+            remaining.remove(best_url)
+        return mmr
+
+    def ppr(self, results: list[str], mmr_enabled: bool = False, seed_ratio: float = 1.0, mmr_lambda: float = 0.5, mmr_top_n: int | None = 5) -> tuple[dict[str, float], list[dict[str, object]], dict[str, object]]:
         if not 0 < seed_ratio <= 1:
             raise ValueError(f"seed_ratio must be in the interval (0, 1], got {seed_ratio}")
+        if not 0 <= mmr_lambda <= 1:
+            raise ValueError(f"mmr_lambda must be in the interval [0, 1], got {mmr_lambda}")
+        if mmr_top_n is not None and mmr_top_n < 1:
+            raise ValueError(f"mmr_top_n must be None or >= 1, got {mmr_top_n}")
+        article_set = set(results)
         G = nx.DiGraph()
         articles = self.article_repository.get_all(in_=results)
         article_titles_by_url = {article.url: article.title for article in articles}
@@ -81,10 +127,9 @@ class RankingService:
         for article in articles:
             try:
                 if not entities.get(article.url):
-                    print(f"No entities found for article {article.url}. Skipping.")
-                    continue
+                    print(f"No entities found for article {article.url}: kept with score 0, but no entity edges.")
                 G.add_node(article.url)
-                for entity in entities[article.url]:
+                for entity in entities.get(article.url, []):
                     entity_text = entity.text_
                     if entity_text in ["g1", "G1", "Foto", "foto", "Vídeo", "vídeo", "“", "”"]:
                         continue
@@ -103,8 +148,10 @@ class RankingService:
             except Exception as e:
                 print(f"Error processing entities for article {article.url}: {e}")
                 continue
-        degree_two_entities = [node for node in G.nodes() if node not in results and G.degree(node) == 2]
-        G.remove_nodes_from(degree_two_entities)
+        # k-core pruning: nx counts in+out degree and every edge is stored in
+        # both directions, so k=4 means "at least 2 opposite nodes" (entities
+        # cited by >=2 articles, articles with >=2 topics) — peeled iteratively
+        G = nx.k_core(G, k=4)
         degrees = G.degree()
         # print("Graph degrees:")
         # pprint(degrees)
@@ -120,7 +167,6 @@ class RankingService:
 
         # HITS seed selection: keep only article->entity edges (entity->article
         # ignored), so entities rank as authorities by how much the articles cite them
-        article_set = set(results)
         G_hits = nx.DiGraph((source, target) for source, target in G.edges() if source in article_set)
         print("Calculating HITS...")
         if G_hits.number_of_edges() > 0:
@@ -165,20 +211,66 @@ class RankingService:
         article_degrees = {node: degree for node, degree in degrees if node in results}
         print("Degrees for articles:")
         pprint(article_degrees)
-        sorted_articles = [
-            {'article': article, 'score': score, 'degree': degree} for article, score, degree
-            in sorted([(article, personalized_page_rank[article], article_degrees.get(article, 0)) for article in page_rank if article in results], key=lambda x: x[1], reverse=True)
+
+        # square-root degree normalization: PPR divided by sqrt(out-degree),
+        # a gentler hub-bias correction than dividing by the raw degree
+        opposite_count = {node: degree // 2 for node, degree in degrees}
+        normalized = {
+            node: personalized_page_rank.get(node, 0.0) / math.sqrt(opposite_count[node])
+            if opposite_count.get(node, 0) > 0 else 0.0
+            for node in personalized_page_rank
+        }
+        print("Normalized PPR (per-sqrt-out-degree):")
+        pprint(normalized)
+
+        # MMR over the articles present in the graph, relevance = normalized PPR,
+        # similarity = Jaccard index of the entity sets two articles connect to;
+        # disabled by default — pass mmr_enabled=True to run the diversity pass
+        article_in_graph = [node for node in G.nodes() if node in article_set]
+        if mmr_enabled:
+            entity_sets = {}
+            for article_url in article_in_graph:
+                entity_sets[article_url] = {nbr for nbr in G[article_url] if nbr not in article_set}
+            mmr_scores = self._mmr_scores(
+                {url: normalized[url] for url in article_in_graph},
+                entity_sets,
+                article_in_graph,
+                mmr_lambda,
+            )
+            ranked_values = sorted(
+                ((article, mmr_scores[article]) for article in mmr_scores),
+                key=lambda x: x[1],
+                reverse=True,
+            )
+            flagged = {article for article, _ in ranked_values[:mmr_top_n]} if mmr_top_n is not None else set(mmr_scores)
+            # every retrieved article is included; articles without entity edges are
+            # kept with score 0 and are never flagged
+            for url in article_set:
+                mmr_scores.setdefault(url, 0.0)
+            print(f"MMR (lambda={mmr_lambda}): flagged {len(flagged)} of {len(mmr_scores)} articles:")
+            pprint([(url, mmr_scores.get(url)) for url in mmr_scores if url in flagged])
+        else:
+            flagged = set()
+            mmr_scores = {}
+
+        # every retrieved article is included, ordered by normalized PPR
+        ranked_urls = list(article_set)
+        ranked_urls.sort(key=lambda url: (normalized.get(url, 0.0), url), reverse=True)
+        ranked = [
+            {'article': url, 'score': normalized.get(url, 0.0), 'degree': opposite_count.get(url, 0), 'mmr_score': mmr_scores.get(url, 0.0), 'mmr': url in flagged}
+            for url in ranked_urls
         ]
+
         graph_data = {
             "nodes": [
                 {
                     "id": node,
                     "label": node_names.get(node, node),
                     "type": "article" if node in results else "entity",
-                    "score": page_rank.get(node, 0.0),
+                    "score": normalized[node],
                     # bipartite graph stores both edge directions; report the half
                     # that corresponds to real opposite-node counts (citations)
-                    "degree": article_degrees.get(node, degrees[node]) // 2,
+                    "degree": opposite_count[node],
                     "ppr_seed": node in top_entity_ids,
                 }
                 for node in G.nodes()
@@ -193,4 +285,4 @@ class RankingService:
                 "ppr_seed_count": len(top_entity_ids),
             },
         }
-        return page_rank, sorted_articles, graph_data
+        return page_rank, ranked, graph_data

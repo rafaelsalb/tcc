@@ -1,10 +1,11 @@
 const ARTICLE_COLOR = "#4f46e5";
 const ENTITY_COLOR = "#d97706";
 const SEED_RING = "#4f46e5";
+const MMR_RING = "#0d9488";
 const LINK_COLOR = "#b6bdd0";
 const MAX_PROJECTED_LINKS = 1200;
 
-import { normalizeText } from "./timeline.js";
+import { normalizeText, mmrFlaggedUrls } from "./timeline.js";
 
 let nodesSel = null;
 let linksSel = null;
@@ -112,11 +113,11 @@ function relevancePct(score) {
     return `${((score ?? 0) * 100).toFixed(2)}%`;
 }
 
-function seedRingAttrs() {
+function ringAttrs() {
     return {
-        stroke: (d) => (d.ppr_seed ? SEED_RING : null),
-        strokeWidth: (d) => (d.ppr_seed ? 1.5 : null),
-        dasharray: (d) => (d.ppr_seed ? "2 2" : null),
+        stroke: (d) => (d.type === "article" && d.mmr ? MMR_RING : (d.ppr_seed ? SEED_RING : null)),
+        strokeWidth: (d) => (d.type === "article" && d.mmr ? 2.5 : (d.ppr_seed ? 1.5 : null)),
+        dasharray: (d) => (d.type === "article" && d.mmr ? null : (d.ppr_seed ? "2 2" : null)),
     };
 }
 
@@ -130,6 +131,12 @@ function tooltipContent(data) {
         : `Tópico · Relevância ${relevancePct(data.score)} · ${data.degree ?? 0} citações`;
     const fragment = document.createDocumentFragment();
     fragment.append(label, lines);
+    if (data.type === "article" && data.mmr) {
+        const mmr = document.createElement("span");
+        mmr.className = "tooltip-mmr";
+        mmr.textContent = "Selecionado por diversidade (MMR)";
+        fragment.appendChild(mmr);
+    }
     if (data.ppr_seed) {
         const seed = document.createElement("span");
         seed.className = "tooltip-seed";
@@ -183,7 +190,7 @@ function renderTooltip() {
 
 function updateStyles() {
     if (!nodesSel || !linksSel) return;
-    const ring = seedRingAttrs();
+    const ring = ringAttrs();
 
     const selectedIdSet = new Set(selectedEntities.map((e) => e.id));
     const hoverId = selectedIdSet.size === 0 && hoverData ? hoverData.id : null;
@@ -251,7 +258,7 @@ export function clearEntitySelection() {
     renderTooltip();
 }
 
-function renderLegend(graph, onlyArticles) {
+function renderLegend(graph, onlyArticles, mmrFlagged) {
     const legend = legendEl();
     if (!legend) return;
     legend.replaceChildren();
@@ -259,6 +266,7 @@ function renderLegend(graph, onlyArticles) {
     const articleCount = meta.article_count ?? graph.nodes.filter((n) => n.type === "article").length;
     const entityCount = meta.entity_count ?? graph.nodes.filter((n) => n.type !== "article").length;
     const seedCount = graph.nodes.filter((n) => n.ppr_seed).length;
+    const mmrCount = graph.nodes.filter((n) => n.type === "article" && mmrFlagged.has(n.id)).length;
 
     const articleItem = document.createElement("span");
     articleItem.className = "legend-item";
@@ -277,6 +285,17 @@ function renderLegend(graph, onlyArticles) {
     ));
 
     legend.append(articleItem, entityItem);
+
+    if (mmrCount > 0) {
+        const mmrItem = document.createElement("span");
+        mmrItem.className = "legend-item";
+        const mmrDot = document.createElement("span");
+        mmrDot.className = "legend-dot";
+        mmrDot.style.background = "transparent";
+        mmrDot.style.border = `2px solid ${MMR_RING}`;
+        mmrItem.append(mmrDot, document.createTextNode(`MMR (${mmrCount})`));
+        legend.appendChild(mmrItem);
+    }
 
     if (seedCount > 0 && !onlyArticles) {
         const seedItem = document.createElement("span");
@@ -436,9 +455,10 @@ export function renderGraph(opts) {
     nodesById = new Map(graph.nodes.map((node) => [node.id, node]));
     selectedEntities = selectedEntities.filter((e) => nodesById.has(e.id));
 
+    const mmrFlagged = mmrFlaggedUrls(response);
     const nodes = onlyArticles
-        ? graph.nodes.filter((node) => node.type === "article").map((node) => ({ ...node }))
-        : graph.nodes.map((node) => ({ ...node }));
+        ? graph.nodes.filter((node) => node.type === "article").map((node) => ({ ...node, mmr: mmrFlagged.has(node.id) }))
+        : graph.nodes.map((node) => ({ ...node, mmr: node.type === "article" && mmrFlagged.has(node.id) }));
     const links = onlyArticles
         ? projectedLinks(graph.nodes, graph.links)
         : graph.links.map((link) => ({
@@ -561,7 +581,7 @@ export function renderGraph(opts) {
         if (tooltipEl()?.classList.contains("visible")) renderTooltip();
     });
 
-    renderLegend(graph, onlyArticles);
+    renderLegend(graph, onlyArticles, mmrFlagged);
     renderEntityTable(graph, opts);
     updateStyles();
     renderTooltip();

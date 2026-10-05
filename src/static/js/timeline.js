@@ -89,22 +89,37 @@ function buildArticleEntities(response) {
     return map;
 }
 
+/**
+ * URLs of the articles the backend flagged with the MMR diversity pass
+ * (`response.ranked`). Empty when the payload predates that field.
+ */
+export function mmrFlaggedUrls(response) {
+    if (!Array.isArray(response?.ranked)) return new Set();
+    return new Set(
+        response.ranked
+            .filter((entry) => entry?.mmr === true && typeof entry.article === "string")
+            .map((entry) => entry.article)
+    );
+}
+
 function viewArticles(state) {
     const response = state.response;
     if (!response || !Array.isArray(response.articles)) return [];
 
     const chunksByUrl = groupChunksByArticle(response);
     const scores = response.articles_scores ?? {};
+    const flagged = mmrFlaggedUrls(response);
     const articles = response.articles.map((article) => ({
         ...article,
         date: parseDate(article.date_published),
         score: scores[article.url] ?? 0,
+        mmr: flagged.has(article.url),
         chunks: chunksByUrl.get(article.url) ?? [],
     }));
 
     let selection = articles;
-    if (state.topN != null && state.topN >= 1 && state.topN < articles.length) {
-        selection = [...articles].sort((a, b) => b.score - a.score).slice(0, state.topN);
+    if (state.topN != null && state.topN >= 1 && state.topN < selection.length) {
+        selection = [...selection].sort((a, b) => b.score - a.score).slice(0, state.topN);
     }
     if (state.entityFilters && state.entityFilters.size > 0) {
         const filters = [...state.entityFilters.values()];
@@ -231,6 +246,9 @@ function buildCard(article, maxScore, entities, state, rank) {
     const card = document.createElement("article");
     card.className = "card";
     card.dataset.url = article.url;
+    if (article.mmr) {
+        card.classList.add("mmr-tagged");
+    }
 
     const head = document.createElement("div");
     head.className = "card-head";
@@ -252,6 +270,14 @@ function buildCard(article, maxScore, entities, state, rank) {
         rankChip.className = "rank-chip";
         rankChip.textContent = `#${rank}`;
         meta.appendChild(rankChip);
+    }
+    if (article.mmr) {
+        const mmrChip = document.createElement("span");
+        mmrChip.className = "mmr-chip";
+        mmrChip.textContent = "MMR";
+        mmrChip.title = "Selecionado por diversidade (MMR)";
+        mmrChip.setAttribute("aria-label", "Selecionado por diversidade (MMR)");
+        meta.appendChild(mmrChip);
     }
     const dateSpan = document.createElement("span");
     dateSpan.className = "num";
