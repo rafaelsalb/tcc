@@ -1293,7 +1293,8 @@ th[data-key]:hover {
 }
 
 /* --------------------------------------------------------------------------
-   "?" help badges with explanation bubbles
+   "?" help badges with one shared explanation bubble (JS-positioned, fixed,
+   appended to <body> — immune to ancestor overflow clipping)
    -------------------------------------------------------------------------- */
 
 .help-dot {
@@ -1314,25 +1315,18 @@ th[data-key]:hover {
     line-height: 1;
     vertical-align: middle;
     cursor: help;
-    position: relative;
 }
 
 .help-dot:hover,
-.help-dot:focus-visible,
-.help-dot.open {
+.help-dot:focus-visible {
     border-color: var(--accent);
     color: var(--accent-strong);
     background: var(--accent-soft);
-    z-index: 60;
 }
 
-.help-dot::after {
-    content: attr(data-help);
-    position: absolute;
-    bottom: calc(100% + 8px);
-    left: 50%;
-    transform: translateX(-50%) translateY(4px);
-    width: max-content;
+#help-bubble {
+    position: fixed;
+    z-index: 9999;
     max-width: min(260px, 90vw);
     padding: 8px 10px;
     border-radius: 8px;
@@ -1343,73 +1337,36 @@ th[data-key]:hover {
     line-height: 1.5;
     text-align: left;
     white-space: normal;
-    letter-spacing: normal;
-    text-transform: none;
     box-shadow: 0 6px 18px rgba(15, 18, 30, 0.28);
     opacity: 0;
     visibility: hidden;
     pointer-events: none;
-    transition: opacity 0.12s ease, transform 0.12s ease;
-    z-index: 60;
+    transition: opacity 0.12s ease;
 }
 
-.help-dot::before {
+#help-bubble.visible {
+    opacity: 1;
+    visibility: visible;
+}
+
+#help-bubble::before {
     content: "";
     position: absolute;
-    bottom: calc(100% + 3px);
-    left: 50%;
-    transform: translateX(-50%) translateY(4px);
+    top: -5px;
+    left: var(--arrow-left, 50%);
+    transform: translateX(-50%);
     border: 5px solid transparent;
+    border-bottom-color: #23293b;
+}
+
+#help-bubble.below::before {
+    top: auto;
+    bottom: -5px;
+    border-bottom-color: transparent;
     border-top-color: #23293b;
-    opacity: 0;
-    visibility: hidden;
-    pointer-events: none;
-    transition: opacity 0.12s ease, transform 0.12s ease;
-    z-index: 60;
 }
 
-.help-dot:hover::after,
-.help-dot:focus-visible::after,
-.help-dot.open::after {
-    opacity: 1;
-    visibility: visible;
-    transform: translateX(-50%) translateY(0);
-}
-
-.help-dot:hover::before,
-.help-dot:focus-visible::before,
-.help-dot.open::before {
-    opacity: 1;
-    visibility: visible;
-    transform: translateX(-50%) translateY(0);
-}
-
-/* near the right edge: open the bubble to the left so it stays on screen */
-.help-dot.help-dot--left::after {
-    left: auto;
-    right: -6px;
-    transform: translateY(4px);
-}
-
-.help-dot.help-dot--left::before {
-    left: auto;
-    right: 2px;
-    transform: translateY(4px);
-}
-
-.help-dot.help-dot--left:hover::after,
-.help-dot.help-dot--left:focus-visible::after,
-.help-dot.help-dot--left.open::after {
-    transform: translateY(0);
-}
-
-.help-dot.help-dot--left:hover::before,
-.help-dot.help-dot--left:focus-visible::before,
-.help-dot.help-dot--left.open::before {
-    transform: translateY(0);
-}
-
-/* inside dark graph tooltips the badge needs contrast against light surfaces */
+/* inside chips/badges the badge needs tighter spacing */
 .graph-legend .help-dot,
 .card-meta .help-dot {
     margin-left: 4px;
