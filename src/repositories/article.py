@@ -1,5 +1,5 @@
 from models.models import ArticleEntities
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from models import G1Articles, G1Chunks
@@ -46,3 +46,22 @@ class ArticleRepository:
             )
             results = session.scalars(stmt).all()
             return results
+
+    def search_by_title(self, q: str, limit: int = 20, offset: int = 0) -> tuple[list[dict], int]:
+        """Paginated title search over the whole article database (evaluation tab).
+
+        Empty q browses the most recent articles. Never selects text_content.
+        """
+        with Session(self.engine) as session:
+            base = select(G1Articles.url, G1Articles.title, G1Articles.excerpt, G1Articles.date_published)
+            if q:
+                base = base.where(G1Articles.title.ilike(f"%{q}%"))
+            count_stmt = select(func.count()).select_from(base.subquery())
+            total = session.execute(count_stmt).scalar_one()
+            stmt = base.order_by(G1Articles.date_published.desc().nullslast(), G1Articles.url).limit(limit).offset(offset)
+            rows = session.execute(stmt).all()
+            articles = [
+                {"url": row.url, "title": row.title, "excerpt": row.excerpt, "date_published": row.date_published}
+                for row in rows
+            ]
+            return articles, total

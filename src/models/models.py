@@ -435,6 +435,7 @@ class G1Articles(Base):
     g1_sitemaps: Mapped[Optional['G1Sitemaps']] = relationship('G1Sitemaps', back_populates='g1_articles')
     article_entities: Mapped[list['ArticleEntities']] = relationship('ArticleEntities', back_populates='g1_articles')
     g1_chunks: Mapped[list['G1Chunks']] = relationship('G1Chunks', back_populates='g1_articles')
+    relevance_judgments: Mapped[list['G1RelevanceJudgments']] = relationship('G1RelevanceJudgments', back_populates='g1_articles')
 
 
 class ArticleEntities(Base):
@@ -468,3 +469,19 @@ class G1Chunks(Base):
     embedding: Mapped[Optional[Any]] = mapped_column(VECTOR(768))
 
     g1_articles: Mapped['G1Articles'] = relationship('G1Articles', back_populates='g1_chunks')
+
+
+class G1RelevanceJudgments(Base):
+    __tablename__ = 'g1_relevance_judgments'
+    __table_args__ = (
+        ForeignKeyConstraint(['article_url'], ['g1_articles.url'], name='fk_g1_relevance_judgments_article'),
+        UniqueConstraint('label', 'article_url', name='uq_g1_relevance_judgments_label_article'),
+        PrimaryKeyConstraint('id', name='g1_relevance_judgments_pkey'),
+    )
+
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
+    label: Mapped[str] = mapped_column(Text, nullable=False)
+    article_url: Mapped[str] = mapped_column(Text, nullable=False)
+    created_at: Mapped[datetime.datetime] = mapped_column(DateTime(True), nullable=False, server_default=text('now()'))
+
+    g1_articles: Mapped['G1Articles'] = relationship('G1Articles', back_populates='relevance_judgments')

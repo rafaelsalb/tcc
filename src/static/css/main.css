@@ -1301,6 +1301,224 @@ td.num-cell {
 }
 
 /* --------------------------------------------------------------------------
+   Evaluation tab · relevance judgments + P@k / R@k
+   -------------------------------------------------------------------------- */
+
+.eval-layout {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 340px;
+    gap: 14px;
+    align-items: start;
+}
+
+.eval-search-card,
+.eval-selection-card,
+.eval-metrics-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    padding: 12px 14px;
+}
+
+.eval-side-card {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+}
+
+.eval-search-card h3,
+.eval-selection-card h3,
+.eval-metrics-card h3 {
+    margin: 2px 0 8px;
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--text-2);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.eval-hint {
+    font-size: 12px;
+    color: var(--text-3);
+    margin: 0 0 10px;
+}
+
+.eval-search-bar {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 10px;
+}
+
+.eval-search-bar input {
+    flex: 1;
+    min-width: 0;
+    padding: 7px 9px;
+    border: 1px solid var(--border-strong);
+    border-radius: var(--radius-sm);
+    font-size: 13px;
+    color: var(--text);
+    background: var(--surface);
+}
+
+.eval-results {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    max-height: 560px;
+    overflow-y: auto;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+}
+
+.eval-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 10px;
+    border-bottom: 1px solid var(--border);
+    cursor: pointer;
+    font-size: 12.5px;
+}
+
+.eval-row:last-child {
+    border-bottom: none;
+}
+
+.eval-row:hover {
+    background: var(--surface-2);
+}
+
+.eval-row input[type="checkbox"] {
+    accent-color: var(--accent);
+    flex: 0 0 auto;
+}
+
+.eval-row-info {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+    flex: 1;
+}
+
+.eval-row-title {
+    font-weight: 600;
+    color: var(--text);
+    overflow-wrap: anywhere;
+}
+
+.eval-row-meta {
+    font-size: 11px;
+    color: var(--text-3);
+}
+
+.eval-row-link {
+    flex: 0 0 auto;
+    font-size: 11.5px;
+    color: var(--accent-strong);
+    text-decoration: none;
+}
+
+.eval-row-link:hover {
+    text-decoration: underline;
+}
+
+.eval-empty {
+    padding: 18px 12px;
+    text-align: center;
+    color: var(--text-3);
+    font-size: 12.5px;
+}
+
+.eval-pager {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    margin-top: 10px;
+    font-size: 12px;
+    color: var(--text-2);
+}
+
+.eval-count-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 20px;
+    height: 18px;
+    padding: 0 6px;
+    border-radius: 999px;
+    background: var(--accent-soft);
+    color: var(--accent-strong);
+    font-size: 10.5px;
+    font-weight: 700;
+    font-family: var(--mono);
+    margin-left: 6px;
+}
+
+.eval-label-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 10px;
+    font-size: 12px;
+    color: var(--text-2);
+}
+
+.eval-label-row input {
+    flex: 1;
+    min-width: 0;
+    padding: 6px 8px;
+    border: 1px solid var(--border-strong);
+    border-radius: var(--radius-sm);
+    font-size: 12.5px;
+    color: var(--text);
+    background: var(--surface);
+}
+
+.eval-selected {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    max-height: 220px;
+    overflow-y: auto;
+}
+
+.eval-metrics-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 12px;
+}
+
+.eval-metrics-table th,
+.eval-metrics-table td {
+    padding: 6px 8px;
+    border-bottom: 1px solid var(--border);
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+}
+
+.eval-metrics-table th:first-child,
+.eval-metrics-table td:first-child {
+    text-align: left;
+}
+
+.eval-metrics-table th {
+    font-size: 10.5px;
+    font-weight: 700;
+    color: var(--text-3);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+
+.eval-metrics-summary {
+    margin: 8px 0 0;
+    font-size: 11.5px;
+    color: var(--text-3);
+}
+
+/* --------------------------------------------------------------------------
    Error banner · loading overlay
    -------------------------------------------------------------------------- */
 
@@ -1379,6 +1597,10 @@ td.num-cell {
 
 @media (max-width: 1080px) {
     .graph-layout {
+        grid-template-columns: 1fr;
+    }
+
+    .eval-layout {
         grid-template-columns: 1fr;
     }
 

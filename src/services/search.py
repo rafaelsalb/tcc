@@ -39,6 +39,15 @@ class SearchService:
                 'text_rank': chunk.get("text_rank")
             }, [chunk for chunk in chunks if chunk["G1Chunks"].embedding is not None])
         )
+        # guard against duplicated chunk rows (same article + same text)
+        seen = set()
+        deduped = []
+        for result in results:
+            key = (result['article_url'], result['chunk'])
+            if key not in seen:
+                seen.add(key)
+                deduped.append(result)
+        results = deduped
         unique_articles = set(result['article_url'] for result in results)
         articles = self.article_repository.get_all(in_=list(unique_articles))
         articles_result = [
@@ -53,7 +62,7 @@ class SearchService:
             # 'augmented_query': augmented_query,
             'results': results,
             'articles': articles_result,
-            'total': len(chunks),
+            'total': len(results),
             'limit': limit,
             'offset': offset
         }

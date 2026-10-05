@@ -74,6 +74,7 @@
                 <div class="tabs" role="tablist" aria-label="Visualizações">
                     <button class="tab-button active" type="button" role="tab" data-tab="panel-timeline" aria-selected="true">Linha do tempo</button>
                     <button class="tab-button" type="button" role="tab" data-tab="panel-graph" aria-selected="false">Mapa de tópicos</button>
+                    <button class="tab-button" type="button" role="tab" data-tab="panel-eval" aria-selected="false">Avaliação</button>
                 </div>
 
                 <section class="tab-panel active" id="panel-timeline" role="tabpanel">
@@ -164,6 +165,40 @@
                                     </thead>
                                     <tbody id="entity-table-body"></tbody>
                                 </table>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <section class="tab-panel" id="panel-eval" role="tabpanel">
+                    <div class="eval-layout">
+                        <div class="eval-search-card">
+                            <h3>Artigos relevantes</h3>
+                            <p class="eval-hint">Busque artigos por título no banco completo e marque os relevantes. As marcações são salvas automaticamente e não alteram a busca principal.</p>
+                            <div class="eval-search-bar">
+                                <input type="text" id="eval-query" placeholder="Buscar por título…" autocomplete="off">
+                                <button type="button" class="btn-primary" id="eval-search-button">Buscar</button>
+                            </div>
+                            <div class="eval-results" id="eval-results"></div>
+                            <div class="eval-pager">
+                                <button type="button" class="btn-ghost" id="eval-prev">‹</button>
+                                <span id="eval-page-info">—</span>
+                                <button type="button" class="btn-ghost" id="eval-next">›</button>
+                            </div>
+                        </div>
+                        <div class="eval-side-card">
+                            <div class="eval-selection-card">
+                                <h3>Selecionados <span class="eval-count-badge" id="eval-selected-count">0</span></h3>
+                                <div class="eval-label-row">
+                                    <label for="eval-label">Rodada</label>
+                                    <input type="text" id="eval-label" list="eval-label-options" autocomplete="off">
+                                    <datalist id="eval-label-options"></datalist>
+                                </div>
+                                <div id="eval-selected" class="eval-selected"></div>
+                            </div>
+                            <div class="eval-metrics-card">
+                                <h3>Métricas (Precisão@k · Revocação@k)</h3>
+                                <div id="eval-metrics"></div>
                             </div>
                         </div>
                     </div>

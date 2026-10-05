@@ -1,5 +1,5 @@
 import numpy as np
-from sqlalchemy import DateTime, cast, func, insert, literal, select, update
+from sqlalchemy import DateTime, cast, delete, func, insert, literal, select, update
 from sqlalchemy.orm import Session
 
 from models.models import G1Articles, G1Chunks
@@ -16,15 +16,18 @@ class ChunkRepository:
             session.commit()
 
     def batch_add_chunk(self, articles: list[str], chunks: list[str], embeddings: list[np.ndarray]):
-        new_chunks = []
-        for article, chunk, embedding in zip(articles, chunks, embeddings):
-            new_chunks.append({'article': article, 'chunk': chunk, 'embedding': embedding})
+        # single transaction: re-chunking an article replaces its previous
+        # chunks, and a crash rolls everything back (no orphan rows without
+        # the is_chunked flag, which previously caused duplicate chunks)
+        new_chunks = [
+            {'article': article, 'chunk': chunk, 'embedding': embedding}
+            for article, chunk, embedding in zip(articles, chunks, embeddings)
+        ]
         with Session(self.engine) as session:
-            stmt = insert(G1Chunks).values(new_chunks)
-            session.execute(stmt)
-            session.commit()
-            stmt = update(G1Articles).where(G1Articles.url.in_(articles)).values(is_chunked=True)
-            session.execute(stmt)
+            session.execute(delete(G1Chunks).where(G1Chunks.article.in_(set(articles))))
+            if new_chunks:
+                session.execute(insert(G1Chunks).values(new_chunks))
+            session.execute(update(G1Articles).where(G1Articles.url.in_(set(articles))).values(is_chunked=True))
             session.commit()
 
     def query_chunks(self, query_embedding: np.ndarray, top_k: int = 5, limit: int = 100, offset: int = 0, date_from: str = None, date_to: str = None, exact: bool = False) -> list[dict[str, G1Chunks | G1Articles]]:

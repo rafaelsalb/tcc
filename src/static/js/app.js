@@ -8,6 +8,7 @@ import {
     getEntityArticleUrls,
     setTopicFilter,
 } from "./graph.js";
+import { initEvalTab, setEvalResponse } from "./eval.js";
 
 const state = {
     response: null,
@@ -425,6 +426,7 @@ async function runSearch({ push = true } = {}) {
         renderEntityChips();
         renderEntityPicker();
         renderAll();
+        setEvalResponse(data);
         els.lucky.disabled = false;
         graphDirty = true;
         if (graphTabActive()) renderGraphNow();
@@ -536,6 +538,8 @@ window.addEventListener("popstate", () => {
         runSearch({ push: false });
     }
 });
+
+initEvalTab();
 
 /* ----------------------------------------------------------------------
    Bootstrap: restore a shared/searchable URL if present
