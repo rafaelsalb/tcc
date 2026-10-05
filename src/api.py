@@ -37,7 +37,7 @@ def search():
         return jsonify({"error": "Query is required"}), 400
 
     query_encoded = urllib.parse.quote(query)
-    cache_key = f"v4:{query_encoded}:{top_k}:{limit}:{offset}:{date_from}:{date_to}"
+    cache_key = f"v5:{query_encoded}:{top_k}:{limit}:{offset}:{date_from}:{date_to}"
     cached_result = r.hget("search_cache", cache_key)
 
     if cached_result:

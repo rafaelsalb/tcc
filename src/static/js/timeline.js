@@ -12,6 +12,8 @@ const SHORT_DATE_FORMAT = new Intl.DateTimeFormat("pt-BR", {
     timeZone: "UTC",
 });
 
+import { helpDot } from "./help.js";
+
 export function parseDate(value) {
     if (!value) return null;
     const date = new Date(value);
@@ -79,7 +81,6 @@ function buildArticleEntities(response) {
                 id: other.id,
                 label: other.label || other.id,
                 degree: other.degree ?? 0,
-                pprSeed: Boolean(other.ppr_seed),
             });
         }
     }
@@ -207,14 +208,6 @@ function buildEntityTag(entity, active) {
     tag.type = "button";
     tag.className = `entity-tag${active ? " active" : ""}`;
     tag.textContent = entity.label;
-    if (entity.pprSeed) {
-        tag.title = "Tópico Principal";
-        const star = document.createElement("span");
-        star.className = "seed-mark";
-        star.textContent = "★";
-        star.setAttribute("aria-label", "Tópico Principal");
-        tag.appendChild(star);
-    }
     tag.addEventListener("click", () => {
         tag.dispatchEvent(new CustomEvent("entity-toggle", {
             detail: { id: entity.id, label: entity.label },
@@ -227,6 +220,7 @@ function buildEntityTag(entity, active) {
 function buildTagRow(entities, state) {
     const row = document.createElement("div");
     row.className = "card-tags";
+    row.appendChild(helpDot("Assuntos citados no artigo. Clique para filtrar a busca por esse tópico.", "help-dot--inline"));
     const MAX_TAGS = 8;
     const selected = state.entityFilters ?? new Map();
     for (const entity of entities.slice(0, MAX_TAGS)) {
@@ -270,6 +264,7 @@ function buildCard(article, maxScore, entities, state, rank) {
         rankChip.className = "rank-chip";
         rankChip.textContent = `#${rank}`;
         meta.appendChild(rankChip);
+        rankChip.appendChild(helpDot("Posição do artigo na ordenação por relevância.", "help-dot--inline"));
     }
     if (article.mmr) {
         const mmrChip = document.createElement("span");
@@ -297,6 +292,7 @@ function buildCard(article, maxScore, entities, state, rank) {
     const valueLabel = document.createElement("span");
     valueLabel.className = "score-label";
     valueLabel.textContent = "Relevância";
+    valueLabel.appendChild(helpDot("Relevância deste artigo: quanto maior, mais ele se conecta aos assuntos mais citados na busca.", "help-dot--inline"));
     value.append(valueLabel, document.createTextNode(article.score.toFixed(3)));
     const bar = document.createElement("div");
     bar.className = "score-bar";
@@ -322,6 +318,7 @@ function buildCard(article, maxScore, entities, state, rank) {
         toggle.className = "chunk-toggle";
         toggle.setAttribute("aria-expanded", "false");
         toggle.textContent = `Ver trechos relacionados (${article.chunks.length})`;
+        toggle.appendChild(helpDot("Mostra os trechos do artigo que combinam com a sua busca.", "help-dot--inline"));
         toggle.addEventListener("click", () => {
             const expanded = !chunkBlock.hidden;
             chunkBlock.hidden = expanded;

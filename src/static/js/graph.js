@@ -1,11 +1,11 @@
 const ARTICLE_COLOR = "#4f46e5";
 const ENTITY_COLOR = "#d97706";
-const SEED_RING = "#4f46e5";
 const MMR_RING = "#0d9488";
 const LINK_COLOR = "#b6bdd0";
 const MAX_PROJECTED_LINKS = 1200;
 
 import { normalizeText, mmrFlaggedUrls } from "./timeline.js";
+import { helpDot } from "./help.js";
 
 let nodesSel = null;
 let linksSel = null;
@@ -17,6 +17,8 @@ let lastTooltipTargetId = null;
 let lastOpts = null;
 let lastGraph = null;
 let topicQuery = "";
+let entitySort = { key: "degree", dir: "desc" };
+let sortListenersBound = false;
 let initialized = false;
 
 const graphContainer = () => document.getElementById("graph");
@@ -115,9 +117,9 @@ function relevancePct(score) {
 
 function ringAttrs() {
     return {
-        stroke: (d) => (d.type === "article" && d.mmr ? MMR_RING : (d.ppr_seed ? SEED_RING : null)),
-        strokeWidth: (d) => (d.type === "article" && d.mmr ? 2.5 : (d.ppr_seed ? 1.5 : null)),
-        dasharray: (d) => (d.type === "article" && d.mmr ? null : (d.ppr_seed ? "2 2" : null)),
+        stroke: (d) => (d.type === "article" && d.mmr ? MMR_RING : null),
+        strokeWidth: (d) => (d.type === "article" && d.mmr ? 2.5 : null),
+        dasharray: (d) => null,
     };
 }
 
@@ -125,10 +127,11 @@ function tooltipContent(data) {
     const label = document.createElement("span");
     label.className = "tooltip-label";
     label.textContent = data.label || data.id;
+    const hitsPart = data.hits != null ? ` · HITS ${relevancePct(data.hits)}` : "";
     const lines = document.createElement("span");
     lines.textContent = data.type === "article"
-        ? `Artigo · Relevância ${relevancePct(data.score)} · ${data.degree ?? 0} citações`
-        : `Tópico · Relevância ${relevancePct(data.score)} · ${data.degree ?? 0} citações`;
+        ? `Artigo · Relevância ${relevancePct(data.score)} · ${data.degree ?? 0} citações${hitsPart}`
+        : `Tópico · Relevância ${relevancePct(data.score)} · ${data.degree ?? 0} citações${hitsPart}`;
     const fragment = document.createDocumentFragment();
     fragment.append(label, lines);
     if (data.type === "article" && data.mmr) {
@@ -136,12 +139,6 @@ function tooltipContent(data) {
         mmr.className = "tooltip-mmr";
         mmr.textContent = "Selecionado por diversidade (MMR)";
         fragment.appendChild(mmr);
-    }
-    if (data.ppr_seed) {
-        const seed = document.createElement("span");
-        seed.className = "tooltip-seed";
-        seed.textContent = "Tópico principal";
-        fragment.appendChild(seed);
     }
     const hint = document.createElement("span");
     hint.className = "tooltip-hint";
@@ -265,7 +262,6 @@ function renderLegend(graph, onlyArticles, mmrFlagged) {
     const meta = graph.meta ?? {};
     const articleCount = meta.article_count ?? graph.nodes.filter((n) => n.type === "article").length;
     const entityCount = meta.entity_count ?? graph.nodes.filter((n) => n.type !== "article").length;
-    const seedCount = graph.nodes.filter((n) => n.ppr_seed).length;
     const mmrCount = graph.nodes.filter((n) => n.type === "article" && mmrFlagged.has(n.id)).length;
 
     const articleItem = document.createElement("span");
@@ -285,6 +281,10 @@ function renderLegend(graph, onlyArticles, mmrFlagged) {
     ));
 
     legend.append(articleItem, entityItem);
+    legend.appendChild(helpDot(
+        "Cada bola é um artigo (azul) ou um tópico (laranja); as linhas mostram quem cita quem. Passe o mouse para detalhes, arraste para organizar, clique para filtrar ou abrir o artigo.",
+        "help-dot--inline"
+    ));
 
     if (mmrCount > 0) {
         const mmrItem = document.createElement("span");
@@ -295,19 +295,6 @@ function renderLegend(graph, onlyArticles, mmrFlagged) {
         mmrDot.style.border = `2px solid ${MMR_RING}`;
         mmrItem.append(mmrDot, document.createTextNode(`MMR (${mmrCount})`));
         legend.appendChild(mmrItem);
-    }
-
-    if (seedCount > 0 && !onlyArticles) {
-        const seedItem = document.createElement("span");
-        seedItem.className = "legend-item";
-        const seedDot = document.createElement("span");
-        seedDot.className = "legend-dot";
-        seedDot.style.width = "11px";
-        seedDot.style.height = "11px";
-        seedDot.style.background = "transparent";
-        seedDot.style.border = `2px dashed ${SEED_RING}`;
-        seedItem.append(seedDot, document.createTextNode(`Tópicos principais (${seedCount})`));
-        legend.appendChild(seedItem);
     }
 
     if (onlyArticles) {
@@ -329,13 +316,14 @@ function renderEntityTable(graph, opts) {
     const needle = normalizeText(topicQuery);
     const entities = graph.nodes
         .filter((node) => node.type !== "article")
-        .filter((node) => !needle || normalizeText(node.label || node.id).includes(needle))
-        .sort((a, b) => (b.degree ?? 0) - (a.degree ?? 0));
+        .filter((node) => !needle || normalizeText(node.label || node.id).includes(needle));
+
+    sortEntities(entities);
 
     if (entities.length === 0) {
         const row = document.createElement("tr");
         const cell = document.createElement("td");
-        cell.colSpan = 3;
+        cell.colSpan = 4;
         cell.className = "entity-table-empty";
         cell.textContent = topicQuery ? "Nenhum tópico encontrado." : "Nenhum tópico nesta seleção.";
         row.appendChild(cell);
@@ -361,24 +349,83 @@ function renderEntityTable(graph, opts) {
 
         const nameCell = document.createElement("td");
         nameCell.textContent = node.label || node.id;
-        if (node.ppr_seed) {
-            const star = document.createElement("span");
-            star.className = "seed-mark";
-            star.textContent = "★";
-            star.title = "Tópico Principal";
-            star.setAttribute("aria-label", "Tópico Principal");
-            nameCell.appendChild(star);
-        }
         const scoreCell = document.createElement("td");
         scoreCell.className = "num-cell";
         scoreCell.textContent = relevancePct(node.score);
+        const hitsCell = document.createElement("td");
+        hitsCell.className = "num-cell";
+        hitsCell.textContent = relevancePct(node.hits ?? 0);
         const degreeCell = document.createElement("td");
         degreeCell.className = "num-cell";
         degreeCell.textContent = String(node.degree ?? 0);
 
-        row.append(nameCell, scoreCell, degreeCell);
+        row.append(nameCell, scoreCell, hitsCell, degreeCell);
         body.appendChild(row);
     }
+}
+
+const ENTITY_SORT_DEFAULTS = {
+    label: { dir: "asc" },
+    score: { dir: "desc" },
+    hits: { dir: "desc" },
+    degree: { dir: "desc" },
+};
+
+function entityValue(node, key) {
+    if (key === "label") return node.label || node.id;
+    return node[key] ?? 0;
+}
+
+function sortEntities(entities) {
+    const { key, dir } = entitySort;
+    const sign = dir === "asc" ? 1 : -1;
+    entities.sort((a, b) => {
+        const va = entityValue(a, key);
+        const vb = entityValue(b, key);
+        const cmp = typeof va === "string" ? va.localeCompare(vb, "pt-BR") : va - vb;
+        if (cmp !== 0) return sign * cmp;
+        return (entityValue(a, "label")).localeCompare(entityValue(b, "label"), "pt-BR");
+    });
+}
+
+function renderSortIndicators() {
+    const table = tableBodyEl()?.closest("table");
+    if (!table) return;
+    for (const th of table.querySelectorAll("th[data-key]")) {
+        const indicator = th.querySelector(".sort-indicator");
+        if (th.dataset.key === entitySort.key) {
+            if (!indicator) {
+                const span = document.createElement("span");
+                span.className = "sort-indicator";
+                th.appendChild(span);
+            }
+            th.querySelector(".sort-indicator").textContent = entitySort.dir === "asc" ? "▲" : "▼";
+        } else if (indicator) {
+            indicator.remove();
+        }
+    }
+}
+
+function bindEntitySortListeners() {
+    if (sortListenersBound) return;
+    const table = tableBodyEl()?.closest("table");
+    if (!table) return;
+    for (const th of table.querySelectorAll("th[data-key]")) {
+        th.addEventListener("click", () => {
+            const key = th.dataset.key;
+            if (entitySort.key === key) {
+                entitySort.dir = entitySort.dir === "asc" ? "desc" : "asc";
+            } else {
+                entitySort = { key, dir: ENTITY_SORT_DEFAULTS[key]?.dir ?? "desc" };
+            }
+            renderSortIndicators();
+            if (lastGraph) {
+                renderEntityTable(lastGraph, lastOpts);
+                updateStyles();
+            }
+        });
+    }
+    sortListenersBound = true;
 }
 
 export function setTopicFilter(query) {
@@ -583,6 +630,8 @@ export function renderGraph(opts) {
 
     renderLegend(graph, onlyArticles, mmrFlagged);
     renderEntityTable(graph, opts);
+    renderSortIndicators();
+    bindEntitySortListeners();
     updateStyles();
     renderTooltip();
     initialized = true;

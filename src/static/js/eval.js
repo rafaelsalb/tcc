@@ -1,4 +1,5 @@
 import { listJudgmentLabels, getJudgments, saveJudgments, searchArticlesByTitle, computeMetrics } from "./api.js";
+import { helpDot } from "./help.js";
 
 const PAGE_SIZE = 20;
 const KS = [1, 3, 5, 10, 20];
@@ -135,7 +136,9 @@ function renderMetrics() {
     if (!evalState.rankedUrls.length) {
         const div = document.createElement("div");
         div.className = "eval-empty";
-        div.textContent = "Faça uma busca principal para calcular as métricas (Precisão@k / Revocação@k).";
+        const hint = document.createElement("span");
+        hint.textContent = "Faça uma busca principal para calcular as métricas (Precisão@k / Revocação@k). ";
+        div.append(hint, helpDot("Compara os artigos que você marcou com a ordenação da busca principal; k é o número de resultados considerados.", "help-dot--inline"));
         card.appendChild(div);
         return;
     }
@@ -209,6 +212,37 @@ async function persistSelection() {
     }
 }
 
+let saveStatusTimer = null;
+
+function showSaveStatus(message, kind) {
+    els.evalSaveStatus.textContent = message;
+    els.evalSaveStatus.className = `eval-save-status ${kind}`;
+    clearTimeout(saveStatusTimer);
+    if (message) {
+        saveStatusTimer = setTimeout(() => {
+            els.evalSaveStatus.textContent = "";
+            els.evalSaveStatus.className = "eval-save-status";
+        }, 4000);
+    }
+}
+
+async function sendSelection() {
+    const label = els.evalLabel.value.trim() || evalState.label;
+    if (evalState.selected.size === 0) {
+        showSaveStatus("Nenhum artigo selecionado.", "warn");
+        return;
+    }
+    try {
+        const saved = await saveJudgments(label, [...evalState.selected.keys()]);
+        evalState.label = label;
+        evalState.labels = await listJudgmentLabels().then((data) => data.labels ?? []).catch(() => evalState.labels);
+        renderLabels();
+        showSaveStatus(`Salvos ${saved.urls.length} artigos em "${label}".`, "ok");
+    } catch (error) {
+        showSaveStatus(error.message, "err");
+    }
+}
+
 async function loadLabel(label) {
     evalState.label = label;
     try {
@@ -274,6 +308,8 @@ export function initEvalTab() {
         evalPageInfo: $("eval-page-info"),
         evalSelected: $("eval-selected"),
         evalSelectedCount: $("eval-selected-count"),
+        evalSendButton: $("eval-send-button"),
+        evalSaveStatus: $("eval-save-status"),
         evalLabel: $("eval-label"),
         evalMetrics: $("eval-metrics"),
         evalPanel: $("panel-eval"),
@@ -296,6 +332,7 @@ export function initEvalTab() {
         const label = els.evalLabel.value.trim();
         if (label && label !== evalState.label) loadLabel(label);
     });
+    els.evalSendButton.addEventListener("click", sendSelection);
 
     renderMetrics();
 

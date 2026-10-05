@@ -170,8 +170,9 @@ class RankingService:
         G_hits = nx.DiGraph((source, target) for source, target in G.edges() if source in article_set)
         print("Calculating HITS...")
         if G_hits.number_of_edges() > 0:
-            _, authorities = nx.hits(G_hits)
+            hubs, authorities = nx.hits(G_hits)
         else:
+            hubs = {}
             authorities = {}
         authorities = {node: (0.0 if node in article_set else score) for node, score in authorities.items()}
 
@@ -268,6 +269,9 @@ class RankingService:
                     "label": node_names.get(node, node),
                     "type": "article" if node in results else "entity",
                     "score": normalized[node],
+                    # HITS role score: articles are hubs (they cite), entities
+                    # are authorities (they are cited)
+                    "hits": hubs.get(node, 0.0) if node in article_set else authorities.get(node, 0.0),
                     # bipartite graph stores both edge directions; report the half
                     # that corresponds to real opposite-node counts (citations)
                     "degree": opposite_count[node],

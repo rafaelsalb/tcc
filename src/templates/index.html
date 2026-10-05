@@ -24,11 +24,11 @@
             <aside class="sidebar">
                 <form class="search-form" id="search-form">
                     <div class="field">
-                        <label for="query">Assunto</label>
+                        <label for="query">Assunto<button type="button" class="help-dot" data-help="Descreva o assunto que você quer explorar. A busca procura notícias do G1 cujo conteúdo combina com o texto.">?</button></label>
                         <input type="text" id="query" name="query" placeholder="Ex.: guerra Irã Estados Unidos" required>
                     </div>
                     <div class="field">
-                        <label for="search-level">Nível de busca</label>
+                        <label for="search-level">Nível de busca<button type="button" class="help-dot" data-help="Define quantas notícias a busca explora. Níveis mais altos encontram mais artigos, mas demoram mais.">?</button></label>
                         <select id="search-level">
                             <option value="rapido">Rápido</option>
                             <option value="balanceado" selected>Balanceado</option>
@@ -39,11 +39,11 @@
                     <div id="advanced-filters" hidden>
                         <div class="field-row field-row-dates">
                             <div class="field">
-                                <label for="date_from">De</label>
+                                <label for="date_from">De<button type="button" class="help-dot" data-help="Limita os resultados a notícias publicadas a partir desta data.">?</button></label>
                                 <input type="date" id="date_from" name="date_from">
                             </div>
                             <div class="field">
-                                <label for="date_to">Até</label>
+                                <label for="date_to">Até<button type="button" class="help-dot" data-help="Limita os resultados a notícias publicadas até esta data.">?</button></label>
                                 <input type="date" id="date_to" name="date_to">
                             </div>
                         </div>
@@ -51,17 +51,14 @@
                     <div class="form-actions">
                         <button type="submit" class="btn-primary">Buscar</button>
                         <button type="button" class="btn-lucky" id="lucky-button" title="Ver artigo mais relevante" disabled>Estou com sorte</button>
+                        <button type="button" class="help-dot" data-help="Leva direto ao artigo mais relevante da busca atual.">?</button>
                     </div>
                     <p class="form-hint">Níveis mais profundos exploram mais artigos e levam mais tempo; o período restringe as datas de publicação.</p>
                 </form>
                 <section class="entity-picker" id="entity-picker" hidden>
-                    <label for="entity-picker-input">Filtrar por tópicos</label>
+                    <label for="entity-picker-input">Filtrar por tópicos<button type="button" class="help-dot" data-help="Escolha assuntos citados nas notícias (pessoas, lugares, organizações) para mostrar só os artigos que mencionam os tópicos selecionados.">?</button></label>
                     <input type="text" id="entity-picker-input" placeholder="Buscar tópico…" autocomplete="off">
                     <ul class="entity-picker-list" id="entity-picker-list"></ul>
-                </section>
-                <section class="help-card" aria-label="Sobre tópicos principais">
-                    <h3><span class="seed-mark" title="Tópico Principal">★</span>Tópico principal</h3>
-                    <p>Os tópicos marcados com <span class="seed-mark" title="Tópico Principal">★</span> são os mais citados no mapa de tópicos: eles guiam a ordenação dos resultados. Os artigos que mencionam esses tópicos recebem maior relevância.</p>
                 </section>
             </aside>
 
@@ -81,25 +78,25 @@
                     <div class="stat-strip" id="stat-strip" hidden>
                         <div class="stat">
                             <div class="stat-value" id="stat-count">—</div>
-                            <div class="stat-label">Artigos</div>
+                            <div class="stat-label">Artigos<button type="button" class="help-dot" data-help="Quantas notícias diferentes a busca encontrou.">?</button></div>
                         </div>
                         <div class="stat">
                             <div class="stat-value" id="stat-span">—</div>
-                            <div class="stat-label">Período</div>
+                            <div class="stat-label">Período<button type="button" class="help-dot" data-help="Datas de publicação dos resultados, da mais antiga à mais recente.">?</button></div>
                         </div>
                         <div class="stat">
                             <div class="stat-value" id="stat-avg">—</div>
-                            <div class="stat-label">Relevância média</div>
+                            <div class="stat-label">Relevância média<button type="button" class="help-dot" data-help="Média de relevância dos artigos exibidos, de 0 a 1.">?</button></div>
                         </div>
                         <div class="stat">
                             <div class="stat-value" id="stat-entities">—</div>
-                            <div class="stat-label">Tópicos</div>
+                            <div class="stat-label">Tópicos<button type="button" class="help-dot" data-help="Quantos assuntos diferentes aparecem nas notícias encontradas.">?</button></div>
                         </div>
                     </div>
 
                     <div class="score-plot-card" id="score-plot-card" hidden>
                         <div class="score-plot-header">
-                            <h3>Relevância ao longo do tempo</h3>
+                            <h3>Relevância ao longo do tempo<button type="button" class="help-dot" data-help="Cada ponto é um artigo, em ordem de publicação. A altura mostra a relevância; clique para localizar o artigo na linha do tempo.">?</button></h3>
                         </div>
                         <div id="score-plot" class="score-plot"></div>
                         <div id="score-plot-tooltip" class="graph-tooltip" role="tooltip"></div>
@@ -107,7 +104,7 @@
 
                     <div class="toolbar" id="timeline-toolbar" hidden>
                         <div class="toolbar-group">
-                            <label for="sort-select">Ordenar por</label>
+                            <label for="sort-select">Ordenar por<button type="button" class="help-dot" data-help="Organiza os artigos por data de publicação ou pela relevância.">?</button></label>
                             <select id="sort-select">
                                 <option value="date_desc">Data · mais recentes</option>
                                 <option value="date_asc">Data · mais antigas</option>
@@ -115,7 +112,7 @@
                             </select>
                         </div>
                         <div class="toolbar-group">
-                            <label for="top-n">Destaques</label>
+                            <label for="top-n">Destaques<button type="button" class="help-dot" data-help="Mostra apenas os N artigos mais relevantes. Arraste para ajustar; &quot;todos&quot; remove o limite.">?</button></label>
                             <input type="range" id="top-n" min="1" max="1" step="1" value="1">
                             <span class="top-n-value" id="top-n-value">—</span>
                             <button type="button" class="btn-ghost" id="top-n-all">todos</button>
@@ -124,6 +121,7 @@
                             <div class="match-toggle" id="match-toggle" role="group" aria-label="Modo de combinação dos tópicos">
                                 <button type="button" data-match="any" class="active">Qualquer</button>
                                 <button type="button" data-match="all">Todas</button>
+                                <button type="button" class="help-dot" data-help="Com tópicos selecionados: &quot;Qualquer&quot; mostra artigos que citam pelo menos um deles; &quot;Todas&quot;, apenas os que citam todos.">?</button>
                             </div>
                             <div id="entity-chip-slot" style="display: flex; flex-wrap: wrap; gap: 6px;"></div>
                         </div>
@@ -139,28 +137,30 @@
                                 <label>
                                     <input type="checkbox" id="only-articles">
                                     Só artigos (conectados por tópicos em comum)
+                                    <button type="button" class="help-dot" data-help="Mostra apenas os artigos, ligados quando compartilham um tópico.">?</button>
                                 </label>
                                 <div class="graph-controls-group">
-                                    <label for="top-n-graph">Destaques</label>
+                                    <label for="top-n-graph">Destaques<button type="button" class="help-dot" data-help="Limita o mapa aos artigos mais relevantes e aos tópicos que eles citam.">?</button></label>
                                     <input type="range" id="top-n-graph" min="1" max="1" step="1" value="1">
                                     <span class="top-n-value" id="top-n-graph-value">—</span>
                                     <button type="button" class="btn-ghost" id="top-n-graph-all">todos</button>
                                 </div>
                             </div>
-                            <div id="graph" class="graph-container"></div>
+                            <div id="graph" class="graph-container" aria-label="Mapa de tópicos"></div>
                             <div id="graph-tooltip" class="graph-tooltip" role="tooltip"></div>
                             <div class="graph-legend" id="graph-legend"></div>
                         </div>
                         <div class="entity-table-card">
-                            <h3>Tópicos</h3>
+                            <h3>Tópicos<button type="button" class="help-dot help-dot--left" data-help="Assuntos encontrados na busca. Clique no cabeçalho das colunas para ordenar.">?</button></h3>
                             <input type="text" id="topic-search" class="topic-search" placeholder="Buscar tópico…" autocomplete="off">
                             <div class="entity-table-scroll">
                                 <table>
                                     <thead>
                                         <tr>
-                                            <th>Tópico</th>
-                                            <th class="num-cell">Relevância</th>
-                                            <th class="num-cell">Citações</th>
+                                            <th data-key="label">Tópico<button type="button" class="help-dot help-dot--left" data-help="Nome do assunto.">?</button></th>
+                                            <th class="num-cell" data-key="score">Relevância<button type="button" class="help-dot help-dot--left" data-help="Participação do tópico na relevância dos resultados: quanto maior, mais ele pesa nessa busca.">?</button></th>
+                                            <th class="num-cell" data-key="hits">Peso<button type="button" class="help-dot help-dot--left" data-help="Força do tópico como centro das citações dos artigos: tópicos em que as citações se concentram pesam mais.">?</button></th>
+                                            <th class="num-cell" data-key="degree">Citações<button type="button" class="help-dot help-dot--left" data-help="Em quantos artigos o tópico aparece.">?</button></th>
                                         </tr>
                                     </thead>
                                     <tbody id="entity-table-body"></tbody>
@@ -173,7 +173,7 @@
                 <section class="tab-panel" id="panel-eval" role="tabpanel">
                     <div class="eval-layout">
                         <div class="eval-search-card">
-                            <h3>Artigos relevantes</h3>
+                            <h3>Artigos relevantes<button type="button" class="help-dot" data-help="Encontre notícias pelo título em todo o banco e marque as que você considera relevantes para este assunto. Elas servem para medir a qualidade da busca.">?</button></h3>
                             <p class="eval-hint">Busque artigos por título no banco completo e marque os relevantes. As marcações são salvas automaticamente e não alteram a busca principal.</p>
                             <div class="eval-search-bar">
                                 <input type="text" id="eval-query" placeholder="Buscar por título…" autocomplete="off">
@@ -190,14 +190,19 @@
                             <div class="eval-selection-card">
                                 <h3>Selecionados <span class="eval-count-badge" id="eval-selected-count">0</span></h3>
                                 <div class="eval-label-row">
-                                    <label for="eval-label">Rodada</label>
+                                    <label for="eval-label">Rodada<button type="button" class="help-dot" data-help="Nome do conjunto de marcações. Use nomes diferentes para comparar testes; tudo é salvo automaticamente.">?</button></label>
                                     <input type="text" id="eval-label" list="eval-label-options" autocomplete="off">
                                     <datalist id="eval-label-options"></datalist>
                                 </div>
                                 <div id="eval-selected" class="eval-selected"></div>
+                                <div class="eval-send-row">
+                                    <button type="button" class="btn-primary" id="eval-send-button">Enviar seleção</button>
+                                    <button type="button" class="help-dot" data-help="Salva os artigos selecionados na rodada atual.">?</button>
+                                    <span id="eval-save-status" class="eval-save-status" role="status"></span>
+                                </div>
                             </div>
                             <div class="eval-metrics-card">
-                                <h3>Métricas (Precisão@k · Revocação@k)</h3>
+                                <h3>Métricas (Precisão@k · Revocação@k)<button type="button" class="help-dot help-dot--left" data-help="Compara os artigos que você marcou com a ordenação da busca principal. Precisão@k: entre os k primeiros resultados, qual fração é relevante. Revocação@k: dos artigos relevantes, qual fração aparece entre os k primeiros.">?</button></h3>
                                 <div id="eval-metrics"></div>
                             </div>
                         </div>

@@ -891,61 +891,6 @@ body.is-loading {
     cursor: default;
 }
 
-.seed-mark {
-    display: inline-block;
-    margin-left: 5px;
-    color: var(--accent-strong);
-    font-size: 12px;
-    line-height: 1;
-    vertical-align: -1px;
-    white-space: nowrap;
-}
-
-.entity-tag .seed-mark {
-    margin-left: 4px;
-    font-size: 10px;
-    vertical-align: 0;
-}
-
-/* --------------------------------------------------------------------------
-   Sidebar help card (explains the seed star / PPR personalization)
-   -------------------------------------------------------------------------- */
-
-.help-card {
-    margin-top: 12px;
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
-    box-shadow: var(--shadow);
-    padding: 14px 16px;
-}
-
-.help-card h3 {
-    margin: 0 0 6px;
-    font-size: 13px;
-    font-weight: 700;
-    color: var(--text);
-}
-
-.help-card h3 .seed-mark {
-    margin-left: 0;
-    margin-right: 4px;
-    font-size: 13px;
-    vertical-align: 0;
-}
-
-.help-card p {
-    margin: 0;
-    font-size: 12px;
-    line-height: 1.55;
-    color: var(--text-2);
-}
-
-.help-card p .seed-mark {
-    margin-left: 2px;
-    font-size: 11px;
-}
-
 .chunk-toggle {
     margin-top: 9px;
     padding: 0;
@@ -1172,16 +1117,6 @@ body.is-loading {
     font-size: 11px;
 }
 
-.graph-tooltip .tooltip-seed {
-    display: block;
-    margin-top: 4px;
-    color: #a5b4fc;
-    font-size: 10.5px;
-    font-weight: 700;
-    letter-spacing: 0.05em;
-    text-transform: uppercase;
-}
-
 .graph-tooltip .tooltip-mmr {
     display: block;
     margin-top: 4px;
@@ -1268,6 +1203,145 @@ th {
 th.num-cell,
 td.num-cell {
     text-align: right;
+}
+
+th[data-key] {
+    cursor: pointer;
+    user-select: none;
+}
+
+th[data-key]:hover {
+    color: var(--text-2);
+}
+
+.sort-indicator {
+    display: inline-block;
+    margin-left: 4px;
+    font-size: 9px;
+    color: var(--accent-strong);
+}
+
+/* --------------------------------------------------------------------------
+   "?" help badges with explanation bubbles
+   -------------------------------------------------------------------------- */
+
+.help-dot {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex: 0 0 auto;
+    width: 15px;
+    height: 15px;
+    margin-left: 5px;
+    padding: 0;
+    border: 1px solid var(--border-strong);
+    border-radius: 999px;
+    background: var(--surface-2);
+    color: var(--text-3);
+    font-size: 9.5px;
+    font-weight: 700;
+    line-height: 1;
+    vertical-align: middle;
+    cursor: help;
+    position: relative;
+}
+
+.help-dot:hover,
+.help-dot:focus-visible,
+.help-dot.open {
+    border-color: var(--accent);
+    color: var(--accent-strong);
+    background: var(--accent-soft);
+    z-index: 60;
+}
+
+.help-dot::after {
+    content: attr(data-help);
+    position: absolute;
+    bottom: calc(100% + 8px);
+    left: 50%;
+    transform: translateX(-50%) translateY(4px);
+    width: max-content;
+    max-width: min(260px, 90vw);
+    padding: 8px 10px;
+    border-radius: 8px;
+    background: #23293b;
+    color: #e6e9f2;
+    font-size: 11.5px;
+    font-weight: 500;
+    line-height: 1.5;
+    text-align: left;
+    white-space: normal;
+    letter-spacing: normal;
+    text-transform: none;
+    box-shadow: 0 6px 18px rgba(15, 18, 30, 0.28);
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+    transition: opacity 0.12s ease, transform 0.12s ease;
+    z-index: 60;
+}
+
+.help-dot::before {
+    content: "";
+    position: absolute;
+    bottom: calc(100% + 3px);
+    left: 50%;
+    transform: translateX(-50%) translateY(4px);
+    border: 5px solid transparent;
+    border-top-color: #23293b;
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+    transition: opacity 0.12s ease, transform 0.12s ease;
+    z-index: 60;
+}
+
+.help-dot:hover::after,
+.help-dot:focus-visible::after,
+.help-dot.open::after {
+    opacity: 1;
+    visibility: visible;
+    transform: translateX(-50%) translateY(0);
+}
+
+.help-dot:hover::before,
+.help-dot:focus-visible::before,
+.help-dot.open::before {
+    opacity: 1;
+    visibility: visible;
+    transform: translateX(-50%) translateY(0);
+}
+
+/* near the right edge: open the bubble to the left so it stays on screen */
+.help-dot.help-dot--left::after {
+    left: auto;
+    right: -6px;
+    transform: translateY(4px);
+}
+
+.help-dot.help-dot--left::before {
+    left: auto;
+    right: 2px;
+    transform: translateY(4px);
+}
+
+.help-dot.help-dot--left:hover::after,
+.help-dot.help-dot--left:focus-visible::after,
+.help-dot.help-dot--left.open::after {
+    transform: translateY(0);
+}
+
+.help-dot.help-dot--left:hover::before,
+.help-dot.help-dot--left:focus-visible::before,
+.help-dot.help-dot--left.open::before {
+    transform: translateY(0);
+}
+
+/* inside dark graph tooltips the badge needs contrast against light surfaces */
+.graph-legend .help-dot,
+.card-meta .help-dot {
+    margin-left: 4px;
 }
 
 #entity-table-body tr {
@@ -1483,6 +1557,35 @@ td.num-cell {
     gap: 6px;
     max-height: 220px;
     overflow-y: auto;
+}
+
+.eval-send-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-top: 12px;
+}
+
+.eval-save-status {
+    font-size: 12px;
+    color: var(--text-3);
+    min-width: 0;
+    overflow-wrap: anywhere;
+}
+
+.eval-save-status.ok {
+    color: #0f766e;
+    font-weight: 600;
+}
+
+.eval-save-status.err {
+    color: #b91c1c;
+    font-weight: 600;
+}
+
+.eval-save-status.warn {
+    color: #92400e;
+    font-weight: 600;
 }
 
 .eval-metrics-table {

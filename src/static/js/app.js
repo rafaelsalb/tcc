@@ -9,6 +9,7 @@ import {
     setTopicFilter,
 } from "./graph.js";
 import { initEvalTab, setEvalResponse } from "./eval.js";
+import { initHelpDots } from "./help.js";
 
 const state = {
     response: null,
@@ -225,14 +226,6 @@ function renderEntityPicker() {
         const name = document.createElement("span");
         name.className = "picker-name";
         name.textContent = node.label || node.id;
-        if (node.ppr_seed) {
-            const star = document.createElement("span");
-            star.className = "seed-mark";
-            star.textContent = "★";
-            star.title = "Tópico Principal";
-            star.setAttribute("aria-label", "Tópico Principal");
-            name.appendChild(star);
-        }
         const degree = document.createElement("span");
         degree.className = "picker-degree";
         degree.textContent = `${node.degree ?? 0} citações`;
@@ -540,6 +533,7 @@ window.addEventListener("popstate", () => {
 });
 
 initEvalTab();
+initHelpDots();
 
 /* ----------------------------------------------------------------------
    Bootstrap: restore a shared/searchable URL if present
