@@ -50,10 +50,22 @@ class ArticleRepository:
     def search_by_title(self, q: str, limit: int = 20, offset: int = 0) -> tuple[list[dict], int]:
         """Paginated title search over the whole article database (evaluation tab).
 
-        Empty q browses the most recent articles. Never selects text_content.
+        Empty q browses the most recent articles with at least one embedded chunk.
+        Never selects text_content.
         """
         with Session(self.engine) as session:
-            base = select(G1Articles.url, G1Articles.title, G1Articles.excerpt, G1Articles.date_published)
+            has_embedded_chunk = (
+                select(G1Chunks.id)
+                .where(
+                    G1Chunks.article == G1Articles.url,
+                    G1Chunks.embedding.is_not(None),
+                )
+                .exists()
+            )
+            base = (
+                select(G1Articles.url, G1Articles.title, G1Articles.excerpt, G1Articles.date_published)
+                .where(has_embedded_chunk)
+            )
             if q:
                 base = base.where(G1Articles.title.ilike(f"%{q}%"))
             count_stmt = select(func.count()).select_from(base.subquery())

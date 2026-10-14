@@ -128,6 +128,22 @@ export function mmrFlaggedUrls(response) {
     );
 }
 
+/**
+ * URLs of the articles matching the real-time text search (title + excerpt).
+ * Accent/case-insensitive; every article matches when the query is empty.
+ */
+export function filterArticlesByText(response, query) {
+    const needle = normalizeText(query);
+    if (!needle) {
+        return new Set((response?.articles ?? []).map((article) => article.url));
+    }
+    return new Set(
+        (response?.articles ?? [])
+            .filter((article) => normalizeText(`${article.title ?? ""} ${article.excerpt ?? ""}`).includes(needle))
+            .map((article) => article.url)
+    );
+}
+
 function viewArticles(state) {
     const response = state.response;
     if (!response || !Array.isArray(response.articles)) return [];
@@ -135,6 +151,7 @@ function viewArticles(state) {
     const chunksByUrl = groupChunksByArticle(response);
     const scores = response.articles_scores ?? {};
     const flagged = mmrFlaggedUrls(response);
+    const matchedUrls = filterArticlesByText(response, state.resultQuery ?? "");
     const articles = response.articles.map((article) => ({
         ...article,
         date: parseDate(article.date_published),
@@ -143,7 +160,7 @@ function viewArticles(state) {
         chunks: chunksByUrl.get(article.url) ?? [],
     }));
 
-    let selection = articles;
+    let selection = articles.filter((article) => matchedUrls.has(article.url));
     if (state.topN != null && state.topN >= 1 && state.topN < selection.length) {
         selection = [...selection].sort((a, b) => b.score - a.score).slice(0, state.topN);
     }
@@ -159,11 +176,15 @@ function viewArticles(state) {
 /**
  * URLs of the top-N articles by relevance score (the same ranking the
  * timeline's Top-N filter uses). Returns all URLs when topN covers the set.
+ * `filterUrls` (the real-time text search) narrows the candidate pool first.
  */
-export function topArticleUrls(response, topN) {
+export function topArticleUrls(response, topN, filterUrls = null) {
     const scores = response?.articles_scores ?? {};
-    const articles = [...(response?.articles ?? [])]
-        .sort((a, b) => (scores[b.url] ?? 0) - (scores[a.url] ?? 0));
+    let candidates = [...(response?.articles ?? [])];
+    if (filterUrls) {
+        candidates = candidates.filter((article) => filterUrls.has(article.url));
+    }
+    const articles = candidates.sort((a, b) => (scores[b.url] ?? 0) - (scores[a.url] ?? 0));
     if (topN != null && topN >= 1 && topN < articles.length) {
         return new Set(articles.slice(0, topN).map((article) => article.url));
     }
@@ -388,15 +409,18 @@ export function renderTimeline(container, state) {
 
     const { articles } = computeView(state);
     if (articles.length === 0) {
+        const hasTextFilter = Boolean(normalizeText(state.resultQuery ?? ""));
         const hasFilters = state.entityFilters && state.entityFilters.size > 0;
         emptyState(
             container,
             "Nenhum artigo para exibir",
-            hasFilters
-                ? (state.entityMatch === "all"
-                    ? "Nenhum artigo menciona todos os tópicos selecionados. Tente o modo \u201cQualquer\u201d ou remova alguns filtros."
-                    : "Nenhum artigo menciona os tópicos selecionados.")
-                : "Nenhum artigo encontrado para essa busca."
+            hasTextFilter
+                ? "Nenhum artigo corresponde à busca nos resultados. Ajuste ou limpe o texto pesquisado."
+                : (hasFilters
+                    ? (state.entityMatch === "all"
+                        ? "Nenhum artigo menciona todos os tópicos selecionados. Tente o modo \u201cQualquer\u201d ou remova alguns filtros."
+                        : "Nenhum artigo menciona os tópicos selecionados.")
+                    : "Nenhum artigo encontrado para essa busca.")
         );
         return;
     }

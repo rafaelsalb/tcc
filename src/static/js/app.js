@@ -1,5 +1,5 @@
 import { searchArticles } from "./api.js";
-import { computeView, renderTimeline, scrollToArticle, matchEntities, topArticleUrls } from "./timeline.js";
+import { computeView, renderTimeline, scrollToArticle, matchEntities, topArticleUrls, filterArticlesByText } from "./timeline.js";
 import { renderScorePlot } from "./scoreplot.js";
 import {
     renderGraph,
@@ -17,6 +17,7 @@ const state = {
     topN: null,
     entityFilters: new Map(),
     entityMatch: "any",
+    resultQuery: "",
 };
 
 // Search depth presets exposed to the user as "Nível de busca".
@@ -66,6 +67,7 @@ const els = {
     seedMethod: document.getElementById("seed-method"),
     quorum: document.getElementById("quorum"),
     quorumValue: document.getElementById("quorum-value"),
+    resultSearch: document.getElementById("result-search"),
     topNGraph: document.getElementById("top-n-graph"),
     topNGraphValue: document.getElementById("top-n-graph-value"),
     topNGraphAll: document.getElementById("top-n-graph-all"),
@@ -273,6 +275,14 @@ function syncTopNBounds() {
     els.topNGraphValue.textContent = String(state.topN);
 }
 
+function syncTopKButtons() {
+    for (const container of document.querySelectorAll(".topk-buttons")) {
+        for (const button of container.querySelectorAll("button[data-k]")) {
+            button.classList.toggle("active", Number(button.dataset.k) === state.topN);
+        }
+    }
+}
+
 function setTopN(value) {
     if (Number.isNaN(value)) return;
     const max = Math.max(1, state.response?.articles?.length ?? 0);
@@ -281,11 +291,7 @@ function setTopN(value) {
     els.topNValue.textContent = String(state.topN);
     els.topNGraph.value = String(state.topN);
     els.topNGraphValue.textContent = String(state.topN);
-    for (const container of document.querySelectorAll(".topk-buttons")) {
-        for (const button of container.querySelectorAll("button[data-k]")) {
-            button.classList.toggle("active", Number(button.dataset.k) === state.topN);
-        }
-    }
+    syncTopKButtons();
     graphDirty = true;
     renderAll();
 }
@@ -385,7 +391,9 @@ function renderGraphNow() {
     renderGraph({
         response: state.response,
         onlyArticles: els.onlyArticles.checked,
-        topUrls: state.response ? topArticleUrls(state.response, state.topN) : null,
+        topUrls: state.response
+            ? topArticleUrls(state.response, state.topN, filterArticlesByText(state.response, state.resultQuery ?? ""))
+            : null,
         onEntitySelect: handleEntitySelect,
         onArticleClick: handleArticleClick,
     });
@@ -438,7 +446,13 @@ async function runSearch({ push = true } = {}) {
         const data = await searchArticles(params);
         state.response = data;
         state.entityFilters = new Map();
+        state.resultQuery = "";
+        els.resultSearch.value = "";
+        // every executed search restarts the view at the top-10 of the results
+        // (syncTopNBounds clamps it when fewer articles were retrieved)
+        state.topN = 10;
         syncTopNBounds();
+        syncTopKButtons();
         renderEntityChips();
         renderEntityPicker();
         renderAll();
@@ -515,6 +529,19 @@ for (const container of document.querySelectorAll("#topk-buttons-graph")) {
 
 els.topicSearch.addEventListener("input", () => {
     setTopicFilter(els.topicSearch.value);
+});
+
+let resultSearchTimer = null;
+els.resultSearch.addEventListener("input", () => {
+    clearTimeout(resultSearchTimer);
+    resultSearchTimer = setTimeout(() => {
+        state.resultQuery = els.resultSearch.value.trim();
+        graphDirty = true;
+        renderAll();
+        if (graphTabActive() || document.getElementById("graph").hasChildNodes()) {
+            renderGraphNow();
+        }
+    }, 150);
 });
 
 els.advancedToggle.addEventListener("click", () => {
