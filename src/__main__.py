@@ -1,7 +1,13 @@
 import argparse
 import sys
+from pathlib import Path
 
-from app import App
+from services.batch_evaluation import (
+    ensure_output_available,
+    load_evaluation_file,
+    output_paths,
+    run_batch_evaluation,
+)
 
 
 def main(args):
@@ -14,6 +20,27 @@ def main(args):
     if args.populate_chunks and args.populate_embeddings:
         print("Please choose either --populate-chunks or --populate-embeddings, not both.")
         sys.exit(1)
+    if args.evaluate_file:
+        try:
+            evaluations = load_evaluation_file(args.evaluate_file)
+            json_path, csv_path = output_paths(args.evaluate_file, args.output)
+            ensure_output_available((json_path, csv_path), args.overwrite)
+        except (ValueError, FileExistsError) as exc:
+            print(f"Invalid batch evaluation: {exc}", file=sys.stderr)
+            sys.exit(2)
+        from app import App
+
+        app = App()
+        try:
+            run_batch_evaluation(app, evaluations, json_path, csv_path)
+        except Exception as exc:
+            print(f"Batch evaluation failed: {exc}", file=sys.stderr)
+            sys.exit(1)
+        print(f"Wrote detailed results to {json_path}")
+        print(f"Wrote summary to {csv_path}")
+        return
+    from app import App
+
     app = App()
     if args.populate_chunks:
         app.populate_chunks()
@@ -39,6 +66,9 @@ if __name__ == "__main__":
     parser.add_argument("--canonicalize-entities", action="store_true", help="Link existing entities to DBpedia URIs (junk flags + alias canonicalization).")
     parser.add_argument("--limit", type=int, default=None, help="Limit entities processed by --canonicalize-entities (for trial runs).")
     parser.add_argument("--search", type=str, help="Search for a query in the chunks.")
+    parser.add_argument("--evaluate-file", type=Path, help="Run batch search evaluations from a strict JSON input file.")
+    parser.add_argument("--output", type=Path, help="JSON output path (CSV summary is written beside it). Defaults to <input>.results.json.")
+    parser.add_argument("--overwrite", action="store_true", help="Replace existing batch evaluation outputs.")
     args = parser.parse_args()
 
     main(args)
