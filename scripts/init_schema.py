@@ -12,6 +12,7 @@ APPLICATION_TABLES = (
     "g1_entities",
     "g1_chunks",
     "article_entities",
+    "article_entity_extraction_status",
     "g1_relevance_judgments",
 )
 

@@ -31,6 +31,10 @@ def search_request(searcher, ranker, cache, params):
     if bypass_value not in ("", "false", "0", "true", "1"):
         raise ValueError("bypass_cache must be true/false or 1/0")
     bypass_cache = bypass_value in ("true", "1")
+    diagnostics_value = str(params.get("pool_diagnostics", "false")).strip().lower()
+    if diagnostics_value not in ("", "false", "0", "true", "1"):
+        raise ValueError("pool_diagnostics must be true/false or 1/0")
+    include_pool_diagnostics = diagnostics_value in ("true", "1")
     try:
         raw_k = str(params.get("top_k", "5")).strip().lower()
         top_k = 5 if raw_k in ("", "null", "none") else int(raw_k)
@@ -81,6 +85,7 @@ def search_request(searcher, ranker, cache, params):
         "date_from": date_from, "date_to": date_to,
         "quorum_threshold": quorum, "candidate_cap": cap, "result_unit": unit,
         "retrieval_stage": "lexical" if stage == "lexical" else "hybrid",
+        "include_pool_diagnostics": include_pool_diagnostics,
     }
 
     def key(kind, value):

@@ -70,6 +70,7 @@ def _execute(searcher, ranker, params, configurations, reuse, progress_callback=
             search_request(capture, ranker, None, {
                 **params, "stage": "hybrid", "ranking": "", "seed_method": "hits",
                 "seed_methods": ",".join(SEED_METHODS), "bypass_cache": "true",
+                "pool_diagnostics": "true",
             })
             retrieval = capture.retrieval
             retrieval_steps = retrieval.get("timings", {})
@@ -137,8 +138,14 @@ def _execute(searcher, ranker, params, configurations, reuse, progress_callback=
                 entry=deepcopy(entries[-1]), retrieval_steps=deepcopy(retrieval_steps),
                 retrieval_seconds=retrieval_seconds,
                 group_elapsed_seconds=perf_counter() - started,
-                retrieval_snapshot=deepcopy(retrieval),
             )
+            # A work unit has one shared retrieval. Re-copying its potentially
+            # large chunk/article payload for every ranking configuration made
+            # callback overhead grow as O(configurations × retrieval size).
+            # Consumers persist this group-level snapshot once, on the first
+            # completed entry.
+            if len(entries) == 1:
+                completed_event["retrieval_snapshot"] = retrieval
         report_progress(**completed_event)
     if reuse:
         for name in ("graph_builds", "ppr_runs"):

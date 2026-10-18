@@ -1,12 +1,19 @@
+from collections import OrderedDict
+import hashlib
+import threading
+
 import spacy
 import spacy_dbpedia_spotlight  # noqa: F401 — registers the 'dbpedia_spotlight' pipeline factory
-from sqlalchemy import select
+from sqlalchemy import or_, select
 from sqlalchemy.orm import Session
 
 from config import SPOTLIGHT_ENDPOINT
-from models.models import ArticleEntities, G1Articles, G1Entities
+from models.models import ArticleEntities, ArticleEntityExtractionStatus, G1Articles, G1Entities
 from repositories.entities import EntityRepository
 from services.linking import SPOTLIGHT_CONFIDENCE, best_overlap
+
+EMPTY_ENTITY_CACHE_SIZE = 4096
+ENTITY_EXTRACTOR_VERSION = "pt_core_news_sm_3.8.0_spotlight_v1"
 
 
 class NERService:
@@ -17,6 +24,13 @@ class NERService:
     def __init__(self, entity_repository: EntityRepository, spotlight_endpoint: str | None = None):
         self.nlp = spacy.load("pt_core_news_sm")
         self.entity_repository = entity_repository
+        # Articles with no detected entities have no ArticleEntities row to
+        # mark them as processed. Keep a bounded, content-sensitive negative
+        # cache so repeated graph builds in this process don't rerun spaCy and
+        # Spotlight for the same unchanged article.
+        self._empty_entity_fingerprints = OrderedDict()
+        self._empty_entity_lock = threading.Lock()
+        self.extractor_version = ENTITY_EXTRACTOR_VERSION
         self.linker_available = False
         try:
             self.nlp.add_pipe("dbpedia_spotlight", config={
@@ -77,6 +91,8 @@ class NERService:
                 types=types_batch,
                 canonicals=canonicals_batch,
             )
+        empty_articles = [url for url, entities in article_entities.items() if not entities]
+        self.entity_repository.mark_empty_extractions(empty_articles, self.extractor_version)
 
     def get_entities_for_article(self, article_url: str) -> list[dict[str, str]]:
         with Session(self.entity_repository.engine) as session:
@@ -94,22 +110,48 @@ class NERService:
             stmt = (
                 select(G1Articles)
                 .outerjoin(ArticleEntities, ArticleEntities.g1_article_url == G1Articles.url)
+                .outerjoin(ArticleEntityExtractionStatus,
+                           ArticleEntityExtractionStatus.article_url == G1Articles.url)
                 .where(ArticleEntities.g1_article_url.is_(None))
+                .where(or_(ArticleEntityExtractionStatus.article_url.is_(None),
+                           ArticleEntityExtractionStatus.extractor_version != ENTITY_EXTRACTOR_VERSION))
                 .where(G1Articles.url.in_(articles))
             )
             articles_with_no_entities = session.scalars(stmt).all()
             print("Articles with no entities:", len(articles_with_no_entities), [article.url for article in articles_with_no_entities])
 
             # create the entities
+            empty_extractions = []
             for article in articles_with_no_entities:
+                article_text = article.text_content or ""
+                fingerprint = hashlib.sha256(article_text.encode("utf-8")).digest()
+                with self._empty_entity_lock:
+                    previous = self._empty_entity_fingerprints.get(article.url)
+                    if previous == (ENTITY_EXTRACTOR_VERSION, fingerprint):
+                        self._empty_entity_fingerprints.move_to_end(article.url)
+                        empty_extractions.append(article.url)
+                        continue
                 print("Extracting entities for article:", article.url)
-                entities = self.extract_entities(article.text_content)
-                self.entity_repository.batch_add_entities(
-                    articles=[article.url] * len(entities),
-                    texts=[entity["text"] for entity in entities],
-                    types=[entity["label"] for entity in entities],
-                    canonicals=[entity.get("canonical") for entity in entities],
-                )
+                entities = self.extract_entities(article_text)
+                if entities:
+                    self.entity_repository.batch_add_entities(
+                        articles=[article.url] * len(entities),
+                        texts=[entity["text"] for entity in entities],
+                        types=[entity["label"] for entity in entities],
+                        canonicals=[entity.get("canonical") for entity in entities],
+                    )
+                else:
+                    empty_extractions.append(article.url)
+                    with self._empty_entity_lock:
+                        self._empty_entity_fingerprints[article.url] = (
+                            ENTITY_EXTRACTOR_VERSION, fingerprint,
+                        )
+                        self._empty_entity_fingerprints.move_to_end(article.url)
+                        if len(self._empty_entity_fingerprints) > EMPTY_ENTITY_CACHE_SIZE:
+                            self._empty_entity_fingerprints.popitem(last=False)
+            self.entity_repository.mark_empty_extractions(
+                empty_extractions, ENTITY_EXTRACTOR_VERSION,
+            )
 
             print("Retrieving entities for all articles...")
             # retrieve all entities for the articles

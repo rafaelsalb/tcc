@@ -4,7 +4,7 @@ import math
 import numpy as np
 from sqlalchemy import BigInteger, DateTime, Float, bindparam, cast, delete, func, insert, literal, select, text, update
 from sqlalchemy.dialects.postgresql import TSVECTOR
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, load_only
 
 from models.models import G1Articles, G1Chunks
 
@@ -224,6 +224,7 @@ class ChunkRepository:
         result_unit: str = "chunks",
         retrieval_stage: str = "hybrid",
         include_diagnostics: bool = False,
+        include_pool_diagnostics: bool = True,
     ) -> list[dict[str, G1Chunks | G1Articles]]:
         if language not in ALLOWED_TSQUERY_LANGUAGES:
             raise ValueError(f"language must be one of {sorted(ALLOWED_TSQUERY_LANGUAGES)}, got {language!r}")
@@ -297,7 +298,7 @@ class ChunkRepository:
 
             # Diagnostics describe the capped lexical pool, not the whole corpus.
             pool = []
-            if include_diagnostics:
+            if include_diagnostics and include_pool_diagnostics:
                 pool = session.execute(select(
                     G1Chunks.article,
                     func.count().label("chunks"),
@@ -329,9 +330,17 @@ class ChunkRepository:
                     func.min(scored.c.vector_rank).label("article_vector_rank"),
                     func.min(scored.c.text_rank).label("article_text_rank"),
                 ).group_by(scored.c.article).cte("article_ranks")
+                cosine_similarity = (
+                    literal(1.0) - G1Chunks.embedding.cosine_distance(query_embedding)
+                    if stage != "lexical" else literal(None)
+                ).label("cosine_similarity")
                 stmt = select(
                     G1Chunks, G1Articles, chosen.c.score.label("rrf_score"),
                     article_ranks.c.article_vector_rank, article_ranks.c.article_text_rank,
+                    cosine_similarity,
+                ).options(
+                    load_only(G1Chunks.id, G1Chunks.article, G1Chunks.chunk),
+                    load_only(G1Articles.url, G1Articles.title),
                 ).join(chosen, G1Chunks.id == chosen.c.chunk_id)
                 stmt = stmt.join(article_ranks, chosen.c.article == article_ranks.c.article).join(G1Chunks.g1_articles)
                 return session.execute(stmt.order_by(
@@ -349,19 +358,25 @@ class ChunkRepository:
                 if url not in seen:
                     seen.add(url)
                     lexical_ranked.append({"article": url, "score": float(row["rrf_score"])})
-            chunk_count = sum(row["chunks"] for row in pool)
-            return {
-                "rows": results,
-                "lexical_ranked": lexical_ranked,
-                "diagnostics": {
-                    "query_lexemes": lexemes, "effective_quorum": k,
+            pool_diagnostics = {}
+            if include_pool_diagnostics:
+                chunk_count = sum(row["chunks"] for row in pool)
+                pool_diagnostics = {
                     "lexical_candidate_chunks": chunk_count,
                     "lexical_candidate_articles": len(pool),
                     "embedded_candidate_chunks": sum(row["embedded"] for row in pool),
                     "hybrid_eligible_articles": sum(row["embedded"] > 0 for row in pool),
                     "lexical_candidate_article_urls": [row["article"] for row in pool],
                     "hybrid_eligible_article_urls": [row["article"] for row in pool if row["embedded"] > 0],
-                    "candidate_cap": candidate_cap, "candidate_cap_hit": chunk_count >= candidate_cap,
+                    "candidate_cap_hit": chunk_count >= candidate_cap,
+                }
+            return {
+                "rows": results,
+                "lexical_ranked": lexical_ranked,
+                "diagnostics": {
+                    "query_lexemes": lexemes, "effective_quorum": k,
+                    **pool_diagnostics,
+                    "candidate_cap": candidate_cap,
                     "candidate_counts_are_capped": True,
                     "lexical_returned_chunks": len(lexical_rows),
                 },
@@ -386,8 +401,16 @@ class ChunkRepository:
             session.commit()
 
     def batch_update_embeddings(self, chunk_ids: list[int], embeddings: list[np.ndarray]):
+        if len(chunk_ids) != len(embeddings):
+            raise ValueError("chunk_ids and embeddings must have the same length")
+        if not chunk_ids:
+            return
+        mappings = [
+            {"id": chunk_id, "embedding": embedding}
+            for chunk_id, embedding in zip(chunk_ids, embeddings)
+        ]
         with Session(self.engine) as session:
-            for chunk_id, embedding in zip(chunk_ids, embeddings):
-                stmt = update(G1Chunks).where(G1Chunks.id == chunk_id).values(embedding=embedding)
-                session.execute(stmt)
+            # SQLAlchemy's ORM bulk UPDATE-by-primary-key uses executemany,
+            # replacing one client/server round trip per chunk with one batch.
+            session.execute(update(G1Chunks), mappings)
             session.commit()

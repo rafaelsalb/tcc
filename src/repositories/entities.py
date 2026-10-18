@@ -1,4 +1,4 @@
-from sqlalchemy import insert, select, tuple_
+from sqlalchemy import func, insert, select
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError
@@ -77,29 +77,72 @@ class EntityRepository:
             session.commit()
 
     def batch_add_entities(self, articles: list[str], texts: list[str], types: list[str], canonicals: list[str | None] = None):
-        assert len(articles) == len(texts) == len(types), "Length of articles, texts, and types must be the same"
+        if not (len(articles) == len(texts) == len(types)):
+            raise ValueError("articles, texts, and types must have the same length")
         if canonicals is None:
             canonicals = [None] * len(texts)
-        assert len(canonicals) == len(texts), "Length of canonicals must match texts"
+        if len(canonicals) != len(texts):
+            raise ValueError("canonicals must have the same length as texts")
+        if not texts:
+            return
+
+        # Deduplicate before ON CONFLICT: PostgreSQL rejects a single upsert
+        # statement that would affect the same unique entity more than once.
+        entity_values = {}
+        association_values = set()
+        for article, text_, type_, canonical in zip(articles, texts, types, canonicals):
+            key = (text_, type_)
+            if key not in entity_values or (entity_values[key]["canonical"] is None and canonical):
+                entity_values[key] = {"text": text_, "type": type_, "canonical": canonical}
+            association_values.add((article, text_, type_))
+
         with Session(self.engine) as session:
-            rows = []
-            for article, text, type_, canonical in zip(articles, texts, types, canonicals):
-                entity_id = self._get_or_create(session=session, text=text, type_=type_, canonical=canonical)
-                if entity_id is None:
-                    entity_id = self._create(session=session, text=text, type_=type_, canonical=canonical)
-                rows.append({'g1_article_url': article, 'g1_entities_id': entity_id})
+            entity_insert = pg_insert(G1Entities).values(list(entity_values.values()))
+            excluded = entity_insert.excluded
+            entity_stmt = entity_insert.on_conflict_do_update(
+                index_elements=[G1Entities.text_, G1Entities.type],
+                set_={"canonical": func.coalesce(G1Entities.canonical, excluded.canonical)},
+            ).returning(G1Entities.id, G1Entities.text_, G1Entities.type)
+            entity_ids = {
+                (row.text, row.type): row.id
+                for row in session.execute(entity_stmt).all()
+            }
+
+            existing = set()
+            article_urls = {article for article, _, _ in association_values}
+            if article_urls:
+                existing_stmt = (
+                    select(ArticleEntities.g1_article_url, G1Entities.text_, G1Entities.type)
+                    .join(G1Entities, ArticleEntities.g1_entities_id == G1Entities.id)
+                    .where(ArticleEntities.g1_article_url.in_(article_urls))
+                )
+                existing = {tuple(row) for row in session.execute(existing_stmt).all()}
+
+            rows = [
+                {"g1_article_url": article, "g1_entities_id": entity_ids[(text_, type_)]}
+                for article, text_, type_ in association_values
+                if (article, text_, type_) not in existing
+            ]
             if rows:
-                try:
-                    stmt = (
-                        insert(ArticleEntities)
-                        .values(rows)
-                        .returning(ArticleEntities)
-                    )
-                    session.execute(stmt)
-                except IntegrityError as e:
-                    print("IntegrityError during batch_add_entities:", e)
-                    session.rollback()
-                    raise e
+                session.execute(insert(ArticleEntities), rows)
+            session.commit()
+
+    def mark_empty_extractions(self, article_urls: list[str], extractor_version: str):
+        """Remember successful NER passes that found no entity mentions."""
+        urls = list(dict.fromkeys(article_urls))
+        if not urls:
+            return
+        from models.models import ArticleEntityExtractionStatus
+
+        stmt = pg_insert(ArticleEntityExtractionStatus).values([
+            {"article_url": url, "extractor_version": extractor_version}
+            for url in urls
+        ]).on_conflict_do_update(
+            index_elements=[ArticleEntityExtractionStatus.article_url],
+            set_={"extractor_version": extractor_version, "processed_at": func.now()},
+        )
+        with Session(self.engine) as session:
+            session.execute(stmt)
             session.commit()
 
     def get_entities_by_article(self, article: str):

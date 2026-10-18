@@ -66,6 +66,7 @@ def test_reuse_benchmark_preserves_results_and_reduces_work(monkeypatch):
     }
     assert len(reranks) == 4  # One optimized pass, three independent passes.
     assert len(report["results"]) == 18 and len(calls) == 19
+    assert all(call.get("include_pool_diagnostics") is True for call in calls)
     assert all(entry["computation_seconds"] >= 0 for entry in report["results"])
     assert data == original
     assert not hasattr(ranker, "_batch_graphs")
@@ -114,6 +115,19 @@ def test_evaluation_reports_progress_after_each_configuration():
     completion = [update for update in updates if update["activity"] == "ranking"]
     assert [update["completed"] for update in completion] == [1, 2, 3]
     assert all(update["total"] == 3 for update in completion)
+
+
+def test_completed_progress_includes_shared_retrieval_snapshot_only_once():
+    searcher, ranker, _, _ = setup_services()
+    updates = []
+    evaluate_request(searcher, ranker, {
+        "search": {"query": "teste"}, "configurations": configurations()[:3],
+    }, progress_callback=updates.append, include_completed_entries=True)
+
+    completed = [update for update in updates if update.get("activity") == "ranking"]
+    assert len(completed) == 3
+    assert "retrieval_snapshot" in completed[0]
+    assert all("retrieval_snapshot" not in update for update in completed[1:])
 
 
 def test_background_evaluation_job_exposes_progress_and_result():
@@ -324,6 +338,11 @@ def test_dashboard_run_persists_results_and_summary_in_store_without_run_files(m
             {"article": "c", "score": 1 / 3},
         ]
         summary = manager._memory_artifacts[(run["run_id"], '[null,null,null,"summary"]')]
+        retrieval_artifacts = [
+            key for (artifact_run_id, key) in manager._memory_artifacts
+            if artifact_run_id == run["run_id"] and key.endswith(',"retrieval"]')
+        ]
+        assert len(retrieval_artifacts) == 1  # one shared retrieval per evaluation group
         assert {entry["parameters"]["ranking"] for entry in summary["groups"]["rankings"]} == {
             "hybrid_max", "vector",
         }

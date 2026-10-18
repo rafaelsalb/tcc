@@ -15,7 +15,7 @@ class SearchService:
         self.vectorizer = vectorizer
         self.ollama = ollama_client
 
-    def search(self, query: str, top_k: int | None = 5, limit: int = 100, offset: int = 0, date_from: str = None, date_to: str = None, order_by: str = "date_published", quorum_threshold: float = 0.7, candidate_cap: int = 20000, result_unit: str = "chunks", retrieval_stage: str = "hybrid"):
+    def search(self, query: str, top_k: int | None = 5, limit: int = 100, offset: int = 0, date_from: str = None, date_to: str = None, order_by: str = "date_published", quorum_threshold: float = 0.7, candidate_cap: int = 20000, result_unit: str = "chunks", retrieval_stage: str = "hybrid", include_pool_diagnostics: bool = True):
         search_started = perf_counter()
         # augmented_query = self.ollama.generate(model="llama3.2:3b", prompt=f"Esta é uma query de busca para um sistema de busca semântica: \"{query}\". Gere uma query expandida, adicionando sinônimos e termos relacionados, para melhorar a recuperação de informações relevantes. Responda com a nova query, e com a nova query apenas.", options={'max_tokens': 50}).response
         # print("Augmented query:", augmented_query)
@@ -41,6 +41,7 @@ class SearchService:
             result_unit=result_unit,
             retrieval_stage=retrieval_stage,
             include_diagnostics=True,
+            include_pool_diagnostics=include_pool_diagnostics,
         )
         hybrid_query_seconds = perf_counter() - step_started
         processing_started = perf_counter()
@@ -73,18 +74,34 @@ class SearchService:
                 }, sort_keys=True, ensure_ascii=False).encode()).hexdigest(),
             }
         # results = []
-        cosine_distance = lambda a, b: np.dot(a, b) / (np.linalg.norm(a) * np.linalg.norm(b))
         # results = sorted(results, key=lambda x: x["date_published"])
         results = list(
             map(lambda chunk: {
                 'article_url': chunk["G1Articles"].url,
                 'article_title': chunk["G1Articles"].title,
                 'chunk': chunk["G1Chunks"].chunk,
-                'distance': float(cosine_distance(query_embedding, chunk["G1Chunks"].embedding)) if query_embedding is not None else None,
+                # Prefer the cosine score computed by PostgreSQL. This avoids
+                # transferring selected vectors to Python solely to recompute
+                # the distance; retain a fallback for repository test doubles.
+                'distance': (
+                    float(chunk["cosine_similarity"])
+                    if chunk.get("cosine_similarity") is not None
+                    else (
+                        float(np.dot(query_embedding, chunk["G1Chunks"].embedding)
+                              / (np.linalg.norm(query_embedding)
+                                 * np.linalg.norm(chunk["G1Chunks"].embedding)))
+                        if query_embedding is not None else None
+                    )
+                ),
                 'rrf_score': chunk.get("rrf_score"),
                 'vector_rank': chunk.get("article_vector_rank"),
                 'text_rank': chunk.get("article_text_rank"),
-            }, [chunk for chunk in chunks if retrieval_stage == "lexical" or chunk["G1Chunks"].embedding is not None])
+            }, [chunk for chunk in chunks
+                if retrieval_stage == "lexical" or (
+                    chunk.get("cosine_similarity") is not None
+                    if "cosine_similarity" in chunk
+                    else chunk["G1Chunks"].embedding is not None
+                )])
         )
         # guard against duplicated chunk rows (same article + same text)
         seen = set()
@@ -130,9 +147,10 @@ class SearchService:
         # silently truncate the corresponding article records to the repo's
         # general-purpose default page size.
         step_started = perf_counter()
-        articles = self.article_repository.get_all(
-            in_=list(unique_articles), limit=None
-        )
+        if hasattr(self.article_repository, "get_metadata_by_urls"):
+            articles = self.article_repository.get_metadata_by_urls(list(unique_articles))
+        else:
+            articles = self.article_repository.get_all(in_=list(unique_articles), limit=None)
         articles_result = [
             {
                 'title': a.title,

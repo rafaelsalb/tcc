@@ -454,6 +454,23 @@ class ArticleEntities(Base):
     g1_entities: Mapped['G1Entities'] = relationship('G1Entities', back_populates='article_entities')
 
 
+class ArticleEntityExtractionStatus(Base):
+    """Durable marker for articles whose NER pass produced zero entities."""
+
+    __tablename__ = 'article_entity_extraction_status'
+    __table_args__ = (
+        ForeignKeyConstraint(['article_url'], ['g1_articles.url'], ondelete='CASCADE',
+                             name='fk_article_entity_extraction_status_article'),
+        PrimaryKeyConstraint('article_url', name='article_entity_extraction_status_pkey'),
+    )
+
+    article_url: Mapped[str] = mapped_column(Text, primary_key=True)
+    extractor_version: Mapped[str] = mapped_column(Text, nullable=False)
+    processed_at: Mapped[datetime.datetime] = mapped_column(
+        DateTime(True), nullable=False, server_default=text('now()'),
+    )
+
+
 class G1Chunks(Base):
     __tablename__ = 'g1_chunks'
     __table_args__ = (

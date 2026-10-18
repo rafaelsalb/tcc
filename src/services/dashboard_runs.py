@@ -143,13 +143,16 @@ class DashboardRunManager:
                          "query": item["query"], "formulation": item.get("query_formulation", "unspecified")}
                         for item in subset
                     ])
-                if subset:
+                article_urls = list(dict.fromkeys(
+                    url for evaluation in subset for url in evaluation["relevant_urls"]
+                ))
+                if article_urls:
                     connection.execute(text("""INSERT INTO evaluation_set_articles
                         (set_id, version, position, article_url)
                         VALUES (:set_id, :version, :position, :url)
                         ON CONFLICT (set_id, version, position) DO NOTHING"""), [
                             {"set_id": info["id"], "version": version, "position": position, "url": url}
-                            for position, url in enumerate(subset[0]["relevant_urls"])
+                            for position, url in enumerate(article_urls)
                         ])
 
     def available_sets(self):
@@ -553,7 +556,6 @@ class DashboardRunManager:
             "settings": settings,
             "progress": {"completed": 0, "total": total, "phase": "queued", "current": None},
             "groups_completed": 0, "group_count": len(evaluations) * len(preset_names) * len(quorums),
-            "group_timings": [],
             "error": None,
         }
         record = {"state": state, "dataset_snapshot": dataset_snapshot,
@@ -596,7 +598,10 @@ class DashboardRunManager:
                             },
                         })
 
+                        group_retrieval_snapshot = None
+
                         def on_progress(event):
+                            nonlocal group_retrieval_snapshot
                             if event.get("activity") != "ranking" or not event.get("entry"):
                                 self._update(run_id, progress={
                                     "completed": self._state(run_id)["progress"]["completed"],
@@ -605,6 +610,12 @@ class DashboardRunManager:
                                                 "quorum": quorum, **(event.get("configuration") or {})},
                                 })
                                 return
+                            if group_retrieval_snapshot is None and event.get("retrieval_snapshot") is not None:
+                                group_retrieval_snapshot = event["retrieval_snapshot"]
+                                self._persist_artifact(run_id, {
+                                    "evaluation_id": item["id"], "preset": preset_name,
+                                    "quorum": quorum,
+                                }, "retrieval", group_retrieval_snapshot)
                             entry = event["entry"]
                             configuration = event["configuration"]
                             ranked_urls = list(dict.fromkeys(
@@ -631,24 +642,18 @@ class DashboardRunManager:
                                 "group_elapsed_seconds": event.get("group_elapsed_seconds"),
                                 "completed_at": datetime.now(timezone.utc).isoformat(),
                             }
-                            if event.get("retrieval_snapshot") is not None:
-                                self._persist_artifact(run_id, {
-                                    "evaluation_id": item["id"], "preset": preset_name,
-                                    "quorum": quorum,
-                                }, "retrieval", event["retrieval_snapshot"])
-                            self._append_result(run_id, item, result, live_summary, total)
                             current = {"evaluation_id": item["id"], "preset": preset_name,
                                        "quorum": quorum, **configuration}
-                            self._update(run_id, progress={
-                                "completed": self._state(run_id)["progress"]["completed"],
-                                "total": total, "phase": "ranking", "current": current,
-                            })
+                            self._append_result(run_id, item, result, live_summary, total,
+                                                current=current)
 
                         report = evaluate_request(self.searcher, self.ranker, {
                             "search": search, "configurations": configurations, "benchmark": False,
                         }, progress_callback=on_progress, include_completed_entries=True)
                         artifact_context = {"evaluation_id": item["id"], "preset": preset_name,
                                             "quorum": quorum}
+                        # Every configuration in this group shares one retrieval;
+                        # the callback persists its large snapshot only once.
                         # Ranked result rows are stored once in evaluation_run_results;
                         # keep only group-level report metadata here to avoid duplicating
                         # every ranked URL in an artifact as well.
@@ -695,10 +700,11 @@ class DashboardRunManager:
         with self._lock:
             state = record["state"]
             group_completed = changes.pop("group_completed", None)
+            if group_completed is None and all(state.get(key) == value for key, value in changes.items()):
+                return
             state.update(changes)
             if group_completed is not None:
                 state["groups_completed"] += 1
-                state["group_timings"].append(group_completed)
             state["updated_at"] = datetime.now(timezone.utc).isoformat()
             if state.get("status") in ("completed", "failed", "interrupted"):
                 state.setdefault("completed_at", state["updated_at"])
@@ -728,7 +734,7 @@ class DashboardRunManager:
             with self._lock:
                 self._persist_state_locked(record)
 
-    def _append_result(self, run_id, item, result, live_summary, total):
+    def _append_result(self, run_id, item, result, live_summary, total, current=None):
         record = self._record(run_id)
         if record is None:
             return
@@ -740,6 +746,9 @@ class DashboardRunManager:
                      "result": result}
             next_state = deepcopy(state)
             next_state["progress"]["completed"] = seq
+            next_state["progress"]["total"] = total
+            next_state["progress"]["phase"] = "ranking"
+            next_state["progress"]["current"] = current
             next_state["updated_at"] = datetime.now(timezone.utc).isoformat()
             if self._db_enabled:
                 with self.engine.begin() as connection:

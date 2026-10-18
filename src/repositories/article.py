@@ -1,5 +1,5 @@
-from models.models import ArticleEntities
-from sqlalchemy import func, select
+from models.models import ArticleEntities, ArticleEntityExtractionStatus
+from sqlalchemy import func, or_, select
 from sqlalchemy.orm import Session
 
 from models import G1Articles, G1Chunks
@@ -30,6 +30,22 @@ class ArticleRepository:
             print("Retrieved articles:", len(results), "with URLs:", [article.url for article in results])
             return results
 
+    def get_metadata_by_urls(self, urls: list[str]):
+        """Fetch only article fields serialized in search results.
+
+        Avoid loading full article text and raw metadata for a small result set.
+        """
+        if not urls:
+            return []
+        with Session(self.engine) as session:
+            stmt = select(
+                G1Articles.title, G1Articles.url, G1Articles.excerpt,
+                G1Articles.date_published,
+            ).where(G1Articles.url.in_(urls)).order_by(
+                G1Articles.date_published, G1Articles.url,
+            )
+            return session.execute(stmt).all()
+
     def get_all_with_no_chunks(self, limit: int = 50, offset: int = 0) -> list[G1Articles]:
         with Session(self.engine) as session:
             stmt = select(G1Articles).where(G1Articles.text_content.is_not(None)).where(G1Articles.is_chunked.is_not(True)).limit(limit).offset(offset)
@@ -38,16 +54,24 @@ class ArticleRepository:
                 results = results[0]
                 return results
 
-    def get_all_with_no_entities(self, limit: int = 50, offset: int = 0) -> list[G1Articles]:
+    def get_all_with_no_entities(self, limit: int = 50, offset: int = 0,
+                                 extractor_version: str | None = None) -> list[G1Articles]:
         with Session(self.engine) as session:
             stmt = (
                 select(G1Articles)
                 .outerjoin(ArticleEntities, ArticleEntities.g1_article_url == G1Articles.url)
                 .where(ArticleEntities.g1_article_url.is_(None))
                 .where(G1Articles.text_content.is_not(None))
-                .limit(limit)
-                .offset(offset)
             )
+            if extractor_version:
+                stmt = stmt.outerjoin(
+                    ArticleEntityExtractionStatus,
+                    ArticleEntityExtractionStatus.article_url == G1Articles.url,
+                ).where(or_(
+                    ArticleEntityExtractionStatus.article_url.is_(None),
+                    ArticleEntityExtractionStatus.extractor_version != extractor_version,
+                ))
+            stmt = stmt.limit(limit).offset(offset)
             results = session.scalars(stmt).all()
             return results
 

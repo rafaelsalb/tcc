@@ -584,6 +584,29 @@ def test_search_version_is_part_of_cache_namespace(monkeypatch):
     assert len(calls) == 2
 
 
+def test_pool_diagnostics_are_opt_in_and_part_of_retrieval_settings():
+    calls = []
+
+    def search(**settings):
+        calls.append(settings)
+        return retrieval()
+
+    searcher = SimpleNamespace(search=search)
+    search_request(searcher, Ranker(), Cache(), {"query": "short", "stage": "hybrid"})
+    search_request(searcher, Ranker(), Cache(), {
+        "query": "short", "stage": "hybrid", "pool_diagnostics": "true",
+    })
+
+    assert [call["include_pool_diagnostics"] for call in calls] == [False, True]
+
+
+def test_pool_diagnostics_parameter_rejects_invalid_values():
+    with pytest.raises(ValueError, match="pool_diagnostics"):
+        search_request(SimpleNamespace(search=lambda **_: retrieval()), Ranker(), Cache(), {
+            "query": "short", "pool_diagnostics": "sometimes",
+        })
+
+
 @pytest.mark.parametrize("extra", [
     {"stage": "bad"}, {"seed_method": "hits_top10"}, {"result_unit": "bad"},
     {"top_k": "0"}, {"limit": "-1"}, {"offset": "-2"}, {"candidate_cap": "0"},

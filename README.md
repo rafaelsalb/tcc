@@ -52,7 +52,9 @@ docker compose down
 
 **Não use `docker compose down -v`** se quiser preservar o banco, modelos e cache.
 O schema é inicializado no volume novo pelo serviço `db-schema`; esse serviço é
-idempotente e pode ser executado novamente sem remover os dados:
+idempotente e pode ser executado novamente sem remover os dados. Ao implantar uma
+versão que inclua novas tabelas, execute-o antes de iniciar a versão atualizada da
+API; a tabela de status de extração de entidades é criada de forma aditiva:
 
 ```bash
 docker compose run --rm db-schema
@@ -148,10 +150,10 @@ não vazia de avaliações. Cada avaliação deve conter os campos obrigatórios
 
 Substitua as URLs de exemplo por URLs reais e distintas que existam em
 `g1_articles`. **Cada avaliação aceita qualquer quantidade positiva de URLs
-relevantes e únicas, ordenadas da mais relevante para a menos relevante.** A
-ordem fornecida é preservada e define a referência de cada corte k: somente as
-primeiras k URLs contam como relevantes nesse corte. Se houver menos de k URLs,
-toda a lista é usada. Os `id`s também devem ser únicos. Campos extras, listas
+relevantes e únicas.** A lista é um conjunto de julgamentos binários: a ordem
+fornecida é preservada no snapshot, mas não altera quais artigos são relevantes
+em P@k, R@k, F1@k, MAP ou NDCG. A precisão usa sempre `k` como denominador e a
+revocação usa o total de URLs relevantes julgadas. Os `id`s também devem ser únicos. Campos extras, listas
 vazias, URLs inválidas, duplicadas ou ausentes do banco fazem a validação falhar
 antes das buscas. O script não determina nem reordena a relevância editorial.
 `query_formulation` é uma string não vazia que também aparece no CSV e JSON.
@@ -742,6 +744,10 @@ Exemplo direto do novo endpoint:
 `GET /search` aceita `stage=lexical|hybrid|ppr|fused|compare`,
 `result_unit=chunks|articles` e `candidate_cap` (padrão 20.000 chunks candidatos).
 Os defaults continuam `stage=ppr`, `result_unit=chunks`, `seed_method=hits`.
+Para evitar a agregação adicional sobre todo o pool lexical, os detalhes de
+membership e contagens do pool não são calculados por padrão. Use
+`pool_diagnostics=true` quando precisar desses campos; a avaliação em lote já
+solicita esses diagnósticos automaticamente.
 
 Além das etapas, `ranking=` seleciona diretamente uma ordenação sobre o mesmo
 pool. Inclui as listas individuais `lexical` e `vector`, `rrf`, `cross_encoder`,

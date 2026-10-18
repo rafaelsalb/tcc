@@ -69,7 +69,9 @@ class App:
     def populate_entities(self):
         while True:
             print("Checking for articles without entities...")
-            articles = self.article_repo.get_all_with_no_entities()
+            articles = self.article_repo.get_all_with_no_entities(
+                extractor_version=self.ner_service.extractor_version,
+            )
             assert all(isinstance(article, G1Articles) for article in articles)
             if not articles:
                 print("No more articles to process.")
