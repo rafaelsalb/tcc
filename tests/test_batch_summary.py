@@ -6,7 +6,7 @@ from services.batch_summary import LiveSummary, summary_paths
 from services import batch_evaluation as batch
 
 
-def result(ranking="ppr", seed="hits", mode="ranking", score=1.0):
+def result(ranking="ppr", seed="hits", mode="ranking", score=1.0, computation_seconds=None):
     return {"mode": mode, "ranking": ranking, "stage": "ppr", "seed_method": seed,
             "preset": "rapido", "quorum": 0.7, "limit": 250, "top_k": 100, "result_unit": "articles",
              "metrics": {"metrics": [{"k": k, "precision": score, "recall": score, "f1": score}
@@ -14,8 +14,9 @@ def result(ranking="ppr", seed="hits", mode="ranking", score=1.0):
              "ranking_metrics": {"mrr@20": score, "map@5": score, "map@10": score,
                                  "map@20": score, "ndcg@5": score, "ndcg@10": score,
                                  "ndcg@20": score},
-            "coverage": {"oracle_metrics": [{"k": k, "precision": 1., "recall": 1., "f1": 1.}
-                                            for k in batch.BATCH_KS], "reference_pool_recall": 1.0}}
+             "coverage": {"oracle_metrics": [{"k": k, "precision": 1., "recall": 1., "f1": 1.}
+                                             for k in batch.BATCH_KS], "reference_pool_recall": 1.0},
+             "computation_seconds": computation_seconds}
 
 
 def test_summary_lists_every_group_and_reports_actual_and_oracle_means(tmp_path):
@@ -49,6 +50,17 @@ def test_seed_independent_results_excluded_and_stages_only_from_comparisons():
     report = summary.snapshot(2, 2, "completed")
     assert [g["parameters"] for g in report["groups"]["seeding_methods"]] == [{"seed_method": "louvain"}]
     assert [g["parameters"] for g in report["groups"]["stages"]] == [{"stage": "ppr"}]
+
+
+def test_summary_orders_parameter_combinations_by_computation_time():
+    summary = LiveSummary(batch.BATCH_KS)
+    item = {"id": "theme__keyword"}
+    summary.add(item, result("ppr", "hits", computation_seconds=0.2))
+    summary.add(item, result("graph_salsa", "louvain", computation_seconds=2.5))
+    report = summary.snapshot(2, 2, "completed")
+    assert report["fastest_combinations"][0]["parameters"]["ranking"] == "ppr"
+    assert report["slowest_combinations"][0]["parameters"]["ranking"] == "graph_salsa"
+    assert report["fastest_combinations"][0]["means"]["computation_seconds"] == 0.2
 
 
 def test_resume_rebuilds_summary_and_updates_before_next_request(monkeypatch, tmp_path):

@@ -169,8 +169,9 @@ Em outro terminal, execute:
 uv run python -m src --evaluate-file avaliacoes.json
 ```
 
-No modo padrão, o script chama `POST /evaluate` uma vez por combinação de
-avaliação, nível e quorum. O servidor compartilha a recuperação para calcular
+No modo padrão, o script inicia um job com `POST /evaluate/jobs` por combinação
+de avaliação, nível e quorum e acompanha seu progresso por polling. O servidor
+compartilha a recuperação para calcular
 todos os rankings e métodos de seed desse grupo; todas as linhas de resultado
 continuam sendo avaliadas e gravadas separadamente. Todos os cortes k são
 calculados sobre a mesma resposta, sem buscas adicionais. Por padrão, usa
@@ -267,7 +268,9 @@ O resumo lista **todos** os temas, estruturas de consulta, conjuntos de
 parâmetros, rankings, métodos de seed e etapas, ordenados por média de F1@20.
 Inclui precisão, revocação e F1 observados e oráculo em todos os cortes k,
 além das contagens de linhas/consultas. O JSON inclui também a cobertura do pool
-e o número de amostras de cada métrica. Valores ausentes não viram zeros.
+e o número de amostras de cada métrica. Inclui também `fastest_combinations` e
+`slowest_combinations`, ordenadas pela média de `computation_seconds` para cada
+ranking/seed/preset/quorum/unidade. Valores ausentes não viram zeros.
 
 ```bash
 watch -n 1 cat resultados/lote.summary.md
@@ -313,7 +316,21 @@ seed continuam registrados para cada seed por comparabilidade da grade; seus
 resultados devem ser idênticos entre seeds.
 
 Para executar apenas parte da grade, use `--rankings`, `--seed-methods`,
-`--presets` ou `--quorums`. Por exemplo:
+`--presets` ou `--quorums`. Para remover métodos da seleção atual (todos os
+defaults quando não houver opção de inclusão), use `--exclude-rankings` e
+`--exclude-seed-methods`. Se inclusão e exclusão forem combinadas, a exclusão é
+aplicada à lista incluída. Por exemplo, para manter todos os métodos exceto
+`cross_encoder` e `hits`:
+
+```bash
+uv run python -m src \
+  --evaluate-file evals_curated_query_variants_stages_2025_2026.json \
+  --exclude-rankings cross_encoder \
+  --exclude-seed-methods hits \
+  --output resultados/eval_sem_cross_encoder_hits.json
+```
+
+Ou, para restringir a grade com opções de inclusão:
 
 ```bash
 uv run python -m src \
@@ -396,7 +413,7 @@ inputs antigos continuam válidos, com `unspecified` nessa coluna.
 **Reinicie a API com o código atualizado e use um novo caminho de saída.**
 Os checkpoints anteriores usam outra configuração/contrato de API e não devem
 ser retomados com este experimento. Seus arquivos antigos permanecem intactos.
-O contrato de busca agora é `stages_v8`, com namespace de cache `v18`; a versão
+O contrato de busca agora é `stages_v9`, com namespace de cache `v19`; a versão
 do contrato também faz parte da chave. Entradas anteriores não são apagadas nem
 reutilizadas. A correção lexical preserva os lexemas normalizados em filtros e
 scores, sem aplicar o stemmer português duas vezes (por exemplo, `beníci` não
@@ -510,21 +527,52 @@ Exemplo para a API interativa:
 
 ### Avaliação em lote com reutilização e benchmark
 
-O CLI usa, por padrão, **`POST /evaluate`**: uma recuperação nova por combinação
+O CLI usa, por padrão, **`POST /evaluate/jobs`** e acompanha o estado em
+`GET /evaluate/jobs/<job_id>`. Uma recuperação nova é feita por combinação
 de consulta/preset/quorum/unidade, compartilhada entre os rankings. O grafo é
 construído uma vez; PPR é calculado uma vez por método de seed e reutilizado em
 PPR, fusão e MMR. Rankings sem seed (`hybrid_max`, `rrf`, `cross_encoder`) são
 calculados uma vez, mas todas as linhas da grade continuam sendo gravadas.
 O reranker continua limitado aos primeiros 250 artigos do pool.
+Os logits do cross-encoder são armazenados apenas durante o job e reutilizados
+entre `cross_encoder`, `graph_hits_cross_encoder` e componentes de `ensemble_rrf`
+quando query, modelo, artigo e chunk coincidem. Isso evita inferências duplicadas
+entre seeds sem alterar os scores; uma nova busca começa com cache vazio.
 
-O estado reutilizado existe somente durante a requisição: não usa o Redis e não
-é compartilhado com buscas da interface. O endpoint **`GET /search` não muda**.
+O estado reutilizado existe somente durante o job: não usa o Redis e não é
+compartilhado com buscas da interface. O job executa em background, reporta fase
+e configurações concluídas, e evita manter uma conexão HTTP aberta durante o
+cálculo. O estado dos jobs é mantido em memória no processo da API por até 24
+horas; mantenha a API no mesmo processo durante o lote. Reiniciar a API perde os
+jobs em execução e seus resultados ainda não coletados. O endpoint **`GET /search`
+não muda**.
 Reinicie a API antes de usar o CLI atualizado e escolha uma nova saída: os
 checkpoints antigos não correspondem ao novo modo de execução.
 
-Por padrão, o lote usa um worker. `--workers N` limita quantos grupos de
-recuperação podem estar ativos simultaneamente (1–16); apenas até N grupos são
-submetidos, sem fila ilimitada. Cada worker faz uma chamada HTTP `/evaluate`;
+`computation_seconds` mede o tempo de execução do ranking, sem a recuperação
+compartilhada; `elapsed_seconds`/`group_wall_seconds` medem a duração do grupo e
+podem ser iguais para várias linhas reutilizadas. Rankings cujo cálculo foi
+reutilizado entre seeds herdam o tempo da computação original. Use a seção de
+combinações rápidas/lentas no resumo para comparar as configurações; esses tempos
+não incluem recuperação e não são medidas de latência total da busca.
+
+Para decompor uma busca individual, o JSON de `/search` inclui `timings`:
+`query_embedding_seconds`, `hybrid_query_seconds`, `result_processing_seconds`,
+`article_lookup_seconds`, `ranking_seconds`, `graph_seconds`, `ppr_seconds`,
+`graph_article_fetch_seconds`, `graph_entity_load_extract_seconds`,
+`graph_assembly_seconds`, `graph_pruning_seconds`, `mmr_seconds` e
+`cross_encoder_seconds`. Em lote, o resumo dos passos aparece no
+terminal uma vez por caso/preset/quorum; os mesmos valores são incluídos no JSON
+detalhado e achatados em colunas do CSV. `graph_seconds` cobre a preparação do
+grafo; `graph_entity_load_extract_seconds` inclui a leitura das entidades
+existentes e a extração/linking das ausentes; `ppr_seconds` cobre o cálculo dos
+inputs/seeds de PPR. As etapas são
+aninhadas dentro do tempo total e não devem ser somadas como se fossem disjuntas.
+
+Por padrão, o lote usa um worker. `--workers N` limita quantos jobs o cliente
+mantém em andamento simultaneamente (1–16); apenas até N jobs são submetidos,
+sem fila ilimitada. A API executa um job por vez por processo e mantém os demais
+na fila; aumentar N não acelera um caso isolado.
 um grupo reutilizado continua gerando todas as linhas próprias. Um único thread
 principal grava checkpoint, CSV e resumo em ordem determinística. Portanto,
 respostas que terminam fora de ordem ficam em memória apenas até os grupos
@@ -637,7 +685,7 @@ parte da chave de resposta Redis.
 `rrf` agrega, por artigo, o melhor rank de chunk em cada canal dentro do pool
 lexical com embedding elegível; rank 1 é o melhor. Só então funde as listas
 lexical e vetorial, restringindo o resultado ao pool híbrido retornado. Mudanças
-nesse cálculo usam `search_version=stages_v8`/namespace `v18`; reinicie a API
+nesse cálculo usam `search_version=stages_v9`/namespace `v19`; reinicie a API
 para evitar comparar resultados servidos por um processo antigo.
 
 `ranking=ensemble_rrf` combina por soma RRF de peso igual os rankings-fonte

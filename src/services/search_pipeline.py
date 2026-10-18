@@ -5,10 +5,11 @@ from datetime import date
 import hashlib
 import json
 import math
+from time import perf_counter
 
 
-SEARCH_VERSION = "stages_v8"
-CACHE_NAMESPACE = "v18"
+SEARCH_VERSION = "stages_v9"
+CACHE_NAMESPACE = "v19"
 SEED_METHODS = ("louvain", "hits", "ppr_top10", "query_entities")
 QUERY_SEED_FALLBACKS = ("hits", "louvain", "ppr_top10")
 STAGES = ("lexical", "hybrid", "ppr", "fused", "compare")
@@ -106,9 +107,19 @@ def search_request(searcher, ranker, cache, params):
                 article["date_published"] = str(article["date_published"])
         if not bypass_cache:
             cache.hset("search_cache", retrieval_key, json.dumps(retrieval, default=str))
-    response = run_pipeline(retrieval, ranker, stage, method, methods, ranking=ranking, query=query,
+    active_ranker = ranker.for_batch() if hasattr(ranker, "for_batch") else ranker
+    ranking_started = perf_counter()
+    response = run_pipeline(retrieval, active_ranker, stage, method, methods, ranking=ranking, query=query,
                             graph_alpha=graph_alpha, graph_hop_decay=graph_hop_decay, graph_mix=graph_mix,
                             query_seed_fallback=query_seed_fallback, ensemble_rankings=ensemble_rankings)
+    ranking_seconds = perf_counter() - ranking_started
+    response["timings"] = {
+        **retrieval.get("timings", {}),
+        "ranking_seconds": ranking_seconds,
+        **getattr(active_ranker, "batch_timings", {}),
+        "cross_encoder_seconds": response.get("diagnostics", {}).get("cross_encoder_seconds", 0.0),
+        "search_pipeline_seconds": perf_counter() - ranking_started,
+    }
     response["cache_bypassed"] = bypass_cache
     if not bypass_cache:
         cache.hset("search_cache", response_key, json.dumps(response, default=str))
@@ -175,6 +186,7 @@ def run_pipeline(retrieval, ranker, stage="ppr", seed_method="hits", seed_method
         return response
     if ranking == "ensemble_rrf":
         component_rankings = []
+        cross_encoder_seconds = 0.0
         for component in ensemble_rankings:
             component_response = run_pipeline(
                 retrieval, ranker, "ppr", seed_method, seed_methods, ranking=component, query=query,
@@ -182,10 +194,12 @@ def run_pipeline(retrieval, ranker, stage="ppr", seed_method="hits", seed_method
                 query_seed_fallback=query_seed_fallback, ensemble_rankings=ensemble_rankings,
             )
             component_rankings.append(component_response.get("ranked", []))
+            cross_encoder_seconds += component_response.get("diagnostics", {}).get("cross_encoder_seconds", 0.0)
         response["ranked"] = reciprocal_rank_fusion(component_rankings, candidate_urls=candidate_urls)
         response["diagnostics"] = {**counts, "ensemble_rankings": list(ensemble_rankings),
                                    "ensemble_component_count": len(ensemble_rankings),
-                                   "ensemble_candidate_count": len(response["ranked"])}
+                                   "ensemble_candidate_count": len(response["ranked"]),
+                                   "cross_encoder_seconds": cross_encoder_seconds}
         return response
     if ranking == "rrf":
         candidate_urls = {entry["article"] for entry in hybrid}
@@ -209,7 +223,11 @@ def run_pipeline(retrieval, ranker, stage="ppr", seed_method="hits", seed_method
             if url in rerank_url_set and url not in first_chunk_by_url and isinstance(chunk, str) and chunk.strip():
                 first_chunk_by_url[url] = row
         rerank_results = [first_chunk_by_url[url] for url in rerank_urls if url in first_chunk_by_url]
-        reranked = _cross_encoder_rank(query, rerank_results)
+        cross_encoder_started = perf_counter()
+        score_cache = getattr(ranker, "_batch_cross_encoder_scores", None)
+        reranked = (_cross_encoder_rank(query, rerank_results, score_cache=score_cache)
+                    if score_cache is not None else _cross_encoder_rank(query, rerank_results))
+        cross_encoder_seconds = perf_counter() - cross_encoder_started
         reranked_urls = {entry["article"] for entry in reranked}
         response["ranked"] = reranked + [
             entry for entry in hybrid
@@ -219,6 +237,7 @@ def run_pipeline(retrieval, ranker, stage="ppr", seed_method="hits", seed_method
             "cross_encoder_reranked_count"
         ] = len(rerank_results)
         response["diagnostics"]["cross_encoder_missing_document_count"] = len(rerank_url_set - set(first_chunk_by_url))
+        response["diagnostics"]["cross_encoder_seconds"] = cross_encoder_seconds
         return response
     if ranking == "graph_hits_cross_encoder":
         hybrid_urls = [entry["article"] for entry in hybrid]
@@ -230,7 +249,11 @@ def run_pipeline(retrieval, ranker, stage="ppr", seed_method="hits", seed_method
             if url in rerank_url_set and url not in first_chunk_by_url and isinstance(chunk, str) and chunk.strip():
                 first_chunk_by_url[url] = row
         rerank_results = [first_chunk_by_url[url] for url in rerank_urls if url in first_chunk_by_url]
-        probabilities = _cross_encoder_probabilities(query, rerank_results)
+        cross_encoder_started = perf_counter()
+        score_cache = getattr(ranker, "_batch_cross_encoder_scores", None)
+        probabilities = (_cross_encoder_probabilities(query, rerank_results, score_cache=score_cache)
+                         if score_cache is not None else _cross_encoder_probabilities(query, rerank_results))
+        cross_encoder_seconds = perf_counter() - cross_encoder_started
         if rerank_urls:
             graph_ranked, graph = ranker.graph_hits_cross_encoder(
                 rerank_urls, query=query, article_probabilities=probabilities,
@@ -246,6 +269,7 @@ def run_pipeline(retrieval, ranker, stage="ppr", seed_method="hits", seed_method
             "cross_encoder_reranked_count": len(rerank_results),
             "cross_encoder_missing_document_count": len(rerank_url_set - set(first_chunk_by_url)),
             "cross_encoder_candidate_cutoff": CROSS_ENCODER_RERANK_LIMIT,
+            "cross_encoder_seconds": cross_encoder_seconds,
         }
         return response
     if ranking in ("graph_rwr", "graph_hits", "graph_salsa", "graph_path", "graph_walk", "graph_fusion"):
@@ -347,9 +371,10 @@ def linear_rank_fusion(textual, graph, graph_mix):
 _CROSS_ENCODER = None
 
 
-def _cross_encoder_probabilities(query, results):
+def _cross_encoder_probabilities(query, results, score_cache=None):
     """Sigmoid-transform cross-encoder logits; return the best probability per article."""
-    logits = _cross_encoder_predict(query, results)
+    logits = (_cross_encoder_predict(query, results, score_cache=score_cache)
+              if score_cache is not None else _cross_encoder_predict(query, results))
     best = {}
     for row, logit in logits:
         url = row["article_url"]
@@ -364,24 +389,39 @@ def _cross_encoder_probabilities(query, results):
     return probabilities
 
 
-def _cross_encoder_rank(query, results):
+def _cross_encoder_rank(query, results, score_cache=None):
     """Optional cross-encoder reranking; loaded lazily from CROSS_ENCODER_MODEL."""
     best = {}
-    for row, logit in _cross_encoder_predict(query, results):
+    logits = (_cross_encoder_predict(query, results, score_cache=score_cache)
+              if score_cache is not None else _cross_encoder_predict(query, results))
+    for row, logit in logits:
         url = row["article_url"]
         best[url] = max(best.get(url, float("-inf")), logit)
     return [{"article": url, "score": score}
             for url, score in sorted(best.items(), key=lambda x: (-x[1], x[0]))]
 
 
-def _cross_encoder_predict(query, results):
-    """Predict query/chunk logits using the lazily loaded CPU-configured model."""
+def _cross_encoder_predict(query, results, score_cache=None):
+    """Predict query/chunk logits, reusing scores within one evaluation request."""
     if not results:
         return []
     import os
     model_name = os.getenv("CROSS_ENCODER_MODEL", "cross-encoder/mmarco-mMiniLMv2-L12-H384-v1")
     global _CROSS_ENCODER
-    if _CROSS_ENCODER is None:
+
+    def cache_key(row):
+        return model_name, query, row["article_url"], row["chunk"]
+
+    scores_by_key = {}
+    missing = []
+    for row in results:
+        key = cache_key(row)
+        if score_cache is not None and key in score_cache:
+            scores_by_key[key] = score_cache[key]
+        else:
+            missing.append((key, row))
+
+    if missing and _CROSS_ENCODER is None:
         try:
             from sentence_transformers import CrossEncoder
             _CROSS_ENCODER = CrossEncoder(model_name)
@@ -390,13 +430,17 @@ def _cross_encoder_predict(query, results):
                 "ranking=cross_encoder requires sentence-transformers and a usable "
                 f"CROSS_ENCODER_MODEL ({model_name})"
             ) from exc
+    # Only encode uncached pairs. Scores are independent of seed method, so
+    # cross_encoder, graph_hits_cross_encoder, and ensemble components can
+    # reuse identical logits during this search/evaluation request.
     # Use the highest-ranked retrieved chunk per article as the document text.
     # Explicitly allocate the model's pair-token budget to query and chunk;
     # CrossEncoder.predict also applies model.max_length as a final guard.
     tokenizer = getattr(_CROSS_ENCODER, "tokenizer", None)
     max_length = getattr(_CROSS_ENCODER, "max_length", None)
     pairs = []
-    for row in results:
+    missing_keys = []
+    for key, row in missing:
         document = row["chunk"]
         pair_query = query
         if tokenizer is not None and isinstance(max_length, int) and max_length > 0:
@@ -414,5 +458,12 @@ def _cross_encoder_predict(query, results):
             document = tokenizer.decode(document_tokens, skip_special_tokens=True,
                                         clean_up_tokenization_spaces=False)
         pairs.append((pair_query, document))
-    scores = _CROSS_ENCODER.predict(pairs)
-    return [(row, float(score)) for row, score in zip(results, scores)]
+        missing_keys.append(key)
+    if pairs:
+        scores = _CROSS_ENCODER.predict(pairs)
+        for key, score in zip(missing_keys, scores):
+            value = float(score)
+            scores_by_key[key] = value
+            if score_cache is not None:
+                score_cache[key] = value
+    return [(row, scores_by_key[cache_key(row)]) for row in results]

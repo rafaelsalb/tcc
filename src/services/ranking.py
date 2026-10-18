@@ -174,12 +174,17 @@ class RankingService:
     def _prepare_graph(self, results):
         article_set = set(results)
         G = nx.DiGraph()
+        step_started = perf_counter()
         articles = self.article_repository.get_all(in_=results, limit=None)
+        article_fetch_seconds = perf_counter() - step_started
         article_titles_by_url = {article.url: article.title for article in articles}
+        step_started = perf_counter()
         entities = self.ner_service.batch_get_or_extract_entities_and_store_for_articles([article.url for article in articles], of_types=["PER", "ORG", "LOC"])
+        entity_load_extract_seconds = perf_counter() - step_started
         entities_by_identity = {}
         nodes_by_surface = {}
         node_names = dict(article_titles_by_url)
+        step_started = perf_counter()
         for article in articles:
             try:
                 G.add_node(article.url)
@@ -201,17 +206,26 @@ class RankingService:
                     G.add_edge(article.url, entity_node)
             except Exception as exc:
                 print(f"Error processing entities for article {article.url}: {exc}")
+        graph_assembly_seconds = perf_counter() - step_started
         original_graph = G
+        step_started = perf_counter()
         G = nx.k_core(G, k=4)
         seed_fallback = None
         if not G:
             G = nx.DiGraph()
             G.add_nodes_from(sorted(article_set))
             seed_fallback = "no_surviving_entities"
+        graph_pruning_seconds = perf_counter() - step_started
         return dict(G=G, original_graph=original_graph, articles=articles,
                     article_titles_by_url=article_titles_by_url, node_names=node_names,
                     seed_fallback=seed_fallback, entity_nodes_by_identity=entities_by_identity,
-                    entity_nodes_by_surface=nodes_by_surface)
+                    entity_nodes_by_surface=nodes_by_surface,
+                    timings={
+                        "graph_article_fetch_seconds": article_fetch_seconds,
+                        "graph_entity_load_extract_seconds": entity_load_extract_seconds,
+                        "graph_assembly_seconds": graph_assembly_seconds,
+                        "graph_pruning_seconds": graph_pruning_seconds,
+                    })
 
     def for_batch(self):
         """Clone with request-local caches, leaving the web service untouched."""
@@ -219,8 +233,13 @@ class RankingService:
         ranker = copy(self)
         ranker._batch_graphs = {}
         ranker._batch_scores = {}
+        ranker._batch_cross_encoder_scores = {}
         ranker.batch_counts = {"graph_builds": 0, "ppr_runs": 0}
-        ranker.batch_timings = {"graph_seconds": 0.0, "ppr_seconds": 0.0, "mmr_seconds": 0.0}
+        ranker.batch_timings = {
+            "graph_seconds": 0.0, "graph_article_fetch_seconds": 0.0,
+            "graph_entity_load_extract_seconds": 0.0, "graph_assembly_seconds": 0.0,
+            "graph_pruning_seconds": 0.0, "ppr_seconds": 0.0, "mmr_seconds": 0.0,
+        }
         return ranker
 
     def _query_seed_nodes(self, query, prepared):
@@ -371,6 +390,8 @@ class RankingService:
             if hasattr(self, "batch_counts"):
                 self.batch_counts["graph_builds"] += 1
                 self.batch_timings["graph_seconds"] += perf_counter() - tick
+                for name, seconds in graph_cache[pool].get("timings", {}).items():
+                    self.batch_timings[name] += seconds
         prepared = graph_cache[pool]
         query_key = query.strip() if seed_method == "query_entities" and query else None
         key = (pool, seed_method, seed_ratio, topics_per_community, community_min_ratio,
@@ -496,6 +517,8 @@ class RankingService:
             if hasattr(self, "batch_counts"):
                 self.batch_counts["graph_builds"] += 1
                 self.batch_timings["graph_seconds"] += perf_counter() - tick
+                for name, seconds in graph_cache[pool].get("timings", {}).items():
+                    self.batch_timings[name] += seconds
         prepared = graph_cache[pool]
         original_graph = prepared["original_graph"]
         query_entities, matched_nodes = self._query_seed_nodes(query, prepared)
@@ -589,6 +612,8 @@ class RankingService:
             if hasattr(self, "batch_counts"):
                 self.batch_counts["graph_builds"] += 1
                 self.batch_timings["graph_seconds"] += perf_counter() - tick
+                for name, seconds in graph_cache[pool].get("timings", {}).items():
+                    self.batch_timings[name] += seconds
         prepared = graph_cache[pool]
         graph = prepared["G"]
         article_set = set(results)

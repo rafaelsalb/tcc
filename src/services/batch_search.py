@@ -35,15 +35,24 @@ def _validate(body):
     return configurations
 
 
-def _execute(searcher, ranker, params, configurations, reuse):
+def _execute(searcher, ranker, params, configurations, reuse, progress_callback=None,
+             progress_offset=0, progress_total=None, phase="optimized"):
     started = perf_counter()
     retrieval = None
+    retrieval_steps = {}
     outputs = {}
     entries = []
     retrieval_seconds = ranking_seconds = 0.0
     counts = {"retrieval_calls": 0, "ranking_calls": 0, "graph_builds": 0, "ppr_runs": 0}
     phases = {"graph_seconds": 0.0, "ppr_seconds": 0.0, "mmr_seconds": 0.0, "cross_encoder_seconds": 0.0}
     batch_ranker = ranker.for_batch() if reuse else None
+    if progress_total is None:
+        progress_total = len(configurations)
+
+    def report_progress(**event):
+        if progress_callback is not None:
+            progress_callback({"phase": phase, **event})
+
     class CaptureSearcher:
         def search(self, **settings):
             self.retrieval = searcher.search(**settings)
@@ -51,6 +60,8 @@ def _execute(searcher, ranker, params, configurations, reuse):
 
     for configuration in configurations:
         if retrieval is None or not reuse:
+            report_progress(completed=progress_offset, total=progress_total,
+                            activity="retrieval", configuration=configuration)
             tick = perf_counter()
             # The standard validator and parameter handling are reused.  Bypass
             # Redis completely; only this request's intermediate inputs persist.
@@ -60,6 +71,7 @@ def _execute(searcher, ranker, params, configurations, reuse):
                 "seed_methods": ",".join(SEED_METHODS), "bypass_cache": "true",
             })
             retrieval = capture.retrieval
+            retrieval_steps = retrieval.get("timings", {})
             retrieval_seconds += perf_counter() - tick
             counts["retrieval_calls"] += 1
         stage = configuration["stage"]
@@ -75,6 +87,7 @@ def _execute(searcher, ranker, params, configurations, reuse):
         reused = reuse and key in outputs
         if not reused:
             active_ranker = batch_ranker if reuse else ranker.for_batch()
+            timing_before = dict(active_ranker.batch_timings)
             tick = perf_counter()
             response = run_pipeline(retrieval, active_ranker, stage, effective_seed,
                                     ranking=effective_ranking, query=params.get("query"),
@@ -83,13 +96,24 @@ def _execute(searcher, ranker, params, configurations, reuse):
                                      graph_mix=params.get("graph_mix", 0.3),
                                      query_seed_fallback=params.get("query_seed_fallback", "hits"),
                                      ensemble_rankings=params.get("ensemble_rankings", ENSEMBLE_RANKINGS))
-            ranking_seconds += perf_counter() - tick
-            if ranking in ("cross_encoder", "graph_hits_cross_encoder"):
-                phases["cross_encoder_seconds"] += perf_counter() - tick
+            computation_seconds = perf_counter() - tick
+            ranking_seconds += computation_seconds
+            diagnostic_timings = response.get("diagnostics", {})
+            phases["cross_encoder_seconds"] += diagnostic_timings.get("cross_encoder_seconds", 0.0)
+            step_names = (
+                "graph_seconds", "graph_article_fetch_seconds", "graph_entity_load_extract_seconds",
+                "graph_assembly_seconds", "graph_pruning_seconds", "ppr_seconds", "mmr_seconds",
+            )
+            step_timings = {key: active_ranker.batch_timings.get(key, 0.0) - timing_before.get(key, 0.0)
+                            for key in step_names}
+            step_timings["ranking_seconds"] = computation_seconds
+            step_timings["cross_encoder_seconds"] = diagnostic_timings.get("cross_encoder_seconds", 0.0)
             counts["ranking_calls"] += 1
             outputs[key] = {
                 "ranked": response["ranked"], "retrieval_id": response.get("retrieval_id"),
                 "diagnostics": response.get("diagnostics", {}),
+                "computation_seconds": computation_seconds,
+                "step_timings": step_timings,
             }
             if configuration["mode"] == "compare" and stage == "lexical":
                 outputs[key]["retrieval_id"] = str(response.get("retrieval_id")) + ":lexical"
@@ -101,8 +125,10 @@ def _execute(searcher, ranker, params, configurations, reuse):
                 for name in ("graph_builds", "ppr_runs"):
                     counts[name] += active_ranker.batch_counts[name]
                 for name, seconds in active_ranker.batch_timings.items():
-                    phases[name] += seconds
+                    phases[name] = phases.get(name, 0.0) + seconds
         entries.append({**configuration, **deepcopy(outputs[key]), "computation_reused": reused})
+        report_progress(completed=progress_offset + len(entries), total=progress_total,
+                        activity="ranking", configuration=configuration)
     if reuse:
         for name in ("graph_builds", "ppr_runs"):
             counts[name] = batch_ranker.batch_counts[name]
@@ -110,7 +136,7 @@ def _execute(searcher, ranker, params, configurations, reuse):
     return entries, {
         "wall_seconds": perf_counter() - started,
         "retrieval_seconds": retrieval_seconds, "ranking_seconds": ranking_seconds,
-        "counts": counts, **phases,
+        "retrieval_steps": retrieval_steps, "counts": counts, **phases,
     }, {key: retrieval.get("diagnostics", {}).get(key) for key in (
         "lexical_candidate_article_urls", "hybrid_eligible_article_urls")}
 
@@ -125,14 +151,23 @@ def _equivalent(left, right):
     )
 
 
-def evaluate_request(searcher, ranker, body):
+def evaluate_request(searcher, ranker, body, progress_callback=None):
     configurations = _validate(body)
-    optimized, timings, membership = _execute(searcher, ranker, body["search"], configurations, reuse=True)
+    progress_total = len(configurations) * (2 if body.get("benchmark", False) else 1)
+    optimized, timings, membership = _execute(
+        searcher, ranker, body["search"], configurations, reuse=True,
+        progress_callback=progress_callback, progress_total=progress_total,
+        phase="optimized",
+    )
     report = {"search_version": SEARCH_VERSION, "evaluation_version": "reuse_v1",
               "cache_bypassed": True, "results": optimized, "pool_membership": membership,
               "performance": {"optimized": timings}}
     if body.get("benchmark", False):
-        baseline, baseline_timings, _ = _execute(searcher, ranker, body["search"], configurations, reuse=False)
+        baseline, baseline_timings, _ = _execute(
+            searcher, ranker, body["search"], configurations, reuse=False,
+            progress_callback=progress_callback, progress_offset=len(configurations),
+            progress_total=progress_total, phase="baseline",
+        )
         report["performance"].update(
             baseline=baseline_timings,
             speedup=baseline_timings["wall_seconds"] / max(timings["wall_seconds"], 1e-9),

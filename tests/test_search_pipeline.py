@@ -264,6 +264,42 @@ def test_cross_encoder_empty_or_missing_documents(monkeypatch, empty_pool):
     assert result["diagnostics"]["cross_encoder_missing_document_count"] == (0 if empty_pool else 2)
 
 
+def test_cross_encoder_predict_reuses_pair_logits_within_request(monkeypatch):
+    from services import search_pipeline
+
+    class FakeModel:
+        tokenizer = None
+        max_length = None
+
+        def __init__(self):
+            self.calls = []
+
+        def predict(self, pairs):
+            self.calls.append(list(pairs))
+            return [float(len(self.calls) * 10 + index) for index, _ in enumerate(pairs)]
+
+    model = FakeModel()
+    monkeypatch.setattr(search_pipeline, "_CROSS_ENCODER", model)
+    cache = {}
+    first_rows = [
+        {"article_url": "a", "chunk": "chunk a"},
+        {"article_url": "b", "chunk": "chunk b"},
+    ]
+    first = search_pipeline._cross_encoder_predict("query", first_rows, score_cache=cache)
+    repeated = search_pipeline._cross_encoder_predict(
+        "query", [dict(row) for row in first_rows], score_cache=cache,
+    )
+    partial = search_pipeline._cross_encoder_predict(
+        "query", [dict(first_rows[1]), {"article_url": "c", "chunk": "chunk c"}],
+        score_cache=cache,
+    )
+    assert len(model.calls) == 2
+    assert [len(call) for call in model.calls] == [2, 1]
+    assert [score for _, score in first] == [10.0, 11.0]
+    assert [score for _, score in repeated] == [10.0, 11.0]
+    assert [score for _, score in partial] == [11.0, 20.0]
+
+
 def test_cross_encoder_reranks_only_first_fifty_and_preserves_the_tail(monkeypatch):
     hybrid = [{"article": f"article-{i}", "score": 1 / (i + 1)} for i in range(275)]
     results = [

@@ -6,6 +6,7 @@ from repositories.judgments import JudgmentRepository
 from services.metrics import DEFAULT_KS, evaluate
 from services.search_pipeline import search_request
 from services.batch_search import evaluate_request
+from services.evaluation_jobs import EvaluationJobManager
 from config import REDIS_URL
 
 
@@ -13,6 +14,7 @@ app = Flask(__name__)
 g1_app = G1App()
 r = Redis.from_url(REDIS_URL, decode_responses=True)
 judgment_repo = JudgmentRepository(g1_app.article_repo.engine)
+evaluation_jobs = EvaluationJobManager()
 
 @app.route("/search", methods=["GET"])
 def search():
@@ -33,6 +35,28 @@ def batch_evaluate():
                                        request.get_json(silent=True)))
     except ValueError as exc:
         return jsonify({"error": str(exc)}), 400
+
+
+@app.post("/evaluate/jobs")
+def start_batch_evaluation_job():
+    try:
+        body = request.get_json(silent=True)
+        job_id = evaluation_jobs.submit(g1_app.search_service, g1_app.ranking_service, body)
+    except ValueError as exc:
+        return jsonify({"error": str(exc)}), 400
+    return jsonify({
+        "job_id": job_id,
+        "status": "queued",
+        "status_url": f"/evaluate/jobs/{job_id}",
+    }), 202
+
+
+@app.get("/evaluate/jobs/<job_id>")
+def batch_evaluation_job_status(job_id):
+    job = evaluation_jobs.get(job_id)
+    if job is None:
+        return jsonify({"error": "evaluation job not found or expired"}), 404
+    return jsonify(job)
 
 
 @app.get("/articles")

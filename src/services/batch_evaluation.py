@@ -32,6 +32,8 @@ from services.batch_summary import LiveSummary, summary_paths
 SCHEMA_VERSION = 1
 BATCH_KS = (1, 3, 5, 10, 20)
 API_TIMEOUT_SECONDS = 600
+JOB_HTTP_TIMEOUT_SECONDS = 30
+EVALUATION_JOB_POLL_SECONDS = 2
 SEARCH_WINDOW = {
     "date_from": "2025-06-01",
     "date_to": "2026-06-30",
@@ -207,6 +209,20 @@ def _normalize_api_base_url(api_base_url: str) -> str:
     return api_base_url
 
 
+def _select_methods(available, requested, excluded, label):
+    """Validate an inclusion/exclusion pair and return its selected methods."""
+    selected = tuple(requested) if requested is not None else tuple(available)
+    excluded = tuple(excluded) if excluded is not None else ()
+    if not selected or any(method not in available for method in selected) or len(set(selected)) != len(selected):
+        raise ValueError(f"invalid or repeated {label}")
+    if any(method not in available for method in excluded) or len(set(excluded)) != len(excluded):
+        raise ValueError(f"invalid or repeated excluded {label}")
+    selected = tuple(method for method in selected if method not in set(excluded))
+    if not selected:
+        raise ValueError(f"excluding {label} left no methods to evaluate")
+    return selected
+
+
 def _search_endpoint_url(
     api_base_url: str,
     query: str,
@@ -314,10 +330,48 @@ def _evaluation_from_api(api_base_url, item, task, configurations, benchmark=Fal
                    **SHARED_SEARCH_SETTINGS, **SEARCH_WINDOW},
         "configurations": configurations, "benchmark": benchmark,
     }
-    request = Request(f"{api_base_url}/evaluate", data=json.dumps(body).encode("utf-8"),
+    request = Request(f"{api_base_url}/evaluate/jobs", data=json.dumps(body).encode("utf-8"),
                       headers={"Content-Type": "application/json", "Accept": "application/json"})
-    with urlopen(request, timeout=API_TIMEOUT_SECONDS) as response:
-        payload = json.loads(response.read().decode("utf-8"))
+    job = _job_api_json(request)
+    job_id = job.get("job_id")
+    if not isinstance(job_id, str) or not job_id:
+        raise RuntimeError("evaluation API did not return a job ID")
+    status_url = job.get("status_url")
+    if not isinstance(status_url, str) or not status_url.startswith("/evaluate/jobs/"):
+        status_url = f"/evaluate/jobs/{job_id}"
+    previous_progress = None
+    last_report = time.monotonic()
+    while True:
+        status_request = Request(f"{api_base_url}{status_url}", headers={"Accept": "application/json"})
+        job = _job_api_json(status_request)
+        status = job.get("status")
+        if status == "completed":
+            payload = job.get("result")
+            if not isinstance(payload, dict):
+                raise RuntimeError("completed evaluation job did not include a result")
+            break
+        if status == "failed":
+            raise RuntimeError(f"background evaluation job failed: {job.get('error', 'unknown error')}")
+        if status not in ("queued", "running"):
+            raise RuntimeError(f"evaluation job returned unknown status: {status!r}")
+        progress = job.get("progress", {})
+        marker = (status, progress.get("phase"), progress.get("activity"),
+                  progress.get("completed"), progress.get("total"))
+        now = time.monotonic()
+        if marker != previous_progress or now - last_report >= 30:
+            configuration = progress.get("configuration") or {}
+            config_label = "/".join(str(configuration[key]) for key in
+                                     ("ranking", "seed_method") if configuration.get(key) is not None)
+            print(
+                f"[API job {job_id[:8]}] {status}; {progress.get('phase', 'queued')} "
+                f"{progress.get('activity', '')} "
+                f"({progress.get('completed', 0)}/{progress.get('total', len(configurations))} configurations)"
+                f"{': ' + config_label if config_label else ''}",
+                flush=True,
+            )
+            previous_progress = marker
+            last_report = now
+        time.sleep(EVALUATION_JOB_POLL_SECONDS)
     if payload.get("evaluation_version") != "reuse_v1" or payload.get("cache_bypassed") is not True:
         raise RuntimeError("API lacks batch evaluation reuse support; restart the updated API")
     if payload.get("search_version") != SEARCH_VERSION:
@@ -341,6 +395,28 @@ def _evaluation_from_api(api_base_url, item, task, configurations, benchmark=Fal
                 diagnostics[target] = len(set(item["relevant_urls"]) & set(pool))
     if benchmark and payload["performance"].get("equivalent") is not True:
         raise RuntimeError("benchmark found different baseline and optimized rankings; refusing to save")
+    return payload
+
+
+def _job_api_json(request):
+    try:
+        with urlopen(request, timeout=JOB_HTTP_TIMEOUT_SECONDS) as response:
+            payload = json.loads(response.read().decode("utf-8"))
+    except HTTPError as exc:
+        try:
+            error_payload = json.loads(exc.read().decode("utf-8"))
+            message = error_payload.get("error", str(exc)) if isinstance(error_payload, dict) else str(exc)
+        except (UnicodeDecodeError, json.JSONDecodeError):
+            message = str(exc)
+        raise RuntimeError(f"evaluation job API returned HTTP {exc.code}: {message}") from exc
+    except (URLError, TimeoutError, OSError) as exc:
+        raise RuntimeError(f"could not reach evaluation job API ({exc})") from exc
+    except (UnicodeDecodeError, json.JSONDecodeError) as exc:
+        raise RuntimeError("evaluation job API returned invalid JSON") from exc
+    if not isinstance(payload, dict):
+        raise RuntimeError("evaluation job API response must be a JSON object")
+    if payload.get("error"):
+        raise RuntimeError(f"evaluation job API error: {payload['error']}")
     return payload
 
 
@@ -481,8 +557,17 @@ def _csv_fields(ks):
     fields = [
         "id", "query", "query_formulation", "preset", "stage", "ranking", "result_unit", "seed_method", "quorum", "limit", "top_k",
         "relevant_total", "ranked_total",
-        "retrieval_id", "elapsed_seconds", "cache_bypassed", "reference_in_pool", "reference_pool_recall",
-        "mode", "computation_reused", "group_wall_seconds", "baseline_wall_seconds", "speedup", "benchmark_equivalent",
+        "retrieval_id", "elapsed_seconds", "computation_seconds", "cache_bypassed", "reference_in_pool", "reference_pool_recall",
+        "mode", "computation_reused", "group_wall_seconds", "group_retrieval_seconds",
+        "group_ranking_seconds", "group_graph_seconds", "group_ppr_seconds", "group_mmr_seconds",
+        "group_graph_article_fetch_seconds", "group_graph_entity_load_extract_seconds",
+        "group_graph_assembly_seconds", "group_graph_pruning_seconds",
+        "group_cross_encoder_seconds", "ranking_graph_seconds", "ranking_graph_article_fetch_seconds",
+        "ranking_graph_entity_load_extract_seconds", "ranking_graph_assembly_seconds",
+        "ranking_graph_pruning_seconds", "ranking_ppr_seconds",
+        "ranking_mmr_seconds", "ranking_cross_encoder_seconds", "query_embedding_seconds",
+        "hybrid_query_seconds", "result_processing_seconds", "article_lookup_seconds",
+        "search_service_seconds", "baseline_wall_seconds", "speedup", "benchmark_equivalent",
         "retrieval_calls", "graph_builds", "ppr_runs",
     ]
     fields.extend(DIAGNOSTIC_COLUMNS)
@@ -505,12 +590,38 @@ def _csv_row(item, result, ks):
         "stage": result.get("stage", "ppr"), "result_unit": result.get("result_unit", "chunks"),
         "ranking": result.get("ranking", result.get("stage", "ppr")),
         "retrieval_id": result.get("retrieval_id"), "elapsed_seconds": result.get("elapsed_seconds"),
+        "computation_seconds": result.get("computation_seconds"),
         "cache_bypassed": result.get("cache_bypassed"),
         "mode": result.get("mode"), "computation_reused": result.get("computation_reused"),
     }
     performance = result.get("performance", {})
     optimized = performance.get("optimized", {})
+    retrieval_steps = optimized.get("retrieval_steps", {})
+    ranking_steps = result.get("step_timings", {})
     row.update(group_wall_seconds=optimized.get("wall_seconds"),
+               group_retrieval_seconds=optimized.get("retrieval_seconds"),
+               group_ranking_seconds=optimized.get("ranking_seconds"),
+               group_graph_seconds=optimized.get("graph_seconds"),
+               group_graph_article_fetch_seconds=optimized.get("graph_article_fetch_seconds"),
+               group_graph_entity_load_extract_seconds=optimized.get("graph_entity_load_extract_seconds"),
+               group_graph_assembly_seconds=optimized.get("graph_assembly_seconds"),
+               group_graph_pruning_seconds=optimized.get("graph_pruning_seconds"),
+               group_ppr_seconds=optimized.get("ppr_seconds"),
+               group_mmr_seconds=optimized.get("mmr_seconds"),
+               group_cross_encoder_seconds=optimized.get("cross_encoder_seconds"),
+               ranking_graph_seconds=ranking_steps.get("graph_seconds"),
+               ranking_graph_article_fetch_seconds=ranking_steps.get("graph_article_fetch_seconds"),
+               ranking_graph_entity_load_extract_seconds=ranking_steps.get("graph_entity_load_extract_seconds"),
+               ranking_graph_assembly_seconds=ranking_steps.get("graph_assembly_seconds"),
+               ranking_graph_pruning_seconds=ranking_steps.get("graph_pruning_seconds"),
+               ranking_ppr_seconds=ranking_steps.get("ppr_seconds"),
+               ranking_mmr_seconds=ranking_steps.get("mmr_seconds"),
+               ranking_cross_encoder_seconds=ranking_steps.get("cross_encoder_seconds"),
+               query_embedding_seconds=retrieval_steps.get("query_embedding_seconds"),
+               hybrid_query_seconds=retrieval_steps.get("hybrid_query_seconds"),
+               result_processing_seconds=retrieval_steps.get("result_processing_seconds"),
+               article_lookup_seconds=retrieval_steps.get("article_lookup_seconds"),
+               search_service_seconds=retrieval_steps.get("search_service_seconds"),
                baseline_wall_seconds=performance.get("baseline", {}).get("wall_seconds"),
                speedup=performance.get("speedup"), benchmark_equivalent=performance.get("equivalent"))
     row.update({key: optimized.get("counts", {}).get(key) for key in ("retrieval_calls", "graph_builds", "ppr_runs")})
@@ -709,6 +820,8 @@ def _execute_work_unit(api_base_url, entries, methods, result_unit, benchmark, q
                     "diagnostics": entry.get("diagnostics", {}),
                     "retrieval_id": entry.get("retrieval_id"),
                     "computation_reused": entry["computation_reused"],
+                    "computation_seconds": entry.get("computation_seconds"),
+                    "step_timings": entry.get("step_timings", {}),
                     "performance": payload["performance"],
                 }
                 results.append((row_item, task, result))
@@ -761,6 +874,7 @@ def _execute_work_unit(api_base_url, entries, methods, result_unit, benchmark, q
             "coverage": _coverage(ranked_urls, item["relevant_urls"]),
             "cache_bypassed": True, "elapsed_seconds": round(elapsed, 3),
             "completed_at": datetime.now(timezone.utc).isoformat(),
+            "computation_seconds": None,
         }
         return [(item, first_task, result)], elapsed
     except Exception as exc:
@@ -881,6 +995,8 @@ def run_batch_evaluation(
     quorums=None,
     seed_methods=None,
     rankings=None,
+    exclude_seed_methods=None,
+    exclude_rankings=None,
     reuse: bool = False,
     benchmark: bool = False,
     workers: int = 1,
@@ -901,18 +1017,13 @@ def run_batch_evaluation(
             or any(method not in ENSEMBLE_COMPONENT_RANKINGS for method in ensemble_methods)):
         raise ValueError("ensemble_rankings must contain unique supported non-ensemble rankings")
     names = tuple(presets) if presets is not None else tuple(SEARCH_PRESETS)
-    methods = tuple(seed_methods) if seed_methods is not None else SEED_METHODS
-    selected_rankings = tuple(rankings) if rankings is not None else RANKINGS
+    methods = _select_methods(SEED_METHODS, seed_methods, exclude_seed_methods, "seed methods")
+    selected_rankings = _select_methods(RANKINGS, rankings, exclude_rankings, "rankings")
     thresholds = tuple(quorums) if quorums is not None else QUORUM_VALUES
     if not names or any(name not in SEARCH_PRESETS for name in names) or len(set(names)) != len(names):
         raise ValueError("invalid or repeated presets")
-    if not methods or any(method not in SEED_METHODS for method in methods) or len(set(methods)) != len(methods):
-        raise ValueError("invalid or repeated seed methods")
     if not thresholds or any(not 0 <= q <= 1 for q in thresholds) or len(set(thresholds)) != len(thresholds):
         raise ValueError("invalid or repeated quorums")
-    valid_rankings = set(RANKINGS)
-    if not selected_rankings or any(ranking not in valid_rankings for ranking in selected_rankings) or len(set(selected_rankings)) != len(selected_rankings):
-        raise ValueError(f"invalid or repeated rankings; valid values: {sorted(valid_rankings)}")
     selected_presets = {name: SEARCH_PRESETS[name] for name in names}
     task_list = list(_tasks(evaluations, selected_presets, thresholds, methods, selected_rankings, compare_stages, result_unit))
     if benchmark and not reuse:
@@ -1006,6 +1117,26 @@ def run_batch_evaluation(
                         duration_estimator.update(signature, elapsed)
                         duration_estimator.complete(signature)
                         unit_eta = _timing_text(started, duration_estimator.remaining_seconds())
+                        optimized = unit_results[0][2].get("performance", {}).get("optimized", {})
+                        if optimized:
+                            retrieval_steps = optimized.get("retrieval_steps", {})
+                            print(
+                                f"[Steps {item['id']} / {first_task['preset']} / quorum={first_task['quorum']}] "
+                                f"wall={optimized.get('wall_seconds', 0):.2f}s "
+                                f"retrieval={optimized.get('retrieval_seconds', 0):.2f}s "
+                                f"(embed={retrieval_steps.get('query_embedding_seconds', 0):.2f}s, "
+                                f"sql={retrieval_steps.get('hybrid_query_seconds', 0):.2f}s, "
+                                f"format={retrieval_steps.get('result_processing_seconds', 0):.2f}s, "
+                                f"articles={retrieval_steps.get('article_lookup_seconds', 0):.2f}s) "
+                                f"ranking={optimized.get('ranking_seconds', 0):.2f}s "
+                                f"(graph={optimized.get('graph_seconds', 0):.2f}s, "
+                                f"entity_load_extract={optimized.get('graph_entity_load_extract_seconds', 0):.2f}s, "
+                                f"graph_build={optimized.get('graph_assembly_seconds', 0):.2f}s, "
+                                f"ppr={optimized.get('ppr_seconds', 0):.2f}s, "
+                                f"mmr={optimized.get('mmr_seconds', 0):.2f}s, "
+                                f"cross_encoder={optimized.get('cross_encoder_seconds', 0):.2f}s)",
+                                flush=True,
+                            )
                         for offset_in_unit, (row_item, task, result) in enumerate(unit_results):
                             index = unit_start + offset_in_unit
                             if index < journal.completed:

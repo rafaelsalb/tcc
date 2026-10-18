@@ -36,7 +36,8 @@ def main(args):
                 resume=args.resume, overwrite=args.overwrite,
                 compare_stages=args.compare_stages, result_unit=args.result_unit,
                 presets=args.presets, quorums=args.quorums, seed_methods=args.seed_methods,
-                rankings=args.rankings,
+                rankings=args.rankings, exclude_seed_methods=args.exclude_seed_methods,
+                exclude_rankings=args.exclude_rankings,
                 reuse=not args.no_reuse, benchmark=args.benchmark,
                 workers=args.workers,
                 query_seed_fallback=args.query_seed_fallback,
@@ -88,8 +89,10 @@ if __name__ == "__main__":
     parser.add_argument("--presets", nargs="+", choices=("rapido", "balanceado", "profundo"), help="Restrict batch search presets.")
     parser.add_argument("--quorums", nargs="+", type=float, help="Restrict batch quorum values, e.g. 0.3 0.7.")
     parser.add_argument("--seed-methods", nargs="+", choices=("louvain", "hits", "ppr_top10", "query_entities"), help="Restrict graph seeding methods.")
+    parser.add_argument("--exclude-seed-methods", nargs="+", choices=("louvain", "hits", "ppr_top10", "query_entities"), help="Exclude seeding methods from the selected/default set.")
     parser.add_argument("--query-seed-fallback", choices=("hits", "louvain", "ppr_top10"), default="hits", help="Existing seed method used when query entities have no graph match.")
     parser.add_argument("--rankings", nargs="+", choices=("ppr", "hybrid_max", "rrf", "cross_encoder", "fused", "mmr", "graph_rwr", "graph_hits", "graph_salsa", "graph_path", "graph_walk", "graph_fusion", "graph_hits_cross_encoder", "lexical", "vector", "ensemble_rrf"), help="Ranking methods to include; with --compare-stages, they are added to the stage comparisons.")
+    parser.add_argument("--exclude-rankings", nargs="+", choices=("ppr", "hybrid_max", "rrf", "cross_encoder", "fused", "mmr", "graph_rwr", "graph_hits", "graph_salsa", "graph_path", "graph_walk", "graph_fusion", "graph_hits_cross_encoder", "lexical", "vector", "ensemble_rrf"), help="Exclude rankings from the selected/default set.")
     parser.add_argument("--ensemble-rankings", nargs="+", choices=("ppr", "hybrid_max", "rrf", "cross_encoder", "fused", "mmr", "graph_rwr", "graph_hits", "graph_salsa", "graph_path", "graph_walk", "graph_fusion", "graph_hits_cross_encoder", "lexical", "vector"), help="Components for ensemble_rrf (default: rrf cross_encoder ppr).")
     parser.add_argument("--no-reuse", action="store_true", help="Use independent /search requests instead of the shared /evaluate endpoint.")
     parser.add_argument("--benchmark", action="store_true", help="Measure reuse against an independent baseline per output row, checking rank/score equivalence (extra work).")

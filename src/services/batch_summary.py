@@ -19,7 +19,8 @@ class LiveSummary:
         self.ks = ks
         self.completed = 0
         self.groups = {name: {} for name in (
-            "overall", "themes", "query_structures", "parameter_sets", "rankings", "seeding_methods", "stages")}
+            "overall", "themes", "query_structures", "parameter_sets", "rankings", "seeding_methods",
+            "stages", "runtime_combinations")}
 
     def add(self, item, result):
         # Older comparison checkpoints may contain multiple rows in a record.
@@ -45,6 +46,7 @@ class LiveSummary:
             if name in row.get("coverage", {}):
                 values[name] = row["coverage"][name]
         values.update(row.get("ranking_metrics", {}))
+        computation_seconds = row.get("computation_seconds")
         dimensions = {
             "overall": {"scope": "all saved rows"},
             "themes": {"theme": item["id"].split("__", 1)[0]},
@@ -53,6 +55,10 @@ class LiveSummary:
                 "mode", "stage", "ranking", "seed_method", "preset", "quorum", "limit", "top_k", "result_unit")},
             "rankings": {"ranking": ranking},
         }
+        if computation_seconds is not None:
+            values["computation_seconds"] = float(computation_seconds)
+            dimensions["runtime_combinations"] = {key: row.get(key) for key in (
+                "ranking", "seed_method", "preset", "quorum", "result_unit")}
         # Seed-independent rankings must not influence the seed leaderboard.
         if ranking in GRAPH_RANKINGS and seed not in ("none", "paired"):
             dimensions["seeding_methods"] = {"seed_method": seed}
@@ -79,17 +85,26 @@ class LiveSummary:
                 "means": {name: value / group["counts"][name] for name, value in group["sums"].items()},
                 "metric_counts": group["counts"],
             } for group in entries.values()]
-            groups[dimension].sort(key=lambda row: (
-                -row["means"].get("f1@20", 0), json.dumps(row["parameters"], sort_keys=True)))
+            if dimension == "runtime_combinations":
+                groups[dimension].sort(key=lambda row: (
+                    row["means"].get("computation_seconds", float("inf")),
+                    json.dumps(row["parameters"], sort_keys=True)))
+            else:
+                groups[dimension].sort(key=lambda row: (
+                    -row["means"].get("f1@20", 0), json.dumps(row["parameters"], sort_keys=True)))
+        runtime = groups["runtime_combinations"]
         return {"status": status, "completed_results": completed, "total_results": total,
                 "summarized_rows": self.completed, "ks": list(self.ks), "sorted_by": "mean f1@20 descending",
+                "runtime_metric": "mean_computation_seconds_ascending",
+                "fastest_combinations": runtime[:10],
+                "slowest_combinations": list(reversed(runtime[-10:])),
                 "groups": groups}
 
     def markdown(self, report):
         lines = ["# Resumo ao vivo da avaliação", "",
                  f"Status: **{report['status']}** — **{report['completed_results']}/{report['total_results']}** resultados salvos.",
                  f"Linhas agregadas: {report['summarized_rows']}.", "",
-                 "Médias por linha salva; todos os grupos são listados em ordem de F1@20 decrescente. "
+                 "Médias por linha salva; grupos de métricas são listados em ordem de F1@20 decrescente. "
                  "Durante a execução, grupos podem ter coberturas diferentes: compare também linhas e consultas.", "",
                  "O tema é inferido do prefixo do ID antes de `__`. Seeds são comparadas somente em PPR/fusão/MMR. "
                  "Etapas são comparadas somente nas linhas de `compare`, não pelo caminho de execução `stage=ppr`.", "",
@@ -99,6 +114,8 @@ class LiveSummary:
                   "parameter_sets": "Conjuntos de parâmetros", "rankings": "Rankings",
                   "seeding_methods": "Métodos de seed", "stages": "Etapas"}
         for dimension, entries in report["groups"].items():
+            if dimension == "runtime_combinations":
+                continue
             lines += [f"## {titles[dimension]}", ""]
             if not entries:
                 lines += ["Sem resultados aplicáveis nesta execução.", ""]
@@ -128,6 +145,23 @@ class LiveSummary:
                          for name in ranking_metric_names]
                 lines.append(f"| {label} | {entry['rows']} | {entry['queries']} | " + " | ".join(cells) + " |")
             lines.append("")
+        runtime = report["groups"].get("runtime_combinations", [])
+        lines += ["## Combinações mais rápidas e lentas", "",
+                  "Tempo médio do cálculo do ranking, sem incluir a recuperação compartilhada. "
+                  "Linhas reutilizadas herdam o tempo da computação que produziu o resultado.", ""]
+        if not runtime:
+            lines += ["Sem tempos de cálculo por combinação disponíveis.", ""]
+        else:
+            for title, entries in (("Mais rápidas", report["fastest_combinations"]),
+                                   ("Mais lentas", report["slowest_combinations"])):
+                lines += [f"### {title}", "", "| Combinação | Amostras | Média (s) |", "|---|---:|---:|"]
+                for entry in entries:
+                    label = ", ".join(f"{key}={value}" for key, value in entry["parameters"].items())
+                    label = label.replace("|", "\\|").replace("\n", " ")
+                    count = entry["metric_counts"].get("computation_seconds", 0)
+                    mean = entry["means"]["computation_seconds"]
+                    lines.append(f"| {label} | {count} | {mean:.4f} |")
+                lines.append("")
         return "\n".join(lines) + "\n"
 
     def write(self, json_path, completed, total, status):

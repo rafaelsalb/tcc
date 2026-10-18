@@ -8,6 +8,7 @@ from types import SimpleNamespace
 import pytest
 
 from services.batch_search import evaluate_request
+from services.evaluation_jobs import EvaluationJobManager
 from services.ranking import RankingService
 from services import batch_evaluation as batch
 
@@ -45,7 +46,7 @@ def test_reuse_benchmark_preserves_results_and_reduces_work(monkeypatch):
     searcher, ranker, calls, data = setup_services()
     reranks = []
 
-    def rerank(query, rows):
+    def rerank(query, rows, score_cache=None):
         reranks.append(query)
         return [{"article": row["article_url"], "score": 1.0} for row in rows]
 
@@ -64,13 +65,14 @@ def test_reuse_benchmark_preserves_results_and_reduces_work(monkeypatch):
     }
     assert len(reranks) == 4  # One optimized pass, three independent passes.
     assert len(report["results"]) == 18 and len(calls) == 19
+    assert all(entry["computation_seconds"] >= 0 for entry in report["results"])
     assert data == original
     assert not hasattr(ranker, "_batch_graphs")
 
 
 def test_batch_endpoint_evaluates_configurable_ensemble_and_benchmark(monkeypatch):
     searcher, ranker, calls, _ = setup_services()
-    monkeypatch.setattr("services.search_pipeline._cross_encoder_rank", lambda query, rows: [
+    monkeypatch.setattr("services.search_pipeline._cross_encoder_rank", lambda query, rows, score_cache=None: [
         {"article": row["article_url"], "score": float(i)} for i, row in enumerate(reversed(rows))
     ])
     report = evaluate_request(searcher, ranker, {
@@ -98,6 +100,38 @@ def test_compare_rows_and_ordinary_rows_keep_their_identity():
     assert report["results"][0]["retrieval_id"] == "pool:lexical"
     assert report["performance"]["optimized"]["counts"]["ppr_runs"] == 1
     assert [r["mode"] for r in report["results"]] == ["compare"] * 4 + ["ranking"]
+
+
+def test_evaluation_reports_progress_after_each_configuration():
+    searcher, ranker, _, _ = setup_services()
+    configs = configurations()[:3]
+    updates = []
+    report = evaluate_request(searcher, ranker, {
+        "search": {"query": "teste"}, "configurations": configs,
+    }, progress_callback=updates.append)
+    assert len(report["results"]) == 3
+    completion = [update for update in updates if update["activity"] == "ranking"]
+    assert [update["completed"] for update in completion] == [1, 2, 3]
+    assert all(update["total"] == 3 for update in completion)
+
+
+def test_background_evaluation_job_exposes_progress_and_result():
+    searcher, ranker, _, _ = setup_services()
+    manager = EvaluationJobManager(max_workers=1, retention_seconds=60)
+    try:
+        job_id = manager.submit(searcher, ranker, {
+            "search": {"query": "teste"}, "configurations": configurations()[:2],
+        })
+        deadline = time.monotonic() + 5
+        job = manager.get(job_id)
+        while job["status"] not in ("completed", "failed") and time.monotonic() < deadline:
+            time.sleep(0.01)
+            job = manager.get(job_id)
+        assert job["status"] == "completed"
+        assert job["progress"]["completed"] == job["progress"]["total"] == 2
+        assert len(job["result"]["results"]) == 2
+    finally:
+        manager.shutdown()
 
 
 def test_empty_evaluation_group_completes_without_model_or_graph(monkeypatch):
@@ -180,11 +214,16 @@ def test_batch_transport_validates_equivalence_and_preserves_pool_diagnostics(mo
     damaged = False
 
     def urlopen(request, timeout):
-        assert request.full_url == "http://localhost:5000/evaluate"
-        assert request.get_method() == "POST"
-        payload = evaluate_request(searcher, ranker, json.loads(request.data))
-        if damaged:
-            payload["performance"]["equivalent"] = False
+        assert timeout == batch.JOB_HTTP_TIMEOUT_SECONDS
+        if request.get_method() == "POST":
+            assert request.full_url == "http://localhost:5000/evaluate/jobs"
+            payload = {"job_id": "test-job", "status_url": "/evaluate/jobs/test-job"}
+        else:
+            assert request.full_url == "http://localhost:5000/evaluate/jobs/test-job"
+            result = evaluate_request(searcher, ranker, json.loads(body_data))
+            if damaged:
+                result["performance"]["equivalent"] = False
+            payload = {"job_id": "test-job", "status": "completed", "result": result}
 
         class Response:
             def __enter__(self):
@@ -198,6 +237,16 @@ def test_batch_transport_validates_equivalence_and_preserves_pool_diagnostics(mo
 
         return Response()
 
+    body_data = None
+    original_request = batch._job_api_json
+
+    def remember_body(request):
+        nonlocal body_data
+        if request.get_method() == "POST":
+            body_data = request.data
+        return original_request(request)
+
+    monkeypatch.setattr(batch, "_job_api_json", remember_body)
     monkeypatch.setattr(batch, "urlopen", urlopen)
     item = {"query": "teste", "relevant_urls": ["a", "b"]}
     task = {"limit": 50, "top_k": 10, "quorum": 0.7, "result_unit": "articles"}
@@ -207,6 +256,30 @@ def test_batch_transport_validates_equivalence_and_preserves_pool_diagnostics(mo
     damaged = True
     with pytest.raises(RuntimeError, match="refusing to save"):
         batch._evaluation_from_api("http://localhost:5000", item, task, configs, benchmark=True)
+
+
+def test_batch_job_transport_polls_until_completed_and_reports_progress(monkeypatch, capsys):
+    config = {"mode": "ranking", "stage": "ppr", "ranking": "ppr", "seed_method": "hits"}
+    payload = {"evaluation_version": "reuse_v1", "cache_bypassed": True,
+               "search_version": batch.SEARCH_VERSION,
+               "results": [{**config, "ranked": [{"article": "a", "score": 1.0}],
+                            "diagnostics": {}, "retrieval_id": "pool"}],
+               "performance": {}}
+    responses = iter([
+        {"job_id": "job-1", "status_url": "/evaluate/jobs/job-1"},
+        {"job_id": "job-1", "status": "running",
+         "progress": {"phase": "optimized", "activity": "retrieval", "completed": 0,
+                      "total": 1, "configuration": config}},
+        {"job_id": "job-1", "status": "completed", "result": payload},
+    ])
+    monkeypatch.setattr(batch, "_job_api_json", lambda request: next(responses))
+    monkeypatch.setattr(batch, "EVALUATION_JOB_POLL_SECONDS", 0)
+    result = batch._evaluation_from_api(
+        "http://localhost:5000", {"query": "teste", "relevant_urls": ["a"]},
+        {"limit": 50, "top_k": 10, "quorum": 0.7, "result_unit": "articles"}, [config],
+    )
+    assert result["results"][0]["ranked"][0]["article"] == "a"
+    assert "0/1 configurations): ppr/hits" in capsys.readouterr().out
 
 
 def test_parallel_batch_bounds_workers_and_commits_in_task_order(monkeypatch, tmp_path):

@@ -20,6 +20,28 @@ def valid_document():
     }
 
 
+def test_excluding_one_method_from_defaults_keeps_every_other_method():
+    seeds = batch_evaluation._select_methods(
+        batch_evaluation.SEED_METHODS, None, ("hits",), "seed methods",
+    )
+    rankings = batch_evaluation._select_methods(
+        batch_evaluation.RANKINGS, None, ("cross_encoder",), "rankings",
+    )
+    assert seeds == tuple(method for method in batch_evaluation.SEED_METHODS if method != "hits")
+    assert rankings == tuple(method for method in batch_evaluation.RANKINGS if method != "cross_encoder")
+
+
+@pytest.mark.parametrize(("available", "requested", "excluded", "message"), [
+    (("a", "b"), None, ("bad",), "excluded"),
+    (("a", "b"), None, ("a", "b"), "no methods"),
+    (("a", "b"), ("bad",), (), "invalid"),
+    (("a", "b"), None, ("a", "a"), "repeated"),
+])
+def test_method_exclusions_validate_names_and_require_nonempty_results(available, requested, excluded, message):
+    with pytest.raises(ValueError, match=message):
+        batch_evaluation._select_methods(available, requested, excluded, "rankings")
+
+
 @pytest.mark.parametrize("count", [1, 2, 3, 5, 9, 10, 11, 20, 21, 50])
 def test_validate_document_accepts_any_positive_number_of_relevant_urls(count):
     document = valid_document()
