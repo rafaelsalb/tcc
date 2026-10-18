@@ -1,14 +1,15 @@
+name: tcc
+
 services:
   postgres:
-    image: "pgvector/pgvector:0.8.2-pg18-trixie"
-    container_name: tcc-postgres
+    image: pgvector/pgvector:0.8.2-pg18-trixie
     restart: unless-stopped
     environment:
-      POSTGRES_DB: tcc
-      POSTGRES_USER: tcc_user
-      POSTGRES_PASSWORD: tcc_password
+      POSTGRES_DB: ${POSTGRES_DB:-tcc}
+      POSTGRES_USER: ${POSTGRES_USER:-tcc_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-tcc_password}
     ports:
-      - "5432:5432"
+      - "${POSTGRES_PORT:-5432}:5432"
     volumes:
       - postgres_data:/var/lib/postgresql
     healthcheck:
@@ -19,22 +20,93 @@ services:
       start_period: 10s
 
   redis:
-    image: "redis"
-    container_name: tcc-redis
+    image: redis:7-alpine
     restart: unless-stopped
     ports:
-      - "6379:6379"
+      - "${REDIS_PORT:-6379}:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  ollama:
+    image: ollama/ollama:latest
+    restart: unless-stopped
+    ports:
+      - "${OLLAMA_PORT:-11434}:11434"
+    volumes:
+      - ollama_data:/root/.ollama
+
+  ollama-model:
+    image: ollama/ollama:latest
+    depends_on:
+      - ollama
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - >-
+        until OLLAMA_HOST=http://ollama:11434 ollama list >/dev/null 2>&1; do sleep 2; done;
+        OLLAMA_HOST=http://ollama:11434 ollama pull qwen3-embedding:0.6b
+    restart: "no"
 
   dbpedia-spotlight:
-    image: "dbpedia/dbpedia-spotlight"
-    container_name: tcc-dbpedia-spotlight
+    image: dbpedia/dbpedia-spotlight
     restart: unless-stopped
     command: spotlight.sh pt
+    depends_on:
+      spotlight-model:
+        condition: service_completed_successfully
     ports:
-      - "2222:80"
+      - "${SPOTLIGHT_PORT:-2222}:80"
     volumes:
       - spotlight_models:/opt/spotlight
 
+  spotlight-model:
+    image: alpine:3.21
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - >-
+        apk add --no-cache curl tar;
+        mkdir -p /opt/spotlight/models/pt;
+        if [ ! -f /opt/spotlight/.pt-model-installed ]; then
+          curl -fL http://downloads.dbpedia.org/repo/dbpedia/spotlight/spotlight-model/2022.03.01/spotlight-model_lang=pt.tar.gz -o /tmp/model.tar.gz;
+          tar -xzf /tmp/model.tar.gz -C /opt/spotlight/models;
+          touch /opt/spotlight/.pt-model-installed;
+        fi
+    volumes:
+      - spotlight_models:/opt/spotlight
+    restart: "no"
+
+  db-schema:
+    build: .
+    environment:
+      POSTGRES_DSN: ${DOCKER_POSTGRES_DSN:-postgresql+psycopg://${POSTGRES_USER:-tcc_user}:${POSTGRES_PASSWORD:-tcc_password}@postgres:5432/${POSTGRES_DB:-tcc}}
+    command: ["uv", "run", "--no-sync", "python", "scripts/init_schema.py"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: "no"
+
+  api:
+    build: .
+    environment:
+      POSTGRES_DSN: ${DOCKER_POSTGRES_DSN:-postgresql+psycopg://${POSTGRES_USER:-tcc_user}:${POSTGRES_PASSWORD:-tcc_password}@postgres:5432/${POSTGRES_DB:-tcc}}
+      REDIS_URL: ${DOCKER_REDIS_URL:-redis://redis:6379/0}
+      OLLAMA_HOST: ${DOCKER_OLLAMA_HOST:-http://ollama:11434}
+      SPOTLIGHT_ENDPOINT: ${DOCKER_SPOTLIGHT_ENDPOINT:-http://dbpedia-spotlight:80/rest}
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+    ports:
+      - "${API_PORT:-5000}:5000"
+    depends_on:
+      db-schema:
+        condition: service_completed_successfully
+      redis:
+        condition: service_healthy
+      ollama-model:
+        condition: service_completed_successfully
+    restart: unless-stopped
+
 volumes:
   postgres_data:
+  ollama_data:
   spotlight_models:

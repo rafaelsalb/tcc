@@ -1,0 +1,391 @@
+{
+  "version": 1,
+  "researched_on": "2026-10-15",
+  "source": "g1_articles; read-only local database",
+  "window": [
+    "2025-06-01",
+    "2026-05-20"
+  ],
+  "themes": [
+    {
+      "id": "operacao_contencao",
+      "name": "Operação Contenção: ação na Penha/Alemão e apuração das mortes",
+      "scope": "Megaoperação de 28/10/2025 nos complexos da Penha e do Alemão, planejamento, impacto coletivo, preservação de provas e controle judicial. Exclui outras incursões chamadas Contenção, obras de contenção, perfis de mortos e reações sem evidência central.",
+      "caution": "Os balanços de mortos, presos e armas variam ao longo das atualizações; não somar números de reportagens distintas. Antecedentes ou classificação policial não provam autoria nem justificam cada morte. Federalização foi solicitada, não confirmada. Denúncias do MPRJ contra policiais não são condenações, nem prova automática de execução de todas as vítimas. Uma fala sobre efeito ínfimo foi expressamente descrita pela PM como opinião pessoal. A checagem distingue vídeos antigos de outras operações dos registros desta ação. O corpo do explicador do Muro do Bope tem um lapso 'terça-feira (29)'; o evento aqui delimitado é o de 28/10. Conteúdos retratam o texto armazenado, não um snapshot garantidamente congelado na data de publicação.",
+      "candidate_count": 119,
+      "snapshot_sha256": "ae21fb9e0569ab90faaca276c9d5ebd97bee9bdba0be6e199186f81e694063cf",
+      "articles": [
+        {
+          "rank": 1,
+          "url": "https://g1.globo.com/rj/rio-de-janeiro/noticia/2025/10/30/o-que-se-sabe-e-o-que-falta-esclarecer-sobre-a-megaoperacao-nos-complexos-do-alemao-e-penha.ghtml",
+          "date": "2025-10-30",
+          "title": "O que se sabe e o que falta esclarecer sobre a megaoperação no Rio | G1",
+          "rationale": "Síntese de fatos e lacunas centrais, com posições oficiais e cobranças de transparência.",
+          "evidence": "Entre as muitas perguntas sem resposta estão: o que aconteceu com as gravações das câmeras policiais, como se deu o chamado “muro do Bope”, de que forma ocorreram as mortes na mata e quem eram, de fato, as vítimas.",
+          "body_sha256": "f5bddc7dacf8a6652562efc90643a1ed9ef8f5fb53d43945e8dfdc797406b286"
+        },
+        {
+          "rank": 2,
+          "url": "https://g1.globo.com/rj/rio-de-janeiro/noticia/2025/10/29/infografico-megaoperacao-rio.ghtml",
+          "date": "2025-10-29",
+          "title": "INFOGRÁFICO: número de mortos, localização e impactos da megaoperação contra o CV no Rio | G1",
+          "rationale": "Panorama textual de escala, localização e impactos; não depende da leitura do infográfico.",
+          "evidence": "mobilizou 2,5 mil agentes civis e militares e provocou bloqueios em vias, suspensão de aulas em 83 escolas e paralisação de linhas ônibus.",
+          "body_sha256": "27c40ed30c7da5e3e1cdafcc5eb012cd1f79890e6ef535a56131d29f042c9172"
+        },
+        {
+          "rank": 3,
+          "url": "https://g1.globo.com/rj/rio-de-janeiro/noticia/2025/10/29/muro-do-bope-entenda-estrategia-da-policia-em-megaoperacao-mais-letal-do-rio-de-janeiro.ghtml",
+          "date": "2025-10-29",
+          "title": "'Muro do Bope': entenda estratégia da polícia em megaoperação no Rio | G1",
+          "rationale": "Explica o mecanismo tático conforme a versão do secretário, sem tratá-lo como reconstituição pericial independente.",
+          "evidence": "policiais entraram pela área da Serra da Misericórdia para cercar os criminosos e empurrá-los em direção à mata",
+          "body_sha256": "1a41994b61634986666372b712caeccdf3e06ba0d91ee932e4ded6b9df30e956"
+        },
+        {
+          "rank": 4,
+          "url": "https://g1.globo.com/politica/noticia/2025/11/10/megaoperacao-no-rio-moraes-aponta-contradicoes-e-pede-relatorios-sobre-prisoes-e-mandados.ghtml",
+          "date": "2025-11-10",
+          "title": "Megaoperação no Rio: Moraes aponta contradições e determina envio de laudos e dados de prisões | G1",
+          "rationale": "Marco de fiscalização judicial: contradições nos números e exigências de documentos e provas.",
+          "evidence": "o ministro apontou que há divergências entre as informações divulgadas pelo governo estadual, por meio da Secretaria de Segurança Pública, e de outros órgãos, como o Ministério Público.",
+          "body_sha256": "43d243db4f8c4d0a1256d23ba7244a5721b19304ccbebbc098fd98cf5fa20ca8"
+        },
+        {
+          "rank": 5,
+          "url": "https://g1.globo.com/rj/rio-de-janeiro/noticia/2026/04/02/pgr-vai-ao-supremo-por-acesso-aos-laudos-das-mortes-da-megaoperacao-contencao.ghtml",
+          "date": "2026-04-02",
+          "title": "Megaoperação Contenção: PGR pede ao STF laudos das 122 mortes | G1",
+          "rationale": "Desdobramento de abril de 2026 mostra que acesso aos laudos e cadeia de custódia permaneciam em discussão.",
+          "evidence": "A Secretaria de Segurança Pública do RJ informou que todos os dados solicitados, como laudos e imagens, já foram encaminhados ao STF.",
+          "body_sha256": "f3d7f07cc3544ecffbfe6befe2c3a7e9ed73ddfa5f60b07241ea79f7f7107fd0"
+        },
+        {
+          "rank": 6,
+          "url": "https://g1.globo.com/jornal-nacional/noticia/2025/10/29/operacao-contra-o-comando-vermelho-corpos-encontrados-na-mata-sao-levados-para-a-praca-da-penha-numero-oficial-de-mortos-salta-para-121.ghtml",
+          "date": "2025-10-29",
+          "title": "Operação contra o Comando Vermelho: corpos encontrados na mata são levados para a Praça da Penha; número oficial de mortos salta para 121 | G1",
+          "rationale": "Marco da descoberta de corpos na mata e revisão do balanço, com consequências para moradores.",
+          "evidence": "Moradores das comunidades da região do Alemão e da Penha resgataram corpos da mata onde houve o principal confronto.",
+          "body_sha256": "e40b45c5f38db09b55138d64c3195541c569b9e96f6381ad9b1d9d0cb18f2c03"
+        },
+        {
+          "rank": 7,
+          "url": "https://g1.globo.com/rj/rio-de-janeiro/noticia/2025/11/18/relatorio-megaoperacao-governo-rj-ao-stf.ghtml",
+          "date": "2025-11-18",
+          "title": "Megaoperação na Penha e Alemão: Relatório ao STF tem divergências | G1",
+          "rationale": "Compara balanços públicos com documento entregue ao STF, em vez de assumir que as contagens são estáveis.",
+          "evidence": "apresentou divergências nos números de presos e apreensões em relação ao divulgado.",
+          "body_sha256": "2fb39ec3a05a571edbda3ed25a0814cc260e8b7dde2fbec2bc86d043e659a694"
+        },
+        {
+          "rank": 8,
+          "url": "https://g1.globo.com/rj/rio-de-janeiro/noticia/2025/12/02/mprj-oferece-novas-denuncias-contra-policiais-militares-por-crimes-na-megaoperacao-contencao.ghtml",
+          "date": "2025-12-02",
+          "title": "MPRJ denuncia PMs por crimes na Megaoperação Contenção | G1",
+          "rationale": "Responsabilização criminal concreta de agentes por atos registrados nas câmeras; acusação ainda não é condenação.",
+          "evidence": "Os delitos foram registrados pelas câmeras operacionais portáteis utilizadas pelos próprios agentes.",
+          "body_sha256": "9d81aab5ffe55cfb5414d63585884a42ea12c0ce18a499ffb93b1f0f8f1d58e7"
+        },
+        {
+          "rank": 9,
+          "url": "https://g1.globo.com/rj/rio-de-janeiro/noticia/2025/12/19/mpf-pede-federalizacao-das-investigacoes-da-megaoperacao-no-rio.ghtml",
+          "date": "2025-12-19",
+          "title": "MPF pede federalização de megaoperação no Rio | G1",
+          "rationale": "Explica o pedido excepcional de deslocamento de competência e suas condições institucionais.",
+          "evidence": "Caso o PGR endosse a solicitação, caberá ao Superior Tribunal de Justiça (STJ) decidir ou não pela federalização do caso.",
+          "body_sha256": "b1966a7b299a70febde86a488f007624554584f1105e08fbb92176cec413bca0"
+        },
+        {
+          "rank": 10,
+          "url": "https://g1.globo.com/rj/rio-de-janeiro/noticia/2025/11/07/conselho-libera-mpf-para-acompanhar-investigacao-sobre-megaoperacao-no-rio.ghtml",
+          "date": "2025-11-07",
+          "title": "Megaoperação no Rio: MPF acompanhará investigação | G1",
+          "rationale": "Diferencia acompanhamento do MPF e disputa de competência, anterior ao pedido de federalização.",
+          "evidence": "A medida reverte uma liminar anterior que havia restringido a participação do MPF",
+          "body_sha256": "a7355bdf223debce505c9b1aef6248fecc9f751f025bc0578895df542bb29ad2"
+        },
+        {
+          "rank": 11,
+          "url": "https://g1.globo.com/rj/rio-de-janeiro/noticia/2026/02/05/moraes-manda-governo-do-rj-enviar-imagens-de-megaoperacao.ghtml",
+          "date": "2026-02-05",
+          "title": "Moraes manda governo do Rio enviar imagens de megaoperação no Rio | G1",
+          "rationale": "Ordem posterior de remessa das imagens para perícia e cobrança sobre controle externo da atividade policial.",
+          "evidence": "o material seja encaminhado para perícia, com transcrição e elaboração de laudo técnico, e encaminhado ao Supremo.",
+          "body_sha256": "03ccede76fd7959d07b7e3694229eb95a372681e19db0048eaf1d637df13e1d6"
+        },
+        {
+          "rank": 12,
+          "url": "https://g1.globo.com/jornal-nacional/noticia/2025/10/31/policia-identifica-109-mortos-em-megaoperacao-no-rio-e-afirma-que-78-tinham-ficha-criminal.ghtml",
+          "date": "2025-10-31",
+          "title": "Polícia identifica 109 mortos em megaoperação no Rio e afirma que 78 tinham ficha criminal | G1",
+          "rationale": "Documenta o que a polícia divulgou sobre identificação e antecedentes, sem estender essa classificação a todos os mortos.",
+          "evidence": "Segundo as autoridades de segurança do estado, dos 117 suspeitos mortos, 109 foram identificados",
+          "body_sha256": "ae869a63b8a2966148ed8887ef3a556b73e44cdea8e0f51571497d938c9ad6f8"
+        },
+        {
+          "rank": 13,
+          "url": "https://g1.globo.com/jornal-nacional/noticia/2025/11/03/claudio-castro-diz-a-alexandre-de-moraes-que-megaoperacao-no-rio-seguiu-determinacoes-do-supremo.ghtml",
+          "date": "2025-11-03",
+          "title": "Cláudio Castro diz a Alexandre de Moraes que megaoperação no Rio seguiu determinações do Supremo | G1",
+          "rationale": "Contraponto do governo estadual e contexto dos protocolos da ADPF das Favelas.",
+          "evidence": "Cláudio Castro afirmou que a megaoperação da semana passada contra o Comando Vermelho respeitou as determinações do STF.",
+          "body_sha256": "f4f21d789b460c4ecc33c5f6a543d79a467e83b60d61e4c3dfa5864dd4d32552"
+        },
+        {
+          "rank": 14,
+          "url": "https://g1.globo.com/politica/noticia/2025/10/29/megaoperacao-diretor-da-pf-cita-contato-de-forcas-do-rio-mas-avaliacao-foi-de-que-operacao-nao-era-razoavel.ghtml",
+          "date": "2025-10-29",
+          "title": "Megaoperação no Rio: PF cita contato, mas decidiu não participar | G1",
+          "rationale": "Versão federal sobre os contatos operacionais e a decisão de não participar, sem confundir com apoio posterior à perícia.",
+          "evidence": "a avaliação da direção regional da PF foi de que a operação \"não era razoável\"",
+          "body_sha256": "a8266ddbdadb6b6679c9503d84730d938b385418ddb1512e258fbb05b4cf88f1"
+        },
+        {
+          "rank": 15,
+          "url": "https://g1.globo.com/politica/noticia/2025/10/28/nota-mj-operacao-rio-de-janeiro.ghtml",
+          "date": "2025-10-28",
+          "title": "Megaoperação no Rio: Ministério da Justiça diz que tem atendido a todos pedidos do governo estadual | G1",
+          "rationale": "Registra a divergência sobre pedidos de apoio e o histórico da Força Nacional no estado.",
+          "evidence": "A pasta também afirma que atendeu a todos os 11 pedidos de renovação feitos pelo governo do Rio",
+          "body_sha256": "377d27d159f05c4164a44d219ceb1c82694bcb32d15bc294cafc6ef20be59721"
+        },
+        {
+          "rank": 16,
+          "url": "https://g1.globo.com/politica/blog/andreia-sadi/post/2025/10/30/entrevista-ricardo-lewandowski-megaoperacao-estudio-i.ghtml",
+          "date": "2025-10-30",
+          "title": "Megaoperação no Alemão: Lewandowski envia peritos da PF ao RJ | G1",
+          "rationale": "Medida concreta de reforço técnico federal para identificação de corpos e exames periciais.",
+          "evidence": "20 peritos da Polícia Federal (PF) ao Rio de Janeiro para auxiliar nas investigações e perícias",
+          "body_sha256": "0328d9c475753f047ea3575732ce6e04a0e5ca0ac2ef228cc65b5cdcd8a20ebc"
+        },
+        {
+          "rank": 17,
+          "url": "https://g1.globo.com/rj/rio-de-janeiro/noticia/2025/11/06/subsecretario-inteligencia-pm-rj-reuniao-megaoperacao-congresso.ghtml",
+          "date": "2025-11-06",
+          "title": "Megaoperação no Rio teve efeito 'ínfimo' sobre o CV, diz PM | G1",
+          "rationale": "Questiona eficácia estratégica da ação e inclui a ressalva institucional da própria PM.",
+          "evidence": "a fala \"não representa o posicionamento institucional da Corporação, tratando-se de opinião de caráter pessoal\"",
+          "body_sha256": "73d867ecc57f66eb7eaff5125f80744f5c7e2fdfb15601802e8d6f99179e8ab9"
+        },
+        {
+          "rank": 18,
+          "url": "https://g1.globo.com/rj/rio-de-janeiro/noticia/2025/10/29/comercio-universidades-inss-veja-o-que-esta-funcionando-no-dia-seguinte-a-megaoperacao-no-rio.ghtml",
+          "date": "2025-10-29",
+          "title": "Veja o que está funcionando no dia seguinte a megaoperação no Rio | G1",
+          "rationale": "Impactos coletivos em educação, trabalho e serviços no dia seguinte, além do balanço policial.",
+          "evidence": "o comércio, o INSS e instituições de ensino do Rio modificaram o funcionamento nesta quarta (29), suspendendo atividades presenciais ou adotando o trabalho remoto",
+          "body_sha256": "14a644369c76ce57c8b95cd688eaa0bc5250eace6745397d7c87051551997c0c"
+        },
+        {
+          "rank": 19,
+          "url": "https://g1.globo.com/jornal-nacional/noticia/2025/11/22/morre-quinto-policial-baleado-na-megaoperacao-contra-o-comando-vermelho-em-outubro-no-rio.ghtml",
+          "date": "2025-11-22",
+          "title": "Morre quinto policial baleado na megaoperação contra o Comando Vermelho, em outubro, no Rio | G1",
+          "rationale": "Atualiza consequência humana e composição do balanço após a operação, não como perfil biográfico.",
+          "evidence": "Morreu, neste sábado (22), o quinto policial baleado na megaoperação contra o Comando Vermelho, em outubro, no Rio de Janeiro.",
+          "body_sha256": "b2f01c55d9271756bd75514fb0ca6992fa4af9004f7838535afddfc08bad1d1a"
+        },
+        {
+          "rank": 20,
+          "url": "https://g1.globo.com/fato-ou-fake/noticia/2025/10/28/veja-o-que-e-fato-ou-fake-sobre-a-megaoperacao-no-rio-de-janeiro.ghtml",
+          "date": "2025-10-28",
+          "title": "Veja o que é #FATO ou #FAKE sobre a megaoperação no Rio de Janeiro | G1",
+          "rationale": "Controle de desinformação: evita usar imagens de outras ações ou geradas por IA como prova desta operação.",
+          "evidence": "É #FAKE que vídeo de PMs do Bope furtando casas tenha ocorrido nesta terça-feira; vídeo é antigo e mostra outra operação",
+          "body_sha256": "b88199a207b6452f2efa3c7c98bd638794c7d3cdba1fc93683647376e62d2020"
+        }
+      ]
+    },
+    {
+      "id": "julgamento_nucleo_golpe",
+      "name": "Trama golpista: julgamento e execução das penas do núcleo crucial",
+      "scope": "Ação penal do núcleo crucial, com Bolsonaro e sete aliados: acusação, defesa, votos, condenação, recursos, execução e consequências funcionais/legislativas. Exclui os demais núcleos como histórias autônomas, outras condenações de Bolsonaro, manifestações, sanções estrangeiras e comentário eleitoral incidental.",
+      "caution": "Distinguir indiciamento, pedido da PGR, voto individual, julgamento colegiado e trânsito em julgado. A prisão preventiva de novembro de 2025 não se confunde com execução da condenação iniciada depois. Mauro Cid tem calendário e regime próprios. A posição de Fux é divergência, não resultado final. Pedidos de perda de patente não são expulsões já consumadas. O veto de janeiro ao PL da Dosimetria foi derrubado em abril; no texto de abril a promulgação/publicação e revisão das penas ainda eram etapas subsequentes, não redução automática nem soltura. O artigo de condenação do JN contém um lapso ao chamar de quarta-feira (11) a véspera: a data do resultado selecionado é 11/09/2025.",
+      "candidate_count": 649,
+      "snapshot_sha256": "a1e865594f6f8081f912a95ed154fa8f311045b28ce8a77582e0db6255473cf1",
+      "articles": [
+        {
+          "rank": 1,
+          "url": "https://g1.globo.com/politica/noticia/2025/11/25/lideranca-de-bolsonaro-ligacao-com-8-de-janeiro-relembre-os-principais-pontos-da-condenacao.ghtml",
+          "date": "2025-11-25",
+          "title": "Bolsonaro preso: veja os principais pontos da condenação | G1",
+          "rationale": "Síntese da condenação e do estágio de execução, com composição do núcleo e situação distinta do delator.",
+          "evidence": "o relator Alexandre de Moraes declarou que não cabem mais recursos no caso e abriu caminho para a execução das penas na prisão.",
+          "body_sha256": "3328a697578bb7ad35f1b79a233945e1ffb36ef0ce07bf1de654cfd585f2aebe"
+        },
+        {
+          "rank": 2,
+          "url": "https://g1.globo.com/jornal-nacional/noticia/2025/09/11/primeira-turma-do-stf-condena-bolsonaro-por-tentativa-de-golpe-de-estado-e-mais-4-crimes-a-um-total-de-27-anos-e-3-meses-de-prisao.ghtml",
+          "date": "2025-09-11",
+          "title": "Primeira Turma do STF condena Bolsonaro por tentativa de golpe de Estado e mais 4 crimes a 27 anos e 3 meses de prisão | G1",
+          "rationale": "Marco do julgamento colegiado, maioria formada e divergência, distinguindo resultado de votos anteriores.",
+          "evidence": "acompanharam o relator Alexandre de Moraes e o ministro Flávio Dino pela condenação de Bolsonaro e dos outros réus do núcleo crucial da trama golpista.",
+          "body_sha256": "f8a79dba71acd493caffc621d96c1a29fc0607e0f99c2bf3b1f6022691874364"
+        },
+        {
+          "rank": 3,
+          "url": "https://g1.globo.com/jornal-nacional/noticia/2025/09/01/jn-mostra-quais-sao-as-acusacoes-e-o-que-dizem-as-defesas-do-nucleo-crucial-da-trama-golpista.ghtml",
+          "date": "2025-09-01",
+          "title": "JN mostra quais são as acusações e o que dizem as defesas do núcleo crucial da trama golpista | G1",
+          "rationale": "Expõe os papéis individuais e o material da acusação ao lado das respostas defensivas antes do julgamento.",
+          "evidence": "o procurador-geral da República listou manuscritos, gravações, troca de mensagens eletrônicas, planilhas e arquivos digitais apreendidos pela Polícia Federal.",
+          "body_sha256": "07648e939d537001e7c35eb4ca17464a3ef78d21786051265f870daf2c2bbb55"
+        },
+        {
+          "rank": 4,
+          "url": "https://g1.globo.com/politica/noticia/2025/11/25/moraes-declara-sentencas-definitivas-em-acao-por-tentativa-de-golpe-e-determina-comeco-das-execucoes-das-penas.ghtml",
+          "date": "2025-11-25",
+          "title": "Moraes declara sentenças definitivas em ação por tentativa de golpe e determina começo das execuções das penas de Bolsonaro e outros seis | G1",
+          "rationale": "Marco processual da execução e fundamento da inadmissibilidade de novos recursos, diferente da preventiva anterior.",
+          "evidence": "Moraes decidiu que o ex-presidente deverá cumprir a sentença na Superintendência Regional da Polícia Federal do Distrito Federal, onde Bolsonaro já está em prisão preventiva desde sábado.",
+          "body_sha256": "ffe74ba65294e0ef3f2a3aef0fd71d43b798a96dbb622be095c82ce674837555"
+        },
+        {
+          "rank": 5,
+          "url": "https://g1.globo.com/politica/noticia/2026/04/30/pl-da-dosimetria-camara-veto.ghtml",
+          "date": "2026-04-30",
+          "title": "PL da Dosimetria: Congresso derruba veto de Lula e beneficia Bolsonaro; texto segue para promulgação | G1",
+          "rationale": "Atualização legislativa do fim do recorte: derrubada do veto e passos ainda necessários para vigência.",
+          "evidence": "Após a promulgação e publicação oficial, a nova regra passa a valer.",
+          "body_sha256": "a7cebedf4134f215c19fec8890545b6f55dcd9eb59e9745ba95d17d58a990cf2"
+        },
+        {
+          "rank": 6,
+          "url": "https://g1.globo.com/jornal-nacional/noticia/2025/09/09/em-voto-para-condenar-bolsonaro-e-mais-7-reus-moraes-cita-fatos-que-visaram-a-impedir-posse-de-lula-ou-executar-golpe-de-estado.ghtml",
+          "date": "2025-09-09",
+          "title": "Em voto para condenar Bolsonaro e mais 7 réus, Moraes cita fatos que visaram a impedir posse de Lula ou executar golpe de Estado | G1",
+          "rationale": "Fundamentos do relator e discussão sobre autonomia dos crimes; voto atribuído e não substituto do acórdão.",
+          "evidence": "os crimes de tentativa de golpe de Estado e de abolição violenta do Estado Democrático de Direito devem ser punidos separadamente e não podem ser unificados.",
+          "body_sha256": "cb0bf2ce20f098e4786563ba721a682490c0cf7168dfc5c9e2927f56574fc668"
+        },
+        {
+          "rank": 7,
+          "url": "https://g1.globo.com/jornal-nacional/noticia/2025/09/11/saiba-penas-que-a-primeira-turma-do-stf-impos-a-bolsonaro-e-7-aliados-condenados-por-tentativa-de-golpe.ghtml",
+          "date": "2025-09-11",
+          "title": "Saiba penas que a Primeira Turma do STF impôs a Bolsonaro e 7 aliados condenados por tentativa de golpe de Estado | G1",
+          "rationale": "Detalha as penas e regimes individuais e explica por que a condenação de setembro não iniciou automaticamente a execução.",
+          "evidence": "O Supremo entende que o cumprimento da pena só começa quando forem esgotados os recursos.",
+          "body_sha256": "9ff86e4e12980b1cd8b1557699528fcf48880011a3167e079704dee130fa1342"
+        },
+        {
+          "rank": 8,
+          "url": "https://g1.globo.com/politica/noticia/2025/08/15/julgamento-de-bolsonaro-relembre-a-investigacao-e-o-comeco-do-processo-no-stf-sobre-a-trama-golpista.ghtml",
+          "date": "2025-08-15",
+          "title": "Como começou investigação da trama golpista que levou a julgamento de Bolsonaro? | G1",
+          "rationale": "Cronologia dos antecedentes probatórios e da divisão processual, apesar de a publicação estar dentro da janela de 2025.",
+          "evidence": "O g1 relembra as principais fases da investigação e do processo penal.",
+          "body_sha256": "3981a50d2740f6c101d85253ecc3bee20caf7fac2df176583cd1aaa48ca41ff4"
+        },
+        {
+          "rank": 9,
+          "url": "https://g1.globo.com/politica/noticia/2025/06/11/minuta-punhal-verde-e-amarelo-e-reunioes-o-que-os-reus-disseram-sobre-os-principais-pontos-da-acao-sobre-tentativa-de-golpe.ghtml",
+          "date": "2025-06-11",
+          "title": "Minuta, 'Punhal Verde e Amarelo' e reuniões: o que os réus disseram sobre os pontos-chave da ação sobre tentativa de golpe | G1",
+          "rationale": "Compara depoimentos sobre minuta, reuniões e planos, registrando divergências entre réus.",
+          "evidence": "A Primeira Turma do Supremo Tribunal Federal encerrou nesta terça-feira (10) o interrogatório dos oitos réus do chamado \"núcleo crucial\" da trama golpista.",
+          "body_sha256": "a8cb2be11d86426c493504c89791766cc2286ea210514d75490a5748105e1742"
+        },
+        {
+          "rank": 10,
+          "url": "https://g1.globo.com/jornal-nacional/noticia/2025/09/10/fux-vota-para-absolver-bolsonaro-no-julgamento-da-trama-golpista-placar-esta-em-2-a-1-pela-condenacao.ghtml",
+          "date": "2025-09-10",
+          "title": "Fux vota para absolver Bolsonaro no julgamento da trama golpista; placar está em 2 a 1 pela condenação | G1",
+          "rationale": "Contraponto jurisdicional central: fundamentos da divergência absolutória de Fux.",
+          "evidence": "Fux concluiu a análise da denúncia contra Jair Bolsonaro e absolveu o ex-presidente dos cinco crimes.",
+          "body_sha256": "146dd93aacb37ecbab1436efbfe93553efc3788ea3ccffcc1201c41ed68c2194"
+        },
+        {
+          "rank": 11,
+          "url": "https://g1.globo.com/politica/noticia/2025/07/15/pgr-pede-condenacao-de-bolsonaro-por-tentativa-de-golpe-de-estado.ghtml",
+          "date": "2025-07-15",
+          "title": "PGR pede condenação de Bolsonaro por tentativa de golpe de Estado | G1",
+          "rationale": "Alegações finais da acusação e tipificação, como pedido anterior à decisão judicial.",
+          "evidence": "As acusações fazem parte das alegações finais apresentadas na ação penal que apura a tentativa de ruptura institucional planejada pelo núcleo próximo ao ex-presidente.",
+          "body_sha256": "4499853b25fea75afdbef2e731e81329c67db8bea12abb5679eaa1e877c4fd3d"
+        },
+        {
+          "rank": 12,
+          "url": "https://g1.globo.com/jornal-nacional/noticia/2025/08/14/stf-recebe-alegacoes-finais-das-defesas-de-bolsonaro-e-mais-seis-reus-do-nucleo-crucial-da-tentativa-de-golpe.ghtml",
+          "date": "2025-08-14",
+          "title": "STF recebe alegações finais das defesas de Bolsonaro e mais seis réus do ‘núcleo crucial’ da tentativa de golpe | G1",
+          "rationale": "Argumentos específicos das defesas e distinção da imputação contra Ramagem.",
+          "evidence": "Todos alegaram inocência.",
+          "body_sha256": "b67da3ecc8749dc20d49042a16ee8f04720f44e6a9316b5438fe0b53d0c7270f"
+        },
+        {
+          "rank": 13,
+          "url": "https://g1.globo.com/politica/noticia/2025/11/08/stf-mantem-condenacao-de-bolsonaro-e-seis-reus-na-tentativa-de-golpe-veja-perguntas-e-respostas.ghtml",
+          "date": "2025-11-08",
+          "title": "STF mantém condenação de Bolsonaro e seis réus na tentativa de golpe; veja perguntas e respostas | G1",
+          "rationale": "Explica rejeição dos primeiros embargos, limites recursais e o calendário ainda aberto naquele momento.",
+          "evidence": "Como ainda há possibilidade de novos recursos, as penas não podem ser executadas neste momento.",
+          "body_sha256": "911815421cc251a5222351f363dd739c4ffe362b7cda60ad2b00459473e4bc1c"
+        },
+        {
+          "rank": 14,
+          "url": "https://g1.globo.com/politica/noticia/2025/10/30/apos-defesa-nao-apresentar-recurso-moraes-determina-inicio-do-cumprimento-da-pena-de-cid.ghtml",
+          "date": "2025-10-30",
+          "title": "Após defesa não apresentar recurso, Moraes determina início do cumprimento da pena de Mauro Cid por tentativa de golpe | G1",
+          "rationale": "Demonstra por que a execução começou antes para o delator e com regime diferente dos demais condenados.",
+          "evidence": "Mauro Cid foi o único entre os 8 réus do núcleo crucial da trama golpista que não apresentou os chamados embargos de declaração",
+          "body_sha256": "d5938a82c8c8d1617c6f80ebb0bd5f9a26826d8e26c929a8f315472ea8c06a74"
+        },
+        {
+          "rank": 15,
+          "url": "https://g1.globo.com/politica/noticia/2025/11/25/trama-golpista-veja-o-que-disseram-as-defesas-dos-reus-apos-moraes-ordenar-o-inicio-do-cumprimento-de-penas.ghtml",
+          "date": "2025-11-25",
+          "title": "Trama golpista: veja o que disseram as defesas dos réus após Moraes ordenar o início do cumprimento de penas | G1",
+          "rationale": "Contraponto das defesas ao trânsito em julgado e à inadmissibilidade recursal, sem assumir que as teses foram acolhidas.",
+          "evidence": "a defesa ajuizará no curso do prazo estabelecido pelo regimento, o recurso que entende cabível.",
+          "body_sha256": "c3151b37a6c2a607161c54ee6ed03b10ec4d34d2f5c9048ab1627e5a2feff6ca"
+        },
+        {
+          "rank": 16,
+          "url": "https://g1.globo.com/politica/noticia/2026/02/03/stm-vai-analisar-pedidos-de-perda-de-postos-e-patentes-de-bolsonaro-e-reus-militares-veja-perguntas-e-respostas.ghtml",
+          "date": "2026-02-03",
+          "title": "STM vai analisar pedidos de perda de postos e patentes de Bolsonaro e réus militares; veja perguntas e respostas | G1",
+          "rationale": "Consequência institucional militar e procedimento distinto da revisão das condenações penais.",
+          "evidence": "a Justiça Militar não vai reavaliar as penas aplicadas, mas verificar se a condenação penal torna a situação do grupo incompatível com a carreira militar.",
+          "body_sha256": "958296d542b6596f35a5d11a9dc8bdf19a69ebdfd497645a3ac699638984c6f7"
+        },
+        {
+          "rank": 17,
+          "url": "https://g1.globo.com/politica/noticia/2025/12/03/pf-demite-alexandre-ramagem-e-anderson-torres-condenados-por-tentativa-de-golpe.ghtml",
+          "date": "2025-12-03",
+          "title": "Ministério da Justiça demite Ramagem e Anderson Torres da PF, condenados por tentativa de golpe | G1",
+          "rationale": "Efeito funcional concreto da condenação, separado de procedimentos disciplinares ainda em andamento.",
+          "evidence": "As medidas atendem a determinações do Supremo Tribunal Federal, que condenou Ramagem e Torres por tentativa de golpe e ordenou a perda dos cargos dos dois na PF.",
+          "body_sha256": "c943a0a4b39a0999067d70815381f45ceb0d4ec63f57d24f187d45d03be1cc67"
+        },
+        {
+          "rank": 18,
+          "url": "https://g1.globo.com/jornal-nacional/noticia/2026/01/08/lula-veta-projeto-de-lei-que-preve-a-reducao-das-penas-dos-condenados-na-trama-golpista.ghtml",
+          "date": "2026-01-08",
+          "title": "Lula veta projeto de lei que prevê redução das penas dos condenados na trama golpista | G1",
+          "rationale": "Marco histórico do veto de janeiro; sua superação em abril é documentada por referências superiores e posteriores.",
+          "evidence": "vetou o texto aprovado pelo Congresso no fim de 2025, que reduz as penas e o tempo em que os condenados pelos atos golpistas ficarão presos em regime fechado.",
+          "body_sha256": "b6eda9609c9dcbff04b9e48526a6e72f9451f4e1e525829c4184cac40dcd987d"
+        },
+        {
+          "rank": 19,
+          "url": "https://g1.globo.com/politica/noticia/2025/10/25/acao-contra-bolsonaro-e-sete-reus-entra-na-fase-de-recursos-entenda-os-proximos-passos-ate-a-execucao-da-pena.ghtml",
+          "date": "2025-10-25",
+          "title": "Ação contra Bolsonaro e sete réus entra na fase de recursos; entenda os próximos passos até a execução da pena | G1",
+          "rationale": "Explica a função do acórdão e a abertura da fase de recursos, como etapa intermediária entre sentença e execução.",
+          "evidence": "o processo seguiu para a fase de elaboração do acórdão, o documento que formaliza a decisão conjunta do colegiado",
+          "body_sha256": "c4b8c008c7d03430065fdfbe8cdc81cc69038ecc13468dce972d92449228f9a5"
+        },
+        {
+          "rank": 20,
+          "url": "https://g1.globo.com/politica/noticia/2026/04/30/com-derrubada-de-veto-saiba-o-que-acontece-com-bolsonaro-agora.ghtml",
+          "date": "2026-04-30",
+          "title": "Dosimetria: com derrubada de veto, saiba o que acontece com Bolsonaro | G1",
+          "rationale": "Limites da consequência prática da dosimetria: estimativas de progressão não são redução automática ou decisão já aplicada.",
+          "evidence": "Portanto, a redução de pena não será automática.",
+          "body_sha256": "91ceb1dc43c9281bbb29ee3bc24904c6c5d3dd572814ae341f3b040c0c8adf92"
+        }
+      ]
+    }
+  ]
+}

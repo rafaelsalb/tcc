@@ -28,8 +28,8 @@ MAX_SUBSET_COMBINATIONS = 5000
 CANDIDATES_FAST_TEMPLATE = """
     WITH query_prep AS (
         SELECT
-            to_tsquery('{language}', :subset_query) AS subset_query,
-            to_tsquery('{language}', replace(plainto_tsquery('{language}', :query_text)::text, '&', '|')) AS or_query
+            CAST(:subset_query AS tsquery) AS subset_query,
+            CAST(:or_query AS tsquery) AS or_query
     ),
     candidates AS (
         SELECT c.id, to_tsvector('{language}', c.chunk) AS doc_tsv
@@ -46,15 +46,15 @@ CANDIDATES_FAST_TEMPLATE = """
     )
     SELECT id, doc_tsv, bm25
     FROM scored
-    ORDER BY bm25 DESC
+    ORDER BY bm25 DESC, id
     LIMIT :candidate_cap
 """
 
 CANDIDATES_FALLBACK_TEMPLATE = """
     WITH query_prep AS (
         SELECT
-            to_tsquery('{language}', :subset_query) AS subset_query,
-            to_tsquery('{language}', replace(plainto_tsquery('{language}', :query_text)::text, '&', '|')) AS or_query,
+            CAST(:subset_query AS tsquery) AS subset_query,
+            CAST(:or_query AS tsquery) AS or_query,
             tsvector_to_array(to_tsvector('{language}', :query_text)) AS query_lexemes,
             coalesce(array_length(tsvector_to_array(to_tsvector('{language}', :query_text)), 1), 0) AS lexeme_count
     ),
@@ -81,13 +81,50 @@ CANDIDATES_FALLBACK_TEMPLATE = """
     )
     SELECT id, doc_tsv, bm25
     FROM scored
-    ORDER BY bm25 DESC
+    ORDER BY bm25 DESC, id
     LIMIT :candidate_cap
 """
 
 
 def _quote_lexeme(lexeme: str) -> str:
-    return "'" + lexeme.replace("'", "''") + "'"
+    return "'" + lexeme.replace("\\", "\\\\").replace("'", "''") + "'"
+
+
+def _hnsw_ef_search(top_k: int | None, limit: int) -> int:
+    """Use `limit` as HNSW search breadth, never as the result-row limit."""
+    return max(40, int(top_k or 0), min(int(limit), 1000))
+
+
+def _apply_result_window(stmt, top_k: int | None, offset: int):
+    """Apply the search result count and pagination exactly once."""
+    if top_k is not None:
+        stmt = stmt.limit(top_k)
+    if offset:
+        stmt = stmt.offset(offset)
+    return stmt
+
+
+def _ranked_chunk_window(scored, top_k, offset, result_unit):
+    """Score all candidates first; article mode limits groups, not chunk rows."""
+    if result_unit == "chunks":
+        return _apply_result_window(
+            select(scored).order_by(scored.c.score.desc(), scored.c.chunk_id), top_k, offset
+        ).cte("selected_chunks")
+    articles = _apply_result_window(
+        select(scored.c.article, func.max(scored.c.score).label("article_score"))
+        .group_by(scored.c.article)
+        .order_by(func.max(scored.c.score).desc(), scored.c.article), top_k, offset,
+    ).cte("selected_articles")
+    representatives = select(
+        scored,
+        func.row_number().over(
+            partition_by=scored.c.article,
+            order_by=(scored.c.score.desc(), scored.c.chunk_id),
+        ).label("article_position"),
+    ).cte("representative_chunks")
+    return select(representatives).join(
+        articles, representatives.c.article == articles.c.article
+    ).where(representatives.c.article_position == 1).cte("selected_chunks")
 
 
 def _subset_tsquery(lexemes: list[str], quorum_threshold: float) -> tuple[str | None, bool]:
@@ -95,6 +132,8 @@ def _subset_tsquery(lexemes: list[str], quorum_threshold: float) -> tuple[str | 
     already enforces the full quorum (exact) or only a lower bound (fallback).
 
     Returns (tsquery_text, exact). None means the query has no valid lexemes.
+    These lexemes are already normalized: CAST the result to tsquery; do not
+    feed it to a language-specific to_tsquery and stem it a second time.
     """
     n = len(lexemes)
     if n == 0:
@@ -145,7 +184,8 @@ class ChunkRepository:
                 session.execute(func.set_config("enable_bitmapscan", "off", True))
                 session.execute(func.set_config("enable_seqscan", "on", True))
             else:
-                session.execute(func.set_config("hnsw.ef_search", str(max(40, min(limit, 1000))), True))
+                ef_search = _hnsw_ef_search(top_k, limit)
+                session.execute(func.set_config("hnsw.ef_search", str(ef_search), True))
             print("Prefiltering articles by date...")
             articles_stmt = select(G1Articles.url) #.where(func.length(G1Articles.text_content) > 200)
             if date_from:
@@ -160,9 +200,7 @@ class ChunkRepository:
                 .order_by(G1Chunks.embedding.cosine_distance(query_embedding))
                 .join(G1Chunks.g1_articles)
             )
-            if top_k:
-                stmt = stmt.limit(top_k)
-            stmt = stmt.limit(limit).offset(offset)
+            stmt = _apply_result_window(stmt, top_k, offset)
             stmt = stmt.order_by(G1Articles.date_published)
             results = session.execute(stmt).mappings().all()
             print("first result:", results[0])
@@ -180,9 +218,12 @@ class ChunkRepository:
         alpha: float = 0.5,
         language: str = "portuguese",
         rrf_k: int = 60,
-        exact: bool = True,
+        exact: bool = False,
         quorum_threshold: float = 0.7,
         candidate_cap: int = 20000,
+        result_unit: str = "chunks",
+        retrieval_stage: str = "hybrid",
+        include_diagnostics: bool = False,
     ) -> list[dict[str, G1Chunks | G1Articles]]:
         if language not in ALLOWED_TSQUERY_LANGUAGES:
             raise ValueError(f"language must be one of {sorted(ALLOWED_TSQUERY_LANGUAGES)}, got {language!r}")
@@ -190,9 +231,24 @@ class ChunkRepository:
             raise ValueError(f"quorum_threshold must be in the interval [0, 1], got {quorum_threshold}")
         if candidate_cap < 1:
             raise ValueError(f"candidate_cap must be >= 1, got {candidate_cap}")
+        if result_unit not in ("chunks", "articles"):
+            raise ValueError("result_unit must be 'chunks' or 'articles'")
+        if retrieval_stage not in ("lexical", "hybrid"):
+            raise ValueError("retrieval_stage must be 'lexical' or 'hybrid'")
+        if (top_k is not None and top_k < 1) or offset < 0:
+            raise ValueError("top_k must be positive and offset non-negative")
         with Session(self.engine) as session:
-            if not exact:
-                session.execute(func.set_config("hnsw.ef_search", str(max(40, min(limit, 1000))), True))
+            # All three diagnostic/baseline queries must see the same corpus.
+            session.connection(execution_options={
+                "isolation_level": "REPEATABLE READ", "postgresql_readonly": True,
+            })
+            if exact:
+                session.execute(func.set_config("enable_indexscan", "off", True))
+                session.execute(func.set_config("enable_bitmapscan", "off", True))
+                session.execute(func.set_config("enable_seqscan", "on", True))
+            else:
+                ef_search = _hnsw_ef_search(top_k, limit)
+                session.execute(func.set_config("hnsw.ef_search", str(ef_search), True))
 
             # lexeme extraction: stopwords stripped and the true lexeme set of
             # the query (one tiny roundtrip; drives the k-subset construction)
@@ -204,7 +260,15 @@ class ChunkRepository:
             if not lexemes:
                 # stopword-only query: nothing can match the text half
                 print("Query has no valid lexemes after stopword removal; skipping BM25 candidates.")
-                return []
+                return {"rows": [], "diagnostics": {
+                    "query_lexemes": [], "effective_quorum": 0,
+                    "lexical_candidate_chunks": 0, "lexical_candidate_articles": 0,
+                    "embedded_candidate_chunks": 0, "hybrid_eligible_articles": 0,
+                    "lexical_candidate_article_urls": [], "lexical_returned_chunks": 0,
+                    "hybrid_eligible_article_urls": [],
+                    "candidate_cap": candidate_cap, "candidate_cap_hit": False,
+                    "candidate_counts_are_capped": True,
+                }, "lexical_ranked": []} if include_diagnostics else []
 
             subset_query, exact_quorum = _subset_tsquery(lexemes, quorum_threshold)
             template = CANDIDATES_FAST_TEMPLATE if exact_quorum else CANDIDATES_FALLBACK_TEMPLATE
@@ -214,12 +278,15 @@ class ChunkRepository:
 
             binds = [
                 bindparam("subset_query", subset_query),
-                bindparam("query_text", query_text),
+                # Build operators outside the quoted lexemes. Replacing '&'
+                # in serialized tsquery text could also corrupt a literal term.
+                bindparam("or_query", " | ".join(_quote_lexeme(lexeme) for lexeme in lexemes)),
                 bindparam("candidate_cap", candidate_cap),
                 bindparam("date_from", date_from),
                 bindparam("date_to", date_to),
             ]
             if not exact_quorum:
+                binds.append(bindparam("query_text", query_text))
                 binds.append(bindparam("quorum_threshold", quorum_threshold))
             candidates_sql = text(template.format(language=language)).bindparams(*binds)
             candidates_cte = candidates_sql.columns(
@@ -228,36 +295,77 @@ class ChunkRepository:
                 bm25=Float,
             ).cte("quorum_candidates")
 
-            vector_distance = G1Chunks.embedding.cosine_distance(query_embedding)
+            # Diagnostics describe the capped lexical pool, not the whole corpus.
+            pool = []
+            if include_diagnostics:
+                pool = session.execute(select(
+                    G1Chunks.article,
+                    func.count().label("chunks"),
+                    func.count().filter(G1Chunks.embedding.is_not(None)).label("embedded"),
+                ).join(candidates_cte, G1Chunks.id == candidates_cte.c.id)
+                    .group_by(G1Chunks.article).order_by(G1Chunks.article)).mappings().all()
 
-            vector_score = 1 - vector_distance
-            hybrid_score = (alpha * vector_score) + ((1 - alpha) * candidates_cte.c.bm25)
+            def fetch(stage):
+                if stage == "lexical":
+                    score = candidates_cte.c.bm25
+                    vector_rank = literal(None)
+                    text_rank_position = func.rank().over(order_by=score.desc())
+                else:
+                    distance = G1Chunks.embedding.cosine_distance(query_embedding)
+                    vector_rank = func.rank().over(order_by=distance)
+                    text_rank_position = func.rank().over(order_by=candidates_cte.c.bm25.desc())
+                    score = (literal(1.0) / (rrf_k + vector_rank)) + (literal(1.0) / (rrf_k + text_rank_position))
+                base = select(
+                    G1Chunks.id.label("chunk_id"), G1Chunks.article,
+                    score.label("score"), vector_rank.label("vector_rank"),
+                    text_rank_position.label("text_rank"),
+                ).join(candidates_cte, G1Chunks.id == candidates_cte.c.id)
+                if stage != "lexical":
+                    base = base.where(G1Chunks.embedding.is_not(None))
+                scored = base.cte("scored_chunks")
+                chosen = _ranked_chunk_window(scored, top_k, offset, result_unit)
+                article_ranks = select(
+                    scored.c.article,
+                    func.min(scored.c.vector_rank).label("article_vector_rank"),
+                    func.min(scored.c.text_rank).label("article_text_rank"),
+                ).group_by(scored.c.article).cte("article_ranks")
+                stmt = select(
+                    G1Chunks, G1Articles, chosen.c.score.label("rrf_score"),
+                    article_ranks.c.article_vector_rank, article_ranks.c.article_text_rank,
+                ).join(chosen, G1Chunks.id == chosen.c.chunk_id)
+                stmt = stmt.join(article_ranks, chosen.c.article == article_ranks.c.article).join(G1Chunks.g1_articles)
+                return session.execute(stmt.order_by(
+                    chosen.c.score.desc(), G1Articles.url, G1Chunks.id,
+                )).mappings().all()
 
-            vector_rank = func.rank().over(order_by=vector_distance)
-            text_rank_position = func.rank().over(order_by=candidates_cte.c.bm25.desc())
-
-            rrf_score = (literal(1.0) / (rrf_k + vector_rank)) + (literal(1.0) / (rrf_k + text_rank_position))
-
-            stmt = (
-                select(
-                    G1Chunks,
-                    G1Articles,
-                    hybrid_score.label("hybrid_score"),
-                    rrf_score.label("rrf_score"),
-                    vector_rank.label("vector_rank"),
-                    text_rank_position.label("text_rank")
-                )
-                .join(candidates_cte, G1Chunks.id == candidates_cte.c.id)
-                .order_by(rrf_score.desc())
-                .join(G1Chunks.g1_articles)
-            )
-            if top_k:
-                stmt = stmt.limit(top_k)
-            stmt = stmt.limit(limit).offset(offset)
-            results = session.execute(stmt).mappings().all()
-            if results:
-                print("first result:", results[0])
+            results = fetch(retrieval_stage)
+            if not include_diagnostics:
                 return results
+            lexical_rows = results if retrieval_stage == "lexical" else fetch("lexical")
+            lexical_ranked = []
+            seen = set()
+            for row in lexical_rows:
+                url = row["G1Articles"].url
+                if url not in seen:
+                    seen.add(url)
+                    lexical_ranked.append({"article": url, "score": float(row["rrf_score"])})
+            chunk_count = sum(row["chunks"] for row in pool)
+            return {
+                "rows": results,
+                "lexical_ranked": lexical_ranked,
+                "diagnostics": {
+                    "query_lexemes": lexemes, "effective_quorum": k,
+                    "lexical_candidate_chunks": chunk_count,
+                    "lexical_candidate_articles": len(pool),
+                    "embedded_candidate_chunks": sum(row["embedded"] for row in pool),
+                    "hybrid_eligible_articles": sum(row["embedded"] > 0 for row in pool),
+                    "lexical_candidate_article_urls": [row["article"] for row in pool],
+                    "hybrid_eligible_article_urls": [row["article"] for row in pool if row["embedded"] > 0],
+                    "candidate_cap": candidate_cap, "candidate_cap_hit": chunk_count >= candidate_cap,
+                    "candidate_counts_are_capped": True,
+                    "lexical_returned_chunks": len(lexical_rows),
+                },
+            }
 
     def get_chunks_by_article(self, article: str):
         with Session(self.engine) as session:

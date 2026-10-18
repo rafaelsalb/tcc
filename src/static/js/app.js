@@ -22,9 +22,9 @@ const state = {
 
 // Search depth presets exposed to the user as "Nível de busca".
 const SEARCH_LEVELS = {
-    rapido: { limit: 50, topK: 25 },
-    balanceado: { limit: 200, topK: 30 },
-    profundo: { limit: 400, topK: 40 },
+    rapido: { limit: 1000, topK: 250 },
+    balanceado: { limit: 1000, topK: 500 },
+    profundo: { limit: 1000, topK: 1000 },
 };
 const DEFAULT_LEVEL = "balanceado";
 
@@ -114,7 +114,7 @@ function readForm() {
         topK: String(SEARCH_LEVELS[level].topK),
         dateFrom: els.dateFrom.value,
         dateTo: els.dateTo.value,
-        seedMethod: els.seedMethod.value === "louvain" ? "louvain" : "hits",
+        seedMethod: ["louvain", "hits", "ppr_top10"].includes(els.seedMethod.value) ? els.seedMethod.value : "hits",
         quorum: String(els.quorum.value),
     };
 }
@@ -128,7 +128,7 @@ function fillForm(params) {
     els.dateFrom.value = params.get("date_from") ?? "";
     els.dateTo.value = params.get("date_to") ?? "";
     const seedMethodParam = params.get("seed_method");
-    if (seedMethodParam === "hits" || seedMethodParam === "louvain") {
+    if (["hits", "louvain", "ppr_top10"].includes(seedMethodParam)) {
         els.seedMethod.value = seedMethodParam;
     }
     const quorumParam = (params.get("quorum") ?? "").trim();

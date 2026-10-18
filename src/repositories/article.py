@@ -15,11 +15,15 @@ class ArticleRepository:
             result = session.execute(stmt).scalar_one_or_none()
             return result
 
-    def get_all(self, limit: int = 100, offset: int = 0, in_: list[str] = None, order_by: str = "date_published") -> list[G1Articles]:
+    def get_all(self, limit: int | None = 100, offset: int = 0, in_: list[str] = None, order_by: str = "date_published") -> list[G1Articles]:
         with Session(self.engine) as session:
-            stmt = select(G1Articles).limit(limit).offset(offset)
+            stmt = select(G1Articles)
             if in_:
                 stmt = stmt.where(G1Articles.url.in_(in_))
+            if limit is not None:
+                stmt = stmt.limit(limit)
+            if offset:
+                stmt = stmt.offset(offset)
             if order_by:
                 stmt = stmt.order_by(getattr(G1Articles, order_by))
             results = session.scalars(stmt).all()

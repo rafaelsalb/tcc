@@ -1,0 +1,117 @@
+{
+  "schema_version": 1,
+  "evaluations": [
+    {
+      "id": "bolsonaro_stf_coup_trial",
+      "query": "Quais foram os principais desdobramentos do julgamento de Jair Bolsonaro e da trama golpista no STF?",
+      "relevant_urls": [
+        "https://g1.globo.com/politica/noticia/2025/06/09/trama-golpista-entenda-em-que-fase-esta-a-acao-penal-contra-bolsonaro-e-outros-sete-reus.ghtml",
+        "https://g1.globo.com/politica/noticia/2025/06/10/bolsonaro-nega-tentativa-de-golpe-e-de-prisao-de-autoridades-mas-admite-conversas-por-alternativa-constitucional.ghtml",
+        "https://g1.globo.com/politica/noticia/2025/07/15/pgr-pede-condenacao-de-bolsonaro-por-tentativa-de-golpe-de-estado.ghtml",
+        "https://g1.globo.com/jornal-nacional/noticia/2025/08/15/stf-marca-julgamento-de-bolsonaro-e-mais-sete-aliados-na-acao-de-tentativa-de-golpe.ghtml",
+        "https://g1.globo.com/jornal-nacional/noticia/2025/09/02/primeira-turma-do-stf-julga-o-nucleo-crucial-da-tentativa-de-golpe-de-estado.ghtml",
+        "https://g1.globo.com/jornal-nacional/noticia/2025/09/10/fux-vota-para-absolver-bolsonaro-no-julgamento-da-trama-golpista-placar-esta-em-2-a-1-pela-condenacao.ghtml",
+        "https://g1.globo.com/politica/noticia/2025/09/11/primeira-turma-define-punicao-de-jair-bolsonaro.ghtml",
+        "https://g1.globo.com/politica/noticia/2025/11/08/stf-mantem-condenacao-de-bolsonaro-e-seis-reus-na-tentativa-de-golpe-veja-perguntas-e-respostas.ghtml",
+        "https://g1.globo.com/jornal-nacional/noticia/2025/11/25/bolsonaro-comeca-a-cumprir-pena-de-27-anos-e-3-meses-de-prisao-por-golpe-de-estado-ex-presidente-esta-inelegivel-ate-2060.ghtml",
+        "https://g1.globo.com/politica/noticia/2026/03/24/moraes-autoriza-prisao-domiciliar-para-jair-bolsonaro.ghtml"
+      ]
+    },
+    {
+      "id": "us_brazil_tariffs",
+      "query": "Como o tarifaço dos Estados Unidos afetou o Brasil, suas exportações e as relações entre Lula e Trump?",
+      "relevant_urls": [
+        "https://g1.globo.com/politica/noticia/2025/07/09/lula-diz-que-tarifas-serao-respondidas-a-luz-da-lei-brasileira-de-reciprocidade.ghtml",
+        "https://g1.globo.com/economia/noticia/2025/07/30/trump-oficializa-tarifaco-contra-o-brasil-entenda-os-principais-argumentos.ghtml",
+        "https://g1.globo.com/economia/noticia/2025/08/06/tarifaco-de-trump-taxas-de-50percent-contra-o-brasil-entram-em-vigor-nesta-quarta-feira.ghtml",
+        "https://g1.globo.com/economia/ao-vivo/tarifaco-de-trump-lula-anuncia-plano-de-socorro-a-empresas-exportadoras.ghtml",
+        "https://g1.globo.com/jornal-nacional/noticia/2025/09/04/exportacoes-brasileiras-para-os-eua-desabam-com-o-tarifaco-mas-vendas-para-outros-paises-compensam.ghtml",
+        "https://g1.globo.com/mundo/noticia/2025/10/27/encontro-lula-trump-perguntas-e-respostas.ghtml",
+        "https://g1.globo.com/economia/noticia/2025/11/21/tarifaco-dos-eua-o-que-continua-com-40percent-e-o-que-deixou-de-ser-taxado.ghtml",
+        "https://g1.globo.com/economia/noticia/2025/12/04/mesmo-com-reducao-parcial-do-tarifaco-exportacoes-para-os-eua-ainda-caem-28percent-em-novembro-saldo-total-do-mes-foi-positivo.ghtml",
+        "https://g1.globo.com/economia/noticia/2026/02/20/suprema-corte-dos-eua-trump-tarifas-globais.ghtml",
+        "https://g1.globo.com/economia/noticia/2026/02/21/derrubada-de-tarifaco-pela-suprema-corte-dos-eua-isenta-us-216-bilhoes-em-exportacoes-brasileiras-estima-cni.ghtml"
+      ]
+    },
+    {
+      "id": "inss_fraud",
+      "query": "O que aconteceu na fraude dos descontos indevidos em benefícios do INSS e como avançaram as investigações e o ressarcimento?",
+      "relevant_urls": [
+        "https://g1.globo.com/economia/noticia/2025/06/13/fraude-do-inss-31-milhoes-ja-acusaram-descontos-irregulares-associacoes-abriram-512-mil-contestacoes.ghtml",
+        "https://g1.globo.com/jornal-nacional/noticia/2025/07/10/governo-anuncia-calendario-para-ressarcir-aposentados-e-pensionistas-vitimas-de-descontos-indevidos-no-inss.ghtml",
+        "https://g1.globo.com/economia/noticia/2025/07/24/fraude-no-inss-governo-inicia-reembolso-a-vitimas-nesta-quinta-feira-saiba-como-solicitar.ghtml",
+        "https://g1.globo.com/jornal-nacional/noticia/2025/08/20/governo-sofre-derrota-politica-na-instalacao-da-cpmi-para-investigar-os-descontos-ilegais-no-inss.ghtml",
+        "https://g1.globo.com/sp/sao-paulo/noticia/2025/09/12/pf-faz-operacao-para-prender-suspeitos-de-envolvimento-nas-fraudes-do-inss.ghtml",
+        "https://g1.globo.com/politica/noticia/2025/09/30/cpmi-do-inss-prende-presidente-da-conafer.ghtml",
+        "https://g1.globo.com/politica/noticia/2025/11/13/policia-federal-deflagra-nova-fase-da-operacao-sem-desconto.ghtml",
+        "https://g1.globo.com/politica/noticia/2026/01/07/lula-sanciona-lei-que-proibe-descontos-nos-beneficios-pagos-pelo-inss-e-determina-busca-ativa-de-aposentados-lesados.ghtml",
+        "https://g1.globo.com/politica/noticia/2026/03/28/cpmi-do-inss-veja-como-cada-parlamentar-votou-na-analise-que-rejeitou-relatorio.ghtml",
+        "https://g1.globo.com/politica/noticia/2026/04/23/fraude-no-inss-um-ano-apos-operacao-revelar-desvios-ressarcimento-a-segurados-chega-a-quase-r-3-bilhoes.ghtml"
+      ]
+    },
+    {
+      "id": "cop30_belem_climate",
+      "query": "Quais foram os principais impasses, debates e resultados da COP30 em Belém?",
+      "relevant_urls": [
+        "https://g1.globo.com/meio-ambiente/cop-30/noticia/2025/07/20/cop30-imbroglio-entre-governo-e-hoteis-por-diarias-abusivas-em-belem-segue-emperrado-entenda-a-crise.ghtml",
+        "https://g1.globo.com/meio-ambiente/cop-30/noticia/2025/08/02/a-100-dias-da-cop30-metas-climaticas-atrasadas-aumentam-a-pressao-por-resultados-em-belem.ghtml",
+        "https://g1.globo.com/jornal-nacional/noticia/2025/10/31/em-belem-143-paises-participam-da-cupula-do-clima-termometro-das-decisoes-a-serem-tomadas-na-cop30.ghtml",
+        "https://g1.globo.com/meio-ambiente/noticia/2025/11/06/o-que-o-governo-lula-quer-da-cop30-e-quais-os-principais-obstaculos.ghtml",
+        "https://g1.globo.com/jornal-nacional/jn-na-cop30/noticia/2025/11/10/cop30-delegacoes-de-194-paises-tem-o-desafio-de-negociar-medidas-para-impedir-que-o-planeta-esquente-ainda-mais.ghtml",
+        "https://g1.globo.com/jornal-nacional/noticia/2025/11/14/em-novo-protesto-na-cop30-indigenas-cobram-participacao-nas-negociacoes-e-reuniao-com-lula.ghtml",
+        "https://g1.globo.com/jornal-nacional/jn-na-cop30/noticia/2025/11/20/incendio-atinge-pavilhao-da-cop30-em-belem-e-negociacoes-sao-suspensas-um-dia-antes-do-prazo-final-para-acordo.ghtml",
+        "https://g1.globo.com/jornal-nacional/jn-na-cop30/noticia/2025/11/21/cop30-rascunho-de-acordo-e-criticado-por-nao-citar-reducao-de-combustiveis-fosseis-nem-origem-de-financiamento-a-paises-pobres.ghtml",
+        "https://g1.globo.com/meio-ambiente/cop-30/noticia/2025/11/22/cop30-aprova-acordos-sem-mapa-do-caminho.ghtml",
+        "https://g1.globo.com/politica/noticia/2026/01/27/em-carta-presidencia-da-cop30-defende-aceleracao-de-decisoes-climaticas-e-admite-resultado-aquem-do-esperado.ghtml"
+      ]
+    },
+    {
+      "id": "rio_security_operation",
+      "query": "O que aconteceu na megaoperação contra o Comando Vermelho no Rio e quais foram as consequências e investigações?",
+      "relevant_urls": [
+        "https://g1.globo.com/jornal-nacional/noticia/2025/10/28/operacao-policial-contra-o-comando-vermelho-e-a-mais-letal-da-historia-do-rio.ghtml",
+        "https://g1.globo.com/jornal-nacional/noticia/2025/10/28/operacao-policial-deflagrada-no-rio-foi-antecedida-por-investigacao-que-durou-mais-de-um-ano.ghtml",
+        "https://g1.globo.com/rj/rio-de-janeiro/noticia/2025/10/29/infografico-megaoperacao-rio.ghtml",
+        "https://g1.globo.com/rj/rio-de-janeiro/noticia/2025/10/30/o-que-se-sabe-e-o-que-falta-esclarecer-sobre-a-megaoperacao-nos-complexos-do-alemao-e-penha.ghtml",
+        "https://g1.globo.com/jornal-nacional/noticia/2025/10/31/policia-identifica-109-mortos-em-megaoperacao-no-rio-e-afirma-que-78-tinham-ficha-criminal.ghtml",
+        "https://g1.globo.com/jornal-nacional/noticia/2025/11/04/lula-chama-de-matanca-e-de-desastrosa-a-megaoperacao-no-rio-de-janeiro.ghtml",
+        "https://g1.globo.com/rj/rio-de-janeiro/noticia/2025/11/07/conselho-libera-mpf-para-acompanhar-investigacao-sobre-megaoperacao-no-rio.ghtml",
+        "https://g1.globo.com/politica/noticia/2025/11/10/megaoperacao-no-rio-moraes-aponta-contradicoes-e-pede-relatorios-sobre-prisoes-e-mandados.ghtml",
+        "https://g1.globo.com/rj/rio-de-janeiro/noticia/2025/12/02/mprj-oferece-novas-denuncias-contra-policiais-militares-por-crimes-na-megaoperacao-contencao.ghtml",
+        "https://g1.globo.com/rj/rio-de-janeiro/noticia/2026/04/02/pgr-vai-ao-supremo-por-acesso-aos-laudos-das-mortes-da-megaoperacao-contencao.ghtml"
+      ]
+    },
+    {
+      "id": "banco_master",
+      "query": "Como evoluíram a crise, a liquidação e as investigações envolvendo o Banco Master?",
+      "relevant_urls": [
+        "https://g1.globo.com/df/distrito-federal/noticia/2025/06/17/cade-aprova-compra-do-banco-master-pelo-brb-banco-central-ainda-precisa-aprovar.ghtml",
+        "https://g1.globo.com/df/distrito-federal/noticia/2025/08/19/camara-do-df-da-aval-para-brb-comprar-parte-do-banco-master-oposicao-aciona-justica-para-barrar.ghtml",
+        "https://g1.globo.com/economia/noticia/2025/09/04/acoes-do-brb-despencam-depois-da-rejeicao-da-compra-do-banco-master-pelo-bc.ghtml",
+        "https://g1.globo.com/df/distrito-federal/noticia/2025/10/01/pf-abre-inquerito-para-apurar-envolvimento-do-banco-master-brb-crimes-financeiro.ghtml",
+        "https://g1.globo.com/economia/noticia/2025/11/18/banco-central-determina-a-liquidacao-extrajudicial-do-banco-master.ghtml",
+        "https://g1.globo.com/sp/sao-paulo/noticia/2025/11/18/pf-prende-daniel-vorcaro-dono-do-banco-master.ghtml",
+        "https://g1.globo.com/economia/noticia/2026/01/17/fundo-garantidor-de-credito-comeca-a-pagar-neste-sabado-garantia-aos-credores-dos-banco-master.ghtml",
+        "https://g1.globo.com/economia/noticia/2026/02/18/fgc-ja-pagou-84percent-dos-credores-do-banco-master-no-total-de-r-372-bilhoes.ghtml",
+        "https://g1.globo.com/economia/noticia/2026/03/04/o-que-voce-precisa-saber-sobre-a-prisao-de-daniel-vorcaro-e-o-colapso-do-banco-master.ghtml",
+        "https://g1.globo.com/politica/noticia/2026/04/22/ativos-do-banco-master-cresceram-2123percent-apos-daniel-vorcaro-assumir-o-controle.ghtml"
+      ]
+    },
+    {
+      "id": "brazil_selic_inflation",
+      "query": "Como as decisões do Banco Central sobre a Selic e a inflação afetaram a economia brasileira em 2025 e 2026?",
+      "relevant_urls": [
+        "https://g1.globo.com/economia/noticia/2025/06/18/selic-15percent.ghtml",
+        "https://g1.globo.com/economia/noticia/2025/07/10/ipca-precos-sobem-024percent-em-junho-diz-ibge.ghtml",
+        "https://g1.globo.com/economia/noticia/2025/07/30/copom-interrompe-ciclo-de-alta-de-juros-e-mantem-selic-em-15percent-ao-ano.ghtml",
+        "https://g1.globo.com/jornal-nacional/noticia/2025/12/10/copom-mantem-taxa-basica-de-juros-em-15percent-pela-quarta-vez-seguida.ghtml",
+        "https://g1.globo.com/economia/noticia/2026/01/09/ipca-precos-sobem-051-em-dezembro.ghtml",
+        "https://g1.globo.com/economia/noticia/2026/01/29/com-selic-alta-para-conter-inflacao-juro-bancario-sobe-em-2025-credito-desacelera-e-inadimplencia-avanca.ghtml",
+        "https://g1.globo.com/jornal-nacional/noticia/2026/03/18/copom-reduz-taxa-basica-de-juros-em-025-ponto-percentual-selic-vai-para-1475percent-ao-ano.ghtml",
+        "https://g1.globo.com/jornal-nacional/noticia/2026/03/24/copom-afirma-que-guerra-no-oriente-medio-esta-entre-os-fatores-que-vao-determinar-o-futuro-da-taxa-de-juros-do-brasil.ghtml",
+        "https://g1.globo.com/economia/noticia/2026/04/29/copom-reduz-a-taxa-basica-de-juros-da-economia-a-selic-de-1475percent-para-145percent-ao-ano.ghtml",
+        "https://g1.globo.com/economia/noticia/2026/05/04/mercado-eleva-estimativa-de-inflacao-para-489percent-em-2026-na-8a-alta-seguida.ghtml"
+      ]
+    }
+  ]
+}

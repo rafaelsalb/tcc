@@ -1,0 +1,747 @@
+{
+  "schema_version": 1,
+  "search_defaults": {
+    "limit": 200,
+    "top_k": 30,
+    "offset": 0,
+    "date_from": null,
+    "date_to": null,
+    "seed_method": "louvain",
+    "quorum": 0.7
+  },
+  "ks": [
+    1,
+    3,
+    5,
+    10,
+    20
+  ],
+  "evaluations": [
+    {
+      "id": "bolsonaro_stf_coup_trial",
+      "query": "Quais foram os principais desdobramentos do julgamento de Jair Bolsonaro e da trama golpista no STF?",
+      "relevant_urls": [
+        "https://g1.globo.com/politica/noticia/2025/06/09/trama-golpista-entenda-em-que-fase-esta-a-acao-penal-contra-bolsonaro-e-outros-sete-reus.ghtml",
+        "https://g1.globo.com/politica/noticia/2025/06/10/bolsonaro-nega-tentativa-de-golpe-e-de-prisao-de-autoridades-mas-admite-conversas-por-alternativa-constitucional.ghtml",
+        "https://g1.globo.com/politica/noticia/2025/07/15/pgr-pede-condenacao-de-bolsonaro-por-tentativa-de-golpe-de-estado.ghtml",
+        "https://g1.globo.com/jornal-nacional/noticia/2025/08/15/stf-marca-julgamento-de-bolsonaro-e-mais-sete-aliados-na-acao-de-tentativa-de-golpe.ghtml",
+        "https://g1.globo.com/jornal-nacional/noticia/2025/09/02/primeira-turma-do-stf-julga-o-nucleo-crucial-da-tentativa-de-golpe-de-estado.ghtml",
+        "https://g1.globo.com/politica/noticia/2025/09/09/moraes-vota-para-condenar-bolsonaro-e-outros-sete-reus-por-tentativa-de-golpe-de-estado.ghtml",
+        "https://g1.globo.com/jornal-nacional/noticia/2025/09/10/fux-vota-para-absolver-bolsonaro-no-julgamento-da-trama-golpista-placar-esta-em-2-a-1-pela-condenacao.ghtml",
+        "https://g1.globo.com/politica/noticia/2025/09/11/primeira-turma-define-punicao-de-jair-bolsonaro.ghtml",
+        "https://g1.globo.com/politica/noticia/2025/10/22/trama-golpista-com-a-decisao-da-primeira-turma-publicada-quais-os-caminhos-para-recorrer-entenda.ghtml",
+        "https://g1.globo.com/politica/noticia/2025/11/08/stf-mantem-condenacao-de-bolsonaro-e-seis-reus-na-tentativa-de-golpe-veja-perguntas-e-respostas.ghtml",
+        "https://g1.globo.com/jornal-nacional/noticia/2025/11/25/bolsonaro-comeca-a-cumprir-pena-de-27-anos-e-3-meses-de-prisao-por-golpe-de-estado-ex-presidente-esta-inelegivel-ate-2060.ghtml",
+        "https://g1.globo.com/jornal-nacional/noticia/2026/01/08/lula-veta-projeto-de-lei-que-preve-a-reducao-das-penas-dos-condenados-na-trama-golpista.ghtml",
+        "https://g1.globo.com/politica/noticia/2026/03/24/moraes-autoriza-prisao-domiciliar-para-jair-bolsonaro.ghtml"
+      ],
+      "ranked_urls": [
+        "https://g1.globo.com/politica/noticia/2025/04/22/stf-ja-tornou-reus-14-acusados-de-tentativa-de-golpe-veja-quais-casos-ainda-serao-analisados.ghtml",
+        "https://g1.globo.com/jornal-nacional/noticia/2025/09/02/primeira-turma-do-stf-julga-o-nucleo-crucial-da-tentativa-de-golpe-de-estado.ghtml",
+        "https://g1.globo.com/politica/noticia/2025/06/11/trama-golpista-interrogatorios-correram-dentro-do-esperado-e-fortalecem-denuncia-avaliam-ministros-do-stf-e-investigadores.ghtml",
+        "https://g1.globo.com/politica/noticia/2025/09/10/traduzindo-ministro-luiz-fux-afirma-a-incompetencia-absoluta-do-stf-para-julgar-a-acao-penal-contra-jair-bolsonaro.ghtml",
+        "https://g1.globo.com/politica/noticia/2025/09/11/o-mal-feito-para-o-bem-continua-sendo-mal-o-8-de-janeiro-nao-foi-banal-nos-mulheres-ficamos-2-mil-anos-caladas-as-frases-do-voto-de-carmen-lucia-no-julgamento-da-trama-golpista.ghtml",
+        "https://g1.globo.com/politica/noticia/2025/09/09/qual-e-a-ordem-do-voto-dos-ministros-do-stf-no-julgamento-de-bolsonaro.ghtml"
+      ],
+      "metrics": {
+        "metrics": [
+          {
+            "k": 1,
+            "hits": 0,
+            "precision": 0.0,
+            "recall": 0.0
+          },
+          {
+            "k": 3,
+            "hits": 1,
+            "precision": 0.3333333333333333,
+            "recall": 0.07692307692307693
+          },
+          {
+            "k": 5,
+            "hits": 1,
+            "precision": 0.2,
+            "recall": 0.07692307692307693
+          },
+          {
+            "k": 10,
+            "hits": 1,
+            "precision": 0.16666666666666666,
+            "recall": 0.07692307692307693
+          },
+          {
+            "k": 20,
+            "hits": 1,
+            "precision": 0.16666666666666666,
+            "recall": 0.07692307692307693
+          }
+        ],
+        "relevant_total": 13,
+        "ranked_total": 6
+      }
+    },
+    {
+      "id": "us_brazil_tariffs",
+      "query": "Como o tarifaço dos Estados Unidos afetou o Brasil, suas exportações e as relações entre Lula e Trump?",
+      "relevant_urls": [
+        "https://g1.globo.com/politica/noticia/2025/07/09/lula-diz-que-tarifas-serao-respondidas-a-luz-da-lei-brasileira-de-reciprocidade.ghtml",
+        "https://g1.globo.com/politica/noticia/2025/07/16/em-carta-aos-eua-itamaraty-e-alckmin-manifestam-indignacao-com-tarifa-de-50percent-diz-que-quer-negociar-e-cobra-resposta.ghtml",
+        "https://g1.globo.com/economia/noticia/2025/07/30/trump-oficializa-tarifaco-contra-o-brasil-entenda-os-principais-argumentos.ghtml",
+        "https://g1.globo.com/economia/noticia/2025/08/06/tarifaco-de-trump-taxas-de-50percent-contra-o-brasil-entram-em-vigor-nesta-quarta-feira.ghtml",
+        "https://g1.globo.com/economia/noticia/2025/08/06/governo-lula-aciona-omc-contra-tarifaco-de-trump.ghtml",
+        "https://g1.globo.com/economia/ao-vivo/tarifaco-de-trump-lula-anuncia-plano-de-socorro-a-empresas-exportadoras.ghtml",
+        "https://g1.globo.com/jornal-nacional/noticia/2025/09/04/exportacoes-brasileiras-para-os-eua-desabam-com-o-tarifaco-mas-vendas-para-outros-paises-compensam.ghtml",
+        "https://g1.globo.com/politica/noticia/2025/10/06/lula-e-trump-conversaram-por-30-minutos-e-brasileiro-pediu-ao-americano-para-rever-tarifaco.ghtml",
+        "https://g1.globo.com/mundo/noticia/2025/10/27/encontro-lula-trump-perguntas-e-respostas.ghtml",
+        "https://g1.globo.com/economia/noticia/2025/11/21/tarifaco-dos-eua-o-que-continua-com-40percent-e-o-que-deixou-de-ser-taxado.ghtml",
+        "https://g1.globo.com/economia/noticia/2025/12/04/mesmo-com-reducao-parcial-do-tarifaco-exportacoes-para-os-eua-ainda-caem-28percent-em-novembro-saldo-total-do-mes-foi-positivo.ghtml",
+        "https://g1.globo.com/economia/noticia/2026/02/20/suprema-corte-dos-eua-trump-tarifas-globais.ghtml",
+        "https://g1.globo.com/economia/noticia/2026/02/21/derrubada-de-tarifaco-pela-suprema-corte-dos-eua-isenta-us-216-bilhoes-em-exportacoes-brasileiras-estima-cni.ghtml"
+      ],
+      "ranked_urls": [
+        "https://g1.globo.com/politica/politico/noticia/2025/07/19/com-cerco-a-bolsonaro-e-sancoes-contra-moraes-margem-para-negociacao-entre-brasil-e-eua-e-minima.ghtml",
+        "https://g1.globo.com/mundo/noticia/2025/07/27/nem-a-uniao-sovietica-faria-o-que-trump-esta-fazendo-com-o-brasil-diz-amorim-ao-financial-times.ghtml",
+        "https://g1.globo.com/economia/noticia/2025/04/13/tarifas-de-trump-trazem-desafios-imediatos-para-o-brasil-mas-podem-gerar-oportunidades-apontam-economistas.ghtml",
+        "https://g1.globo.com/economia/noticia/2025/08/01/mapa-do-tarifaco.ghtml",
+        "https://g1.globo.com/jornal-nacional/noticia/2025/07/10/lula-diz-que-brasil-quer-negociar-cobra-respeito-as-leis-brasileiras-e-nega-que-criticas-aos-eua-tenham-motivado-tarifas-de-trump.ghtml",
+        "https://g1.globo.com/economia/noticia/2025/07/11/dolar-ibovespa.ghtml",
+        "https://g1.globo.com/economia/noticia/2025/07/29/dolar-ibovespa.ghtml",
+        "https://g1.globo.com/politica/noticia/2025/05/09/na-russia-lula-faz-reuniao-com-putin.ghtml",
+        "https://g1.globo.com/jornal-nacional/noticia/2025/08/06/comeca-cobranca-de-sobretaxas-dos-eua-sobre-produtos-brasileiros.ghtml",
+        "https://g1.globo.com/sp/vale-do-paraiba-regiao/noticia/2025/07/09/petroleo-aco-e-avioes-tarifaco-de-trump-contra-o-brasil-vai-impactar-exportacoes-de-industrias-do-vale-e-regiao.ghtml",
+        "https://g1.globo.com/economia/noticia/2025/07/12/como-o-brasil-poderia-retaliar-os-eua-apos-tarifas-de-trump.ghtml",
+        "https://g1.globo.com/economia/noticia/2025/08/12/tarifaco-lula-diz-que-medida-de-ajuda-a-exportadores-sera-de-r-30-bilhoes.ghtml",
+        "https://g1.globo.com/politica/noticia/2025/08/07/especialistas-avaliam-que-brasil-acionar-omc-contra-tarifaco-de-trump-tem-efeito-mais-simbolico-que-pratico.ghtml",
+        "https://g1.globo.com/politica/blog/gerson-camarotti/post/2025/07/29/lula-esta-disposto-a-ligar-para-trump-desde-que-seja-atendido-dizem-interlocutores.ghtml",
+        "https://g1.globo.com/pa/para/noticia/2025/08/06/donald-trump-e-declarado-persona-non-grata-por-vereadores-de-belem.ghtml",
+        "https://g1.globo.com/mundo/noticia/2025/07/11/china-critica-tarifaco-de-trump-ao-brasil-e-acusa-eua-de-coercao.ghtml",
+        "https://g1.globo.com/economia/noticia/2025/08/13/tarifaco-de-trump-entenda-o-plano-do-governo-para-socorrer-empresas.ghtml",
+        "https://g1.globo.com/ce/ceara/noticia/2025/07/27/entenda-por-que-o-ceara-pode-ser-o-estado-mais-afetado-com-tarifaco-de-trump.ghtml",
+        "https://g1.globo.com/jornal-nacional/noticia/2025/08/12/em-busca-de-apoio-para-enfrentar-tarifaco-de-trump-lula-recorre-a-paises-do-brics-e-liga-para-presidente-da-china.ghtml",
+        "https://g1.globo.com/sp/campinas-regiao/noticia/2025/07/25/tarifaco-de-trump-maior-terminal-de-cargas-do-brasil-viracopos-exporta-20-mil-toneladas-por-ano-aos-eua-veja-principais-setores.ghtml",
+        "https://g1.globo.com/ce/ceara/noticia/2025/08/06/tarifa-de-trump-comeca-a-valer-nesta-quarta-e-ceara-e-o-estado-mais-afetado-veja-os-impactos.ghtml",
+        "https://g1.globo.com/politica/blog/octavio-guedes/post/2025/08/07/afinal-e-lula-paz-e-amor-ou-e-lula-tiro-porrada-e-bomba.ghtml",
+        "https://g1.globo.com/economia/noticia/2025/08/05/como-prisao-de-bolsonaro-pode-impactar-acenos-de-lula-e-trump-sobre-tarifaco.ghtml",
+        "https://g1.globo.com/economia/noticia/2025/05/13/lula-na-china-veja-setores-em-que-brasil-pode-aumentar-vendas-para-o-pais-asiatico.ghtml",
+        "https://g1.globo.com/economia/noticia/2025/05/07/em-meio-ao-tarifaco-de-trump-superavit-da-balanca-comercial-recua-para-us-815-bi-em-abril.ghtml",
+        "https://g1.globo.com/jornal-nacional/noticia/2025/08/02/empresas-brasileiras-ja-sofrem-com-efeito-cascata-as-vesperas-de-tarifaco-de-trump.ghtml",
+        "https://g1.globo.com/economia/noticia/2025/07/10/quais-setores-brasileiros-mais-perdem-com-novas-tarifas-de-trump.ghtml",
+        "https://g1.globo.com/politica/noticia/2025/08/06/em-entrevista-a-agencia-lula-diz-que-so-vai-ligar-para-trump-quando-tiver-a-intuicao-de-que-ele-quer-conversar-nao-vou-me-humilhar.ghtml",
+        "https://g1.globo.com/jornal-nacional/noticia/2025/07/09/em-carta-dirigida-a-lula-trump-ataca-acoes-no-stf-sobre-bolsonaro-e-as-gigantes-das-redes-sociais.ghtml",
+        "https://g1.globo.com/politica/noticia/2025/07/23/as-vesperas-do-tarifaco-de-trump-governo-lula-decide-conduzir-conversas-nos-bastidores-com-representantes-dos-eua-e-empresarios.ghtml",
+        "https://g1.globo.com/df/distrito-federal/noticia/2025/07/28/ibaneis-se-reune-com-alckmin-para-tratar-das-tarifas.ghtml",
+        "https://g1.globo.com/politica/blog/valdo-cruz/post/2025/04/09/escalada-de-tensao-entre-eua-e-china-pode-impactar-crescimento-do-brasil-avaliam-assessores-de-lula.ghtml",
+        "https://g1.globo.com/politica/noticia/2025/08/18/brasil-entrega-nesta-segunda-ao-governo-trump-resposta-sobre-investigacao-comercial.ghtml",
+        "https://g1.globo.com/politica/noticia/2025/07/19/em-meio-a-crise-com-estados-unidos-lula-se-reune-com-ministro-das-relacoes-exteriores-no-alvorada.ghtml",
+        "https://g1.globo.com/economia/agronegocios/noticia/2025/08/06/tarifaco-de-trump-entenda-o-impacto-para-o-agro-do-brasil-e-para-os-eua-em-5-pontos.ghtml",
+        "https://g1.globo.com/economia/noticia/2025/07/31/dolar-ibovespa.ghtml",
+        "https://g1.globo.com/mundo/noticia/2025/09/23/lula-e-trump-na-onu-veja-o-que-disseram-presidentes-do-brasil-e-dos-estados-unidos.ghtml",
+        "https://g1.globo.com/politica/noticia/2025/07/19/lula-critica-acoes-dos-eua-contra-ministros-do-stf-medida-arbitraria-e-sem-fundamento.ghtml",
+        "https://g1.globo.com/jornal-nacional/noticia/2025/07/17/em-resposta-as-ameacas-de-trump-lula-diz-que-vai-cobrar-imposto-das-empresas-americanas-de-tecnologia.ghtml",
+        "https://g1.globo.com/politica/noticia/2025/07/17/lula-grava-pronunciamento-para-ir-ao-ar-nesta-quinta-sobre-tarifaco-de-trump.ghtml",
+        "https://g1.globo.com/sp/sao-paulo/noticia/2025/07/10/tarcisio-responsabiliza-lula-por-tarifa-de-trump-de-50percent-sobre-o-brasil.ghtml",
+        "https://g1.globo.com/politica/noticia/2025/07/23/em-meio-ao-tarifaco-de-trump-lula-fala-por-telefone-com-a-presidente-do-mexico.ghtml",
+        "https://g1.globo.com/politica/noticia/2025/04/15/brasil-deve-agir-com-cautela-e-mirar-eventuais-retaliacoes-seletivas-contra-eua-dizem-especialistas.ghtml",
+        "https://g1.globo.com/politica/noticia/2025/07/31/sancao-a-moraes-tarifaco-desidratado-e-copom-5-pontos-centrais-da-economia-e-da-politica.ghtml",
+        "https://g1.globo.com/politica/noticia/2025/08/04/tarifaco-semana-comeca-com-expectativa-de-conversa-entre-lula-e-donald-trump.ghtml",
+        "https://g1.globo.com/politica/noticia/2025/07/13/para-especialistas-brasil-deve-insistir-no-dialogo-com-eua-mesmo-diante-de-tom-agressivo-e-desproporcional-de-trump.ghtml",
+        "https://g1.globo.com/politica/noticia/2025/07/10/governadores-repercutem-tarifaco-de-trump-contra-o-brasil.ghtml",
+        "https://g1.globo.com/politica/noticia/2025/07/09/apos-tarifaco-de-trump-contra-o-brasil-bolsonaro-posta-indireta-a-lula-povo-geme-quando-os-perversos-governam.ghtml",
+        "https://g1.globo.com/jornal-nacional/noticia/2025/07/29/as-vesperas-do-tarifaco-fernando-haddad-diz-que-ha-sinais-de-interesse-do-governo-dos-eua-em-negociar.ghtml",
+        "https://g1.globo.com/economia/noticia/2025/07/10/dolar-inicia-pregao-apos-trump-anunciar-tarifa-de-50percent-sobre-produtos-brasileiros.ghtml",
+        "https://g1.globo.com/politica/blog/valdo-cruz/post/2025/08/04/governo-lula-teme-reflexos-negativos-da-prisao-domiciliar-de-bolsonaro-nas-negociacoes-com-trump.ghtml",
+        "https://g1.globo.com/ap/amapa/noticia/2025/07/30/amapa-pode-ter-perdas-milionarias-apesar-de-ser-um-dos-menos-afetados-pelo-tarifaco-de-trump.ghtml",
+        "https://g1.globo.com/politica/noticia/2025/07/15/decreto-lei-de-reciprocidade-lula-publicado.ghtml",
+        "https://g1.globo.com/sp/sao-paulo/noticia/2025/07/15/tarifaco-de-trump-tarcisio-se-reune-com-cerca-de-20-empresarios-dos-setores-do-cafe-carne-e-metalurgia.ghtml",
+        "https://g1.globo.com/politica/noticia/2025/07/14/lula-assina-decreto-que-regulamenta-lei-de-reciprocidade-apos-tarifas-de-trump.ghtml",
+        "https://g1.globo.com/politica/noticia/2025/07/09/lula-diz-que-tarifas-serao-respondidas-a-luz-da-lei-brasileira-de-reciprocidade.ghtml",
+        "https://g1.globo.com/politica/noticia/2025/08/11/em-busca-de-novos-mercados-lula-recebe-presidentes-do-equador-nigeria-e-panama-neste-mes.ghtml",
+        "https://g1.globo.com/politica/noticia/2025/04/22/como-sera-o-brasil-quando-eu-nao-for-mais-presidente-se-entrar-a-extrema-direita-indaga-lula-ao-falar-sobre-defesa-da-democracia.ghtml",
+        "https://g1.globo.com/sp/piracicaba-regiao/noticia/2025/07/20/do-tarifaco-de-trump-usp-aponta-ameaca-exportacoes-afeta-precos-pagos-ao-produtor-e-desestabiliza-mercados-da-pecuaria-ao-pomar.ghtml",
+        "https://g1.globo.com/economia/noticia/2025/07/14/alckmin-anuncia-agenda-com-exportadores-para-falar-do-tarifaco-de-trump.ghtml",
+        "https://g1.globo.com/politica/noticia/2025/09/17/se-eu-encontrar-com-trump-vou-estender-a-mao-para-cumprimenta-lo-pois-sou-civilizado-diz-lula.ghtml",
+        "https://g1.globo.com/sp/sorocaba-jundiai/noticia/2025/07/24/tarcisio-linha-de-credito-tarifaco.ghtml",
+        "https://g1.globo.com/politica/noticia/2025/08/11/tarifaco-lula-se-reune-com-alckmin-nesta-segunda-para-alinhar-ultimos-detalhes-do-plano-de-contingencia.ghtml",
+        "https://g1.globo.com/podcast/o-assunto/noticia/2025/07/10/quais-os-efeitos-imediatos-da-tarifa-de-trump-para-a-economia-brasileira.ghtml",
+        "https://g1.globo.com/politica/noticia/2025/07/10/haddad-manda-indireta-a-tarcisio-em-discurso-a-gente-nao-celebrava-ataque-estrangeiro-ao-brasil.ghtml",
+        "https://g1.globo.com/politica/noticia/2025/07/09/parlamentares-dizem-que-tarifaco-de-trump-contra-o-brasil-tem-participacao-da-familia-bolsonaro.ghtml",
+        "https://g1.globo.com/economia/noticia/2025/08/16/tarifaco-futuro-da-relacao-comercial-com-os-eua-passa-pelo-julgamento-da-secao-301-entenda.ghtml",
+        "https://g1.globo.com/economia/noticia/2025/07/31/no-programa-da-ana-maria-braga-alckmin-diz-que-a-negociacao-nao-terminou-hoje-ela-comeca-hoje.ghtml",
+        "https://g1.globo.com/politica/noticia/2025/07/21/lula-diz-que-esta-com-certa-tranquilidade-e-que-ainda-nao-ha-guerra-comercial-com-os-eua.ghtml",
+        "https://g1.globo.com/politica/noticia/2025/07/09/tarifaco-de-trump-lula-convoca-ministros-para-discutir-taxacao-de-50percent-para-produtos-brasileiros.ghtml",
+        "https://g1.globo.com/sc/santa-catarina/noticia/2025/07/10/tarifa-eua-brasil-fiesc-preve-danos-defende-diplomacia.ghtml",
+        "https://g1.globo.com/jornal-nacional/noticia/2025/07/15/tarifaco-de-trump-governo-e-empresarios-consideram-que-lei-da-reciprocidade-deve-ser-o-ultimo-recurso-a-ser-usado.ghtml",
+        "https://g1.globo.com/sp/sao-paulo/noticia/2025/09/24/tarcisio-diz-esperar-que-lula-e-trump-sentem-para-conversar-interesse-nacional-esta-em-jogo.ghtml",
+        "https://g1.globo.com/jornal-nacional/noticia/2025/08/15/uma-semana-apos-entrar-em-vigor-efeitos-do-tarifaco-de-trump-ja-podem-ser-sentidos-por-exportadores-brasileiros.ghtml",
+        "https://g1.globo.com/politica/noticia/2025/07/31/avaliacao-no-governo-e-que-trump-nao-desistira-de-tarifaco-mas-e-possivel-buscar-taxa-de-10percent.ghtml",
+        "https://g1.globo.com/politica/noticia/2025/07/10/governo-lula-reage-com-posts-sobre-soberania-e-cobra-respeito-ao-brasil-apos-tarifaco-de-trump.ghtml",
+        "https://g1.globo.com/politica/noticia/2025/07/09/tarifaco-de-trump-frente-agropecuaria-no-congresso-pede-diplomacia-firme-e-cautela-diante-da-tarifa-de-50percent-imposta-ao-brasil.ghtml",
+        "https://g1.globo.com/economia/noticia/2025/08/06/governo-lula-aciona-omc-contra-tarifaco-de-trump.ghtml",
+        "https://g1.globo.com/politica/noticia/2025/07/10/tarifaco-de-trump-o-que-governo-brasileiro-pode-fazer-para-reverter-ou-mitigar-os-efeitos.ghtml",
+        "https://g1.globo.com/podcast/o-assunto/noticia/2025/07/10/trump-x-brasil-carta-a-lula-e-tarifaco-de-50percent-o-assunto-1507.ghtml",
+        "https://g1.globo.com/politica/noticia/2025/07/16/em-carta-aos-eua-itamaraty-e-alckmin-manifestam-indignacao-com-tarifa-de-50percent-diz-que-quer-negociar-e-cobra-resposta.ghtml",
+        "https://g1.globo.com/politica/noticia/2025/07/10/decreto-que-regulamenta-lei-que-permite-resposta-a-tarifaco-de-trump-deve-sair-nos-proximos-dias-diz-alckmin.ghtml",
+        "https://g1.globo.com/economia/noticia/2025/08/29/nao-tenho-pressa-em-adotar-reciprocidade-contra-os-eua-por-tarifa-diz-lula.ghtml",
+        "https://g1.globo.com/politica/blog/camila-bomfim/post/2025/07/16/tarifaco-de-trump-alcolumbre-motta-e-alckmin-pregam-uniao-contra-agressao-injusta-dos-eua.ghtml",
+        "https://g1.globo.com/economia/noticia/2025/07/09/brasil-tarifa-eua.ghtml",
+        "https://g1.globo.com/politica/noticia/2025/07/10/tarifaco-sp-vai-ser-o-estado-mais-afetado-diz-presidente-de-agencia-de-promocao-de-exportacoes.ghtml",
+        "https://g1.globo.com/economia/noticia/2025/09/26/alckmin-tarifaco-evento-sp.ghtml",
+        "https://g1.globo.com/jornal-nacional/noticia/2025/07/30/excecoes-do-tarifaco-de-trump-representam-43percent-do-valor-total-das-exportacoes-do-brasil-para-os-eua.ghtml",
+        "https://g1.globo.com/economia/noticia/2025/07/28/plano-de-contingencia-esta-sendo-elaborado-mas-governo-brasileiro-continua-a-dialogar-com-os-eua-diz-alckmin.ghtml",
+        "https://g1.globo.com/politica/noticia/2025/07/15/itamaraty-diz-deplorar-manifestacoes-do-governo-trump-intromissao-indevida-e-inaceitavel.ghtml",
+        "https://g1.globo.com/politica/noticia/2025/04/17/em-meio-ao-tarifaco-de-trump-governo-lula-enviara-comitiva-a-tres-paises-da-europa-para-tentar-ampliar-relacoes-comerciais.ghtml",
+        "https://g1.globo.com/economia/noticia/2025/09/23/haddad-ve-impacto-limitado-do-tarifaco-passado-julgamento-acredito-que-vai-ser-superado.ghtml",
+        "https://g1.globo.com/jornal-nacional/noticia/2025/07/22/exportacao-de-carne-brasileira-para-os-eua-despenca-80percent-em-tres-meses.ghtml",
+        "https://g1.globo.com/jornal-nacional/noticia/2025/07/28/governo-mantem-intencao-de-negociar-com-eua-apesar-de-o-presidente-trump-ainda-nao-ter-demonstrado-interesse-em-dialogar.ghtml",
+        "https://g1.globo.com/politica/noticia/2025/07/16/veja-a-integra-da-carta-enviada-pelo-governo-lula-aos-estados-unidos-sobre-tarifaco-de-trump.ghtml",
+        "https://g1.globo.com/politica/noticia/2025/07/17/lula-diz-a-tv-americana-que-nao-quer-ser-refem-dos-estados-unidos.ghtml",
+        "https://g1.globo.com/economia/noticia/2025/08/12/haddad-diz-que-governo-anuncia-nesta-quarta-o-pacote-para-ajuda-a-exportadores-afetados-pelo-tarifaco.ghtml",
+        "https://g1.globo.com/economia/noticia/2025/08/19/eua-aceitam-consulta-do-brasil-na-omc-mas-dizem-que-tarifaco-e-tema-de-seguranca-nacional.ghtml",
+        "https://g1.globo.com/politica/blog/valdo-cruz/post/2025/08/04/de-olho-nas-negociacoes-com-eua-lula-evita-ataque-a-trump-para-aliviar-ainda-mais-o-tarifaco-e-vai-lancar-medidas.ghtml",
+        "https://g1.globo.com/sc/santa-catarina/noticia/2025/07/29/pib-de-santa-catarina-afetado-pelo-tarifaco-dos-eua-fiesc.ghtml"
+      ],
+      "metrics": {
+        "metrics": [
+          {
+            "k": 1,
+            "hits": 0,
+            "precision": 0.0,
+            "recall": 0.0
+          },
+          {
+            "k": 3,
+            "hits": 0,
+            "precision": 0.0,
+            "recall": 0.0
+          },
+          {
+            "k": 5,
+            "hits": 0,
+            "precision": 0.0,
+            "recall": 0.0
+          },
+          {
+            "k": 10,
+            "hits": 0,
+            "precision": 0.0,
+            "recall": 0.0
+          },
+          {
+            "k": 20,
+            "hits": 0,
+            "precision": 0.0,
+            "recall": 0.0
+          }
+        ],
+        "relevant_total": 13,
+        "ranked_total": 100
+      }
+    },
+    {
+      "id": "inss_fraud",
+      "query": "O que aconteceu na fraude dos descontos indevidos em benefícios do INSS e como avançaram as investigações e o ressarcimento?",
+      "relevant_urls": [
+        "https://g1.globo.com/economia/noticia/2025/06/13/fraude-do-inss-31-milhoes-ja-acusaram-descontos-irregulares-associacoes-abriram-512-mil-contestacoes.ghtml",
+        "https://g1.globo.com/economia/noticia/2025/06/18/fraude-no-inss-ressarcimento-deve-ser-em-pagamento-unico-e-e-estimado-em-r-21-bilhoes.ghtml",
+        "https://g1.globo.com/jornal-nacional/noticia/2025/07/10/governo-anuncia-calendario-para-ressarcir-aposentados-e-pensionistas-vitimas-de-descontos-indevidos-no-inss.ghtml",
+        "https://g1.globo.com/economia/noticia/2025/07/24/fraude-no-inss-governo-inicia-reembolso-a-vitimas-nesta-quinta-feira-saiba-como-solicitar.ghtml",
+        "https://g1.globo.com/jornal-nacional/noticia/2025/08/20/governo-sofre-derrota-politica-na-instalacao-da-cpmi-para-investigar-os-descontos-ilegais-no-inss.ghtml",
+        "https://g1.globo.com/sp/sao-paulo/noticia/2025/09/12/pf-faz-operacao-para-prender-suspeitos-de-envolvimento-nas-fraudes-do-inss.ghtml",
+        "https://g1.globo.com/politica/noticia/2025/09/30/cpmi-do-inss-prende-presidente-da-conafer.ghtml",
+        "https://g1.globo.com/politica/noticia/2025/10/09/fraude-no-inss-governo-ressarciu-43percent-do-que-foi-descontado-de-aposentadorias-ate-agora.ghtml",
+        "https://g1.globo.com/politica/noticia/2025/11/13/policia-federal-deflagra-nova-fase-da-operacao-sem-desconto.ghtml",
+        "https://g1.globo.com/politica/noticia/2026/01/07/lula-sanciona-lei-que-proibe-descontos-nos-beneficios-pagos-pelo-inss-e-determina-busca-ativa-de-aposentados-lesados.ghtml",
+        "https://g1.globo.com/politica/noticia/2026/03/28/cpmi-do-inss-veja-como-cada-parlamentar-votou-na-analise-que-rejeitou-relatorio.ghtml",
+        "https://g1.globo.com/politica/noticia/2026/04/23/fraude-no-inss-um-ano-apos-operacao-revelar-desvios-ressarcimento-a-segurados-chega-a-quase-r-3-bilhoes.ghtml"
+      ],
+      "ranked_urls": [
+        "https://g1.globo.com/podcast/o-assunto/noticia/2025/05/06/inss-de-1991-a-2025-a-linha-do-tempo-dos-descontos-a-aposentados.ghtml",
+        "https://g1.globo.com/politica/noticia/2025/04/24/fraude-no-inss-veja-lista-de-entidades-suspeitas-de-envolvimento-em-esquema-bilionario.ghtml",
+        "https://g1.globo.com/economia/noticia/2025/04/24/video-veja-tutorial-de-um-minuto-para-saber-se-voce-foi-vitima-da-fraude-do-inss-e-o-que-fazer-neste-caso.ghtml",
+        "https://g1.globo.com/economia/noticia/2025/04/24/fraude-no-inss-como-descobrir-se-voce-teve-valores-descontados-e-o-que-fazer-passo-a-passo.ghtml",
+        "https://g1.globo.com/podcast/o-assunto/noticia/2025/05/06/inss-o-raio-x-do-escandalo-o-assunto-1460.ghtml",
+        "https://g1.globo.com/economia/noticia/2025/04/30/sem-entrar-em-detalhes-haddad-assegura-que-o-governo-vai-encontrar-o-caminho-de-devolver-dinheiro-de-aposentados-lesados.ghtml",
+        "https://g1.globo.com/df/distrito-federal/noticia/2025/07/26/fraude-no-inss-governo-repassou-r-330-milhoes-a-500-mil-vitimas-de-fraude-em-dois-dias-diz-presidente.ghtml",
+        "https://g1.globo.com/jornal-nacional/noticia/2025/06/17/congresso-instala-cpmi-para-investigar-descontos-indevidos-em-beneficios-do-inss.ghtml",
+        "https://g1.globo.com/economia/noticia/2025/05/16/em-tres-dias-134-milhao-de-aposentados-e-pensionistas-do-inss-solicitam-reembolso-por-fraudes.ghtml",
+        "https://g1.globo.com/sp/piracicaba-regiao/noticia/2025/05/14/estavam-cobrando-r-45-desde-2023-filha-investiga-extratos-e-descobre-descontos-indevidos-na-aposentadoria-da-mae.ghtml"
+      ],
+      "metrics": {
+        "metrics": [
+          {
+            "k": 1,
+            "hits": 0,
+            "precision": 0.0,
+            "recall": 0.0
+          },
+          {
+            "k": 3,
+            "hits": 0,
+            "precision": 0.0,
+            "recall": 0.0
+          },
+          {
+            "k": 5,
+            "hits": 0,
+            "precision": 0.0,
+            "recall": 0.0
+          },
+          {
+            "k": 10,
+            "hits": 0,
+            "precision": 0.0,
+            "recall": 0.0
+          },
+          {
+            "k": 20,
+            "hits": 0,
+            "precision": 0.0,
+            "recall": 0.0
+          }
+        ],
+        "relevant_total": 12,
+        "ranked_total": 10
+      }
+    },
+    {
+      "id": "cop30_belem_climate",
+      "query": "Quais foram os principais impasses, debates e resultados da COP30 em Belém?",
+      "relevant_urls": [
+        "https://g1.globo.com/meio-ambiente/cop-30/noticia/2025/06/27/conferencia-preparatoria-da-cop30-deixa-principais-impasses-de-belem-sem-solucao-entenda-em-5-pontos.ghtml",
+        "https://g1.globo.com/meio-ambiente/cop-30/noticia/2025/07/20/cop30-imbroglio-entre-governo-e-hoteis-por-diarias-abusivas-em-belem-segue-emperrado-entenda-a-crise.ghtml",
+        "https://g1.globo.com/meio-ambiente/cop-30/noticia/2025/08/02/a-100-dias-da-cop30-metas-climaticas-atrasadas-aumentam-a-pressao-por-resultados-em-belem.ghtml",
+        "https://g1.globo.com/meio-ambiente/noticia/2025/10/13/cop30-162-paises-confirmam-presenca-apos-crise-com-hospedagens-e-evento-tem-quorum-minimo.ghtml",
+        "https://g1.globo.com/jornal-nacional/noticia/2025/10/31/em-belem-143-paises-participam-da-cupula-do-clima-termometro-das-decisoes-a-serem-tomadas-na-cop30.ghtml",
+        "https://g1.globo.com/meio-ambiente/noticia/2025/11/06/o-que-o-governo-lula-quer-da-cop30-e-quais-os-principais-obstaculos.ghtml",
+        "https://g1.globo.com/jornal-nacional/jn-na-cop30/noticia/2025/11/10/cop30-delegacoes-de-194-paises-tem-o-desafio-de-negociar-medidas-para-impedir-que-o-planeta-esquente-ainda-mais.ghtml",
+        "https://g1.globo.com/jornal-nacional/noticia/2025/11/14/em-novo-protesto-na-cop30-indigenas-cobram-participacao-nas-negociacoes-e-reuniao-com-lula.ghtml",
+        "https://g1.globo.com/jornal-nacional/jn-na-cop30/noticia/2025/11/20/incendio-atinge-pavilhao-da-cop30-em-belem-e-negociacoes-sao-suspensas-um-dia-antes-do-prazo-final-para-acordo.ghtml",
+        "https://g1.globo.com/jornal-nacional/jn-na-cop30/noticia/2025/11/21/cop30-rascunho-de-acordo-e-criticado-por-nao-citar-reducao-de-combustiveis-fosseis-nem-origem-de-financiamento-a-paises-pobres.ghtml",
+        "https://g1.globo.com/meio-ambiente/cop-30/noticia/2025/11/22/cop30-aprova-acordos-sem-mapa-do-caminho.ghtml",
+        "https://g1.globo.com/politica/noticia/2026/01/27/em-carta-presidencia-da-cop30-defende-aceleracao-de-decisoes-climaticas-e-admite-resultado-aquem-do-esperado.ghtml"
+      ],
+      "ranked_urls": [
+        "https://g1.globo.com/meio-ambiente/noticia/2025/11/06/o-que-o-governo-lula-quer-da-cop30-e-quais-os-principais-obstaculos.ghtml",
+        "https://g1.globo.com/meio-ambiente/cop-30/noticia/2025/11/08/em-10-pontos-entenda-o-que-a-cupula-de-lideres-mostra-sobre-o-rumo-da-cop30-e-seus-desafios.ghtml",
+        "https://g1.globo.com/meio-ambiente/cop-30/noticia/2025/11/19/termometro-da-cop30-dia-10-cocares-rascunhos-e-a-expectativa-em-torno-do-1o-pacote-de-belem.ghtml",
+        "https://g1.globo.com/meio-ambiente/cop-30/noticia/2025/11/12/termometro-da-cop30-dia-3-protesto-surpreende-seguranca-arabia-da-sinal-de-impasse-e-china-vira-assunto.ghtml",
+        "https://g1.globo.com/meio-ambiente/cop-30/noticia/2025/08/02/a-100-dias-da-cop30-metas-climaticas-atrasadas-aumentam-a-pressao-por-resultados-em-belem.ghtml",
+        "https://g1.globo.com/df/distrito-federal/noticia/2025/05/28/liderancas-negras-apresentam-propostas-para-a-cop-30-ao-itamaraty.ghtml",
+        "https://g1.globo.com/meio-ambiente/cop-30/noticia/2025/06/27/conferencia-preparatoria-da-cop30-deixa-principais-impasses-de-belem-sem-solucao-entenda-em-5-pontos.ghtml",
+        "https://g1.globo.com/meio-ambiente/cop-30/noticia/2025/08/31/quais-sao-os-principais-eventos-paralelos-da-cop.ghtml",
+        "https://g1.globo.com/pa/para/noticia/2025/08/01/cop30-em-belem-forum-raizes-do-amanha-tera-palestras-feira-e-apresentacoes-culturais.ghtml",
+        "https://g1.globo.com/jornal-nacional/noticia/2025/10/20/com-cartas-diplomaticas-presidencia-da-cop30-tenta-garantir-avancos-concretos-na-conferencia-em-novembro.ghtml",
+        "https://g1.globo.com/pi/piaui/especial-publicitario/governo-do-piaui-aqui-tem-trabalho-aqui-tem-futuro/noticia/2025/09/29/piaui-aprova-painel-para-a-cop30-e-reforca-protagonismo-climatico.ghtml",
+        "https://g1.globo.com/pa/para/noticia/2025/08/05/hospedagem-na-cop-30-governo-do-pa-redes-hoteleira-e-imobiliaria-debatem-novos-leitos-e-valores-de-diarias.ghtml",
+        "https://g1.globo.com/jornal-nacional/noticia/2025/11/08/expedicao-que-percorreu-o-rio-amazonas-chega-a-belem-para-a-cop30.ghtml"
+      ],
+      "metrics": {
+        "metrics": [
+          {
+            "k": 1,
+            "hits": 1,
+            "precision": 1.0,
+            "recall": 0.08333333333333333
+          },
+          {
+            "k": 3,
+            "hits": 1,
+            "precision": 0.3333333333333333,
+            "recall": 0.08333333333333333
+          },
+          {
+            "k": 5,
+            "hits": 2,
+            "precision": 0.4,
+            "recall": 0.16666666666666666
+          },
+          {
+            "k": 10,
+            "hits": 3,
+            "precision": 0.3,
+            "recall": 0.25
+          },
+          {
+            "k": 20,
+            "hits": 3,
+            "precision": 0.23076923076923078,
+            "recall": 0.25
+          }
+        ],
+        "relevant_total": 12,
+        "ranked_total": 13
+      }
+    },
+    {
+      "id": "rio_security_operation",
+      "query": "O que aconteceu na megaoperação contra o Comando Vermelho no Rio e quais foram as consequências e investigações?",
+      "relevant_urls": [
+        "https://g1.globo.com/jornal-nacional/noticia/2025/10/28/operacao-policial-contra-o-comando-vermelho-e-a-mais-letal-da-historia-do-rio.ghtml",
+        "https://g1.globo.com/jornal-nacional/noticia/2025/10/28/operacao-policial-deflagrada-no-rio-foi-antecedida-por-investigacao-que-durou-mais-de-um-ano.ghtml",
+        "https://g1.globo.com/rj/rio-de-janeiro/noticia/2025/10/29/infografico-megaoperacao-rio.ghtml",
+        "https://g1.globo.com/politica/blog/valdo-cruz/post/2025/10/29/crise-no-rio-governo-lula-e-a-favor-de-forca-tarefa-para-montar-operacoes-mas-nao-de-glo.ghtml",
+        "https://g1.globo.com/rj/rio-de-janeiro/noticia/2025/10/30/o-que-se-sabe-e-o-que-falta-esclarecer-sobre-a-megaoperacao-nos-complexos-do-alemao-e-penha.ghtml",
+        "https://g1.globo.com/jornal-nacional/noticia/2025/10/31/policia-identifica-109-mortos-em-megaoperacao-no-rio-e-afirma-que-78-tinham-ficha-criminal.ghtml",
+        "https://g1.globo.com/jornal-nacional/noticia/2025/11/04/lula-chama-de-matanca-e-de-desastrosa-a-megaoperacao-no-rio-de-janeiro.ghtml",
+        "https://g1.globo.com/rj/rio-de-janeiro/noticia/2025/11/07/conselho-libera-mpf-para-acompanhar-investigacao-sobre-megaoperacao-no-rio.ghtml",
+        "https://g1.globo.com/politica/noticia/2025/11/10/megaoperacao-no-rio-moraes-aponta-contradicoes-e-pede-relatorios-sobre-prisoes-e-mandados.ghtml",
+        "https://g1.globo.com/rj/rio-de-janeiro/noticia/2025/12/02/mprj-oferece-novas-denuncias-contra-policiais-militares-por-crimes-na-megaoperacao-contencao.ghtml",
+        "https://g1.globo.com/rj/rio-de-janeiro/noticia/2026/04/02/pgr-vai-ao-supremo-por-acesso-aos-laudos-das-mortes-da-megaoperacao-contencao.ghtml"
+      ],
+      "ranked_urls": [
+        "https://g1.globo.com/ce/ceara/noticia/2025/10/25/a-cidade-cearense-que-vai-ter-novas-eleicoes-apos-interferencia-de-faccao-e-cassacao-de-prefeito.ghtml"
+      ],
+      "metrics": {
+        "metrics": [
+          {
+            "k": 1,
+            "hits": 0,
+            "precision": 0.0,
+            "recall": 0.0
+          },
+          {
+            "k": 3,
+            "hits": 0,
+            "precision": 0.0,
+            "recall": 0.0
+          },
+          {
+            "k": 5,
+            "hits": 0,
+            "precision": 0.0,
+            "recall": 0.0
+          },
+          {
+            "k": 10,
+            "hits": 0,
+            "precision": 0.0,
+            "recall": 0.0
+          },
+          {
+            "k": 20,
+            "hits": 0,
+            "precision": 0.0,
+            "recall": 0.0
+          }
+        ],
+        "relevant_total": 11,
+        "ranked_total": 1
+      }
+    },
+    {
+      "id": "banco_master",
+      "query": "Como evoluíram a crise, a liquidação e as investigações envolvendo o Banco Master?",
+      "relevant_urls": [
+        "https://g1.globo.com/df/distrito-federal/noticia/2025/06/17/cade-aprova-compra-do-banco-master-pelo-brb-banco-central-ainda-precisa-aprovar.ghtml",
+        "https://g1.globo.com/df/distrito-federal/noticia/2025/08/19/camara-do-df-da-aval-para-brb-comprar-parte-do-banco-master-oposicao-aciona-justica-para-barrar.ghtml",
+        "https://g1.globo.com/economia/noticia/2025/09/04/acoes-do-brb-despencam-depois-da-rejeicao-da-compra-do-banco-master-pelo-bc.ghtml",
+        "https://g1.globo.com/df/distrito-federal/noticia/2025/10/01/pf-abre-inquerito-para-apurar-envolvimento-do-banco-master-brb-crimes-financeiro.ghtml",
+        "https://g1.globo.com/economia/noticia/2025/11/18/banco-central-determina-a-liquidacao-extrajudicial-do-banco-master.ghtml",
+        "https://g1.globo.com/sp/sao-paulo/noticia/2025/11/18/pf-prende-daniel-vorcaro-dono-do-banco-master.ghtml",
+        "https://g1.globo.com/economia/noticia/2025/11/19/banco-master-o-que-se-sabe-sobre-a-crise.ghtml",
+        "https://g1.globo.com/jornal-nacional/noticia/2025/12/03/decisao-de-dias-toffoli-provoca-transferencia-das-investigacoes-sobre-banco-master-para-o-supremo.ghtml",
+        "https://g1.globo.com/sp/sao-paulo/noticia/2026/01/14/pf-faz-buscas-em-enderecos-de-daniel-vorcaro-e-parentes-dele.ghtml",
+        "https://g1.globo.com/economia/noticia/2026/01/17/fundo-garantidor-de-credito-comeca-a-pagar-neste-sabado-garantia-aos-credores-dos-banco-master.ghtml",
+        "https://g1.globo.com/rj/rio-de-janeiro/noticia/2026/01/23/pf-cumpre-mandados-no-rj-nesta-sexta.ghtml",
+        "https://g1.globo.com/economia/noticia/2026/02/18/fgc-ja-pagou-84percent-dos-credores-do-banco-master-no-total-de-r-372-bilhoes.ghtml",
+        "https://g1.globo.com/economia/noticia/2026/03/04/o-que-voce-precisa-saber-sobre-a-prisao-de-daniel-vorcaro-e-o-colapso-do-banco-master.ghtml",
+        "https://g1.globo.com/politica/noticia/2026/04/22/ativos-do-banco-master-cresceram-2123percent-apos-daniel-vorcaro-assumir-o-controle.ghtml"
+      ],
+      "ranked_urls": [
+        "https://g1.globo.com/economia/noticia/2026/01/14/do-banco-central-ao-stf-entenda-caso-banco-master.ghtml",
+        "https://g1.globo.com/economia/noticia/2026/01/08/banco-master-qual-o-papel-do-tcu-na-crise.ghtml",
+        "https://g1.globo.com/economia/noticia/2026/01/28/banqueiro-pastor-e-empresarios-quem-sao-os-principais-alvos-da-pf-no-caso-do-banco-master.ghtml",
+        "https://g1.globo.com/sp/sao-paulo/noticia/2025/11/21/banco-master-dois-presos-em-operacao-da-pf-sao-soltos.ghtml",
+        "https://g1.globo.com/economia/noticia/2025/11/19/banco-master-o-que-se-sabe-sobre-a-crise.ghtml",
+        "https://g1.globo.com/politica/noticia/2025/12/23/moraes-diz-que-encontrou-presidente-do-bc-para-tratar-da-lei-magnitsky.ghtml",
+        "https://g1.globo.com/economia/noticia/2026/03/04/o-que-voce-precisa-saber-sobre-a-prisao-de-daniel-vorcaro-e-o-colapso-do-banco-master.ghtml",
+        "https://g1.globo.com/politica/noticia/2025/11/18/banco-master-diretor-da-pf-diz-que-fraudes-podem-chegar-a-r-12-bilhoes-agentes-acharam-r-16-milhao-em-dinheiro-na-casa-de-investigado.ghtml",
+        "https://g1.globo.com/politica/noticia/2026/03/04/caso-master-daniel-vorcaro-ocultou-r-22-bilhoes-em-conta-do-pai-disse-pf-em-pedido-de-prisao-do-banqueiro.ghtml",
+        "https://g1.globo.com/politica/noticia/2026/01/03/veja-quem-e-quem-no-caso-do-banco-master-e-o-papel-de-cada-instituicao.ghtml",
+        "https://g1.globo.com/economia/noticia/2025/11/25/todos-vamos-pagar-um-pouco-do-prejuizo-do-caso-master-diz-economista.ghtml",
+        "https://g1.globo.com/economia/noticia/2026/03/04/cdbs-irreais-e-carteiras-de-credito-falsas-entenda-a-crise-que-derrubou-o-banco-master-e-levou-vorcaro-a-prisao.ghtml",
+        "https://g1.globo.com/economia/noticia/2025/11/18/banco-central-determina-a-liquidacao-extrajudicial-do-banco-master.ghtml",
+        "https://g1.globo.com/economia/noticia/2026/01/08/liquidacao-banco-master.ghtml",
+        "https://g1.globo.com/economia/noticia/2025/11/18/entenda-o-que-esta-por-tras-da-liquidacao-do-banco-master.ghtml",
+        "https://g1.globo.com/df/distrito-federal/noticia/2025/11/19/procedimentos-escusos-e-pura-camaradagem-como-aporte-de-r-167-bilhoes-no-banco-master-pode-ter-prejudicado-contas-do-brb.ghtml",
+        "https://g1.globo.com/df/distrito-federal/noticia/2025/11/18/brb-injetou-r-167-bilhoes-no-banco-master-entre-2024-e-2025-mp-ve-indicios-de-gestao-fraudulenta.ghtml",
+        "https://g1.globo.com/economia/noticia/2025/12/24/tofolli-marca-para-dia-30-acareacao-sobre-o-master-entre-ex-brb-vorcaro-e-diretor-do-bc.ghtml",
+        "https://g1.globo.com/politica/noticia/2026/03/04/master-defesa-de-vorcaro-nega-acusacoes-advogado-diz-que-zettel-esta-a-disposicao-o-que-dizem-os-investigados.ghtml",
+        "https://g1.globo.com/economia/noticia/2026/01/15/entenda-envolvimento-reag-banco-master.ghtml",
+        "https://g1.globo.com/df/distrito-federal/noticia/2026/02/25/distritais-acionam-mp-e-governo-do-df-para-barrar-daniel-vorcaro-em-reuniao-de-acionistas-do-brb.ghtml",
+        "https://g1.globo.com/economia/noticia/2026/01/15/entenda-liquidacao-reag.ghtml",
+        "https://g1.globo.com/politica/noticia/2026/03/04/decisao-de-mendonca-que-levou-a-prisao-de-vorcaro-cita-organizacao-criminosa-danos-bilionarios-e-ameaca-as-investigacoes.ghtml",
+        "https://g1.globo.com/politica/noticia/2026/02/13/suspeicao-de-toffoli-poderia-anular-atos-do-ministro-no-caso-master-stf-optou-por-outra-saida.ghtml",
+        "https://g1.globo.com/economia/noticia/2026/01/05/tcu-confirma-autorizacao-de-inspecao-no-bc-sobre-liquidacao-do-master.ghtml",
+        "https://g1.globo.com/politica/noticia/2026/01/24/depoimento-vorcaro-encontro-ibaneis-master.ghtml",
+        "https://g1.globo.com/economia/noticia/2026/02/10/como-dinheiro-do-contribuinte-pode-acabar-sendo-usado-para-cobrir-parte-do-rombo-bilionario-do-banco-master.ghtml",
+        "https://g1.globo.com/economia/noticia/2026/03/04/quem-e-daniel-vorcaro-dono-do-banco-master-preso-em-nova-operacao-da-pf.ghtml",
+        "https://g1.globo.com/jornal-nacional/noticia/2025/11/18/banco-central-decreta-liquidacao-extrajudicial-do-master-e-preserva-sistema-financeiro-nacional.ghtml",
+        "https://g1.globo.com/politica/blog/camila-bomfim/post/2025/12/24/toffoli-manda-acareacao-do-ex-presidente-do-brb-com-vorcaro-dono-do-banco-master.ghtml",
+        "https://g1.globo.com/rj/rio-de-janeiro/post/2026/02/10/caso-master-estado-do-rj-e-4-cidades-ficam-sem-receber-recursos-voluntarios-da-uniao-e-pegar-emprestimos-em-bancos-federais.ghtml",
+        "https://g1.globo.com/df/distrito-federal/noticia/2026/02/06/brb-entrega-plano-de-capital-ao-banco-central.ghtml",
+        "https://g1.globo.com/jornal-nacional/noticia/2026/01/15/banco-central-liquida-empresa-investigada-por-ligacoes-com-banco-master-e-pcc.ghtml",
+        "https://g1.globo.com/politica/blog/natuza-nery/post/2026/02/09/cvm-comeca-hoje-nova-apuracao-sobre-acoes-do-master-e-da-reag.ghtml",
+        "https://g1.globo.com/df/distrito-federal/noticia/2026/02/06/prazo-para-brb-dizer-ao-bc-como-vai-recompor-r-5-bilhoes-termina-nesta-sexta-veja-o-que-ja-se-sabe.ghtml",
+        "https://g1.globo.com/politica/blog/valdo-cruz/post/2026/01/29/bc-abre-investigacao-interna-para-apurar-conducao-do-caso-master.ghtml",
+        "https://g1.globo.com/politica/blog/natuza-nery/post/2026/02/12/investigadores-avaliam-que-entregar-dados-de-celulares-a-toffoli-pode-comprometer-outras-investigacoes-ligadas-ao-master.ghtml",
+        "https://g1.globo.com/economia/negocios/noticia/2026/01/15/reag-veja-quem-controla-gestora.ghtml",
+        "https://g1.globo.com/economia/negocios/noticia/2026/02/02/quem-e-o-grupo-fictor-recuperacao-judicial.ghtml",
+        "https://g1.globo.com/politica/blog/valdo-cruz/post/2025/12/30/em-resposta-ao-tcu-bc-cita-nova-investigacao-sigilosa-sobre-fraudes-do-master.ghtml",
+        "https://g1.globo.com/politica/noticia/2025/11/18/saiba-quem-sao-os-diretores-do-banco-master-presos-pela-pf-nesta-terca.ghtml",
+        "https://g1.globo.com/jornal-nacional/noticia/2026/01/09/caso-master-presidente-do-tcu-admite-que-banco-central-acertou-ao-determinar-a-liquidacao.ghtml",
+        "https://g1.globo.com/politica/noticia/2026/03/04/servidores-banco-central-afastados-operacao-pf-banco-master.ghtml",
+        "https://g1.globo.com/economia/noticia/2026/02/03/caso-master-haddad-diz-que-o-que-aconteceu-e-muito-grave-e-que-e-preciso-rastrear-e-recuperar-o-dinheiro.ghtml",
+        "https://g1.globo.com/economia/noticia/2026/02/26/fictor-recuperacao-judicial.ghtml",
+        "https://g1.globo.com/jornal-nacional/noticia/2026/02/04/policia-federal-abre-inquerito-para-investigar-grupo-fictor-que-tentou-comprar-o-banco-master.ghtml",
+        "https://g1.globo.com/economia/noticia/2026/03/03/caso-master-banco-central-decide-mudar-regra-do-compulsorio-para-pagar-conta-do-fgc.ghtml",
+        "https://g1.globo.com/df/distrito-federal/noticia/2026/02/03/brb-tem-ate-sexta-para-dizer-ao-bc-como-vai-recompor-ao-menos-r-5-bilhoes-em-seu-balanco-entenda.ghtml",
+        "https://g1.globo.com/sp/sao-paulo/noticia/2026/01/22/manifestantes-protestam-em-frente-a-sede-do-banco-master-no-itaim-bibi-zona-oeste-de-sp.ghtml",
+        "https://g1.globo.com/politica/blog/camila-bomfim/post/2026/01/29/influenciadores-expoem-pedidos-em-nome-do-brb-para-tratar-do-caso-master-nas-redes.ghtml",
+        "https://g1.globo.com/politica/blog/camila-bomfim/post/2026/02/04/presidente-do-brb-viaja-nesta-quarta-para-negociar-venda-de-carteiras-de-credito-do-master-na-faria-lima.ghtml",
+        "https://g1.globo.com/politica/noticia/2026/02/10/caso-master-comissao-do-senado-aprova-audiencias-com-pf-bc-cvm-e-ex-diretor-do-brb.ghtml",
+        "https://g1.globo.com/jornal-nacional/noticia/2025/12/30/policia-federal-interroga-dono-do-banco-master-ex-presidente-do-banco-de-brasilia-e-diretor-de-fiscalizacao-do-banco-central.ghtml",
+        "https://g1.globo.com/am/amazonas/noticia/2025/11/19/amazonprev-aplicou-r-50-milhoes-no-banco-master-antes-da-liquidacao-decretada-pelo-banco-central.ghtml",
+        "https://g1.globo.com/sp/ribeirao-preto-franca/noticia/2026/02/03/grupo-fictor-tem-mais-de-90-credores-em-ribeirao-preto-dividas-somam-r-534-milhoes.ghtml",
+        "https://g1.globo.com/economia/noticia/2026/01/19/caso-master-fgc-recebeu-600-mil-pedidos-do-total-de-800-mil-credores.ghtml",
+        "https://g1.globo.com/politica/blog/valdo-cruz/post/2026/02/18/banco-pleno-era-de-banqueiro-ligado-a-petistas-da-bahia.ghtml",
+        "https://g1.globo.com/economia/noticia/2026/02/09/banco-central-fgc.ghtml",
+        "https://g1.globo.com/politica/noticia/2026/03/04/caso-master-bc-diz-que-identificou-indicios-de-vantagens-indevidas-a-servidores-alvos-da-operacao-da-pf-que-prendeu-vorcaro.ghtml",
+        "https://g1.globo.com/politica/blog/valdo-cruz/post/2026/02/04/pf-abre-inquerito-para-investiga-o-fictor-grupo-que-fez-proposta-para-comprar-o-banco-master.ghtml",
+        "https://g1.globo.com/jornal-nacional/noticia/2026/01/05/ministro-do-tcu-considera-suspender-parte-da-liquidacao-do-banco-master.ghtml",
+        "https://g1.globo.com/economia/noticia/2026/01/13/haddad-diz-que-bc-faz-trabalho-robusto-no-caso-do-banco-master-e-diz-que-foi-a-maior-fraude-bancaria-do-pais.ghtml",
+        "https://g1.globo.com/economia/noticia/2026/02/18/banco-central-decreta-liquidacao-do-banco-pleno.ghtml",
+        "https://g1.globo.com/politica/noticia/2026/02/05/lula-diz-que-recebeu-vorcaro-e-garante-que-nao-havera-posicao-politica-pro-ou-contra-master.ghtml",
+        "https://g1.globo.com/politica/blog/natuza-nery/post/2026/02/02/gestao-fraudulenta-instituicao-financeira-caso-master.ghtml",
+        "https://g1.globo.com/economia/noticia/2026/02/09/gabriel-galipolo-abbc.ghtml",
+        "https://g1.globo.com/mg/triangulo-mineiro/noticia/2026/01/27/prefeitura-de-uberaba-rompe-com-banco-master-para-emprestimos-e-cartoes-de-credito-com-pagamentos-consignados.ghtml",
+        "https://g1.globo.com/politica/blog/valdo-cruz/post/2025/12/30/clima-no-stf-foi-de-tensao-entre-delegada-da-pf-e-juiz-auxiliar-de-toffoli.ghtml",
+        "https://g1.globo.com/economia/noticia/2026/02/06/cvm-cria-grupo-para-analisar-informacoes-sobre-banco-master-reag-e-entidades-ligadas-ao-caso.ghtml",
+        "https://g1.globo.com/rj/rio-de-janeiro/noticia/2026/02/04/tce-rj-vai-investigar-investimentos-da-cedae-no-banco-master.ghtml",
+        "https://g1.globo.com/politica/noticia/2025/12/30/vorcaro-brasilia-pf.ghtml",
+        "https://g1.globo.com/jornal-nacional/noticia/2026/01/30/em-depoimento-diretor-de-fiscalizacao-do-bc-diz-que-master-tinha-apenas-r-4-milhoes-em-caixa-quando-foi-liquidado.ghtml",
+        "https://g1.globo.com/politica/noticia/2025/12/29/caso-master-pf-colhe-depoimentos-nesta-terca-e-decide-se-fara-acareacao-entre-vorcaro-ex-presidente-do-brb-e-diretor-do-bc.ghtml",
+        "https://g1.globo.com/jornal-nacional/noticia/2026/01/29/banco-master-e-suspeito-de-irregularidades-na-venda-de-credito-consignado-para-milhares-de-aposentados-e-pensionistas-cpi-do-inss-convoca-daniel-vorcaro.ghtml",
+        "https://g1.globo.com/politica/blog/valdo-cruz/post/2025/12/31/bc-fica-aliviado-com-exclusao-de-diretor-da-acareacao-com-dono-do-master.ghtml",
+        "https://g1.globo.com/jornal-nacional/noticia/2025/12/29/banco-central-apresenta-ao-tcu-historico-da-crise-financeira-do-banco-master.ghtml",
+        "https://g1.globo.com/sp/ribeirao-preto-franca/noticia/2026/03/02/banco-master-cpi-em-brodowski-envia-questionamentos-a-orgao-de-previdencia-e-da-prazo-de-48-horas.ghtml",
+        "https://g1.globo.com/jornal-nacional/noticia/2025/12/27/dias-toffoli-rejeita-recurso-do-banco-central-e-mantem-urgencia-na-acareacao-do-caso-master.ghtml",
+        "https://g1.globo.com/economia/noticia/2026/02/18/fgc-ja-pagou-84percent-dos-credores-do-banco-master-no-total-de-r-372-bilhoes.ghtml",
+        "https://g1.globo.com/politica/noticia/2026/01/29/em-acareacao-vorcaro-e-ex-presidente-do-brb-se-contradizem-sobre-origem-dos-papeis-vendidos-pelo-master.ghtml",
+        "https://g1.globo.com/al/alagoas/noticia/2025/11/19/crise-na-previdencia-de-maceio-r-117-milhoes-em-risco-com-a-liquidacao-do-banco-master.ghtml",
+        "https://g1.globo.com/politica/blog/andreia-sadi/post/2026/01/23/vorcaro-diz-que-area-de-fiscalizacao-do-bc-agiu-com-normalidade-sobre-negocios-com-brb.ghtml",
+        "https://g1.globo.com/politica/noticia/2025/12/30/caso-master-vorcaro-conclui-depoimento-e-pf-ainda-nao-decidiu-sobre-acareacao.ghtml",
+        "https://g1.globo.com/rj/rio-de-janeiro/noticia/2025/11/22/governo-do-rj-mantem-credito-consignado-do-banco-master-mesmo-apos-operacao-da-pf.ghtml",
+        "https://g1.globo.com/politica/blog/camila-bomfim/post/2026/02/04/parecer-juridico-do-brb-recomendou-atencao-a-operacoes-com-o-master-quatro-dias-antes-de-tentativa-de-compra.ghtml",
+        "https://g1.globo.com/politica/noticia/2026/02/01/presidente-da-cpi-do-inss-diz-a-toffoli-que-comissao-precisa-do-depoimento-do-banqueiro-daniel-vorcaro.ghtml",
+        "https://g1.globo.com/politica/noticia/2025/12/29/banco-central-entrega-ao-tcu-explicacoes-sobre-liquidacao-do-banco-master.ghtml",
+        "https://g1.globo.com/jornal-nacional/noticia/2026/01/06/banco-central-recorre-da-decisao-do-tcu-de-fazer-inspecao-em-documentos-da-liquidacao-do-master.ghtml",
+        "https://g1.globo.com/politica/blog/valdo-cruz/post/2025/12/29/antes-de-acareacao-pf-e-stf-vao-tomar-depoimentos-de-dono-do-master-ex-presidente-do-brb-e-diretor-do-bc.ghtml",
+        "https://g1.globo.com/politica/blog/natuza-nery/post/2026/02/04/prisao-de-ex-presidente-da-rioprevidencia-amplia-lista-de-crimes-investigados-no-caso-master.ghtml",
+        "https://g1.globo.com/politica/blog/valdo-cruz/post/2025/12/29/caso-master-tecnicos-do-bc-seguem-sem-entender-razao-de-acareacao-e-temem-tentativa-de-envolvimento-do-banco.ghtml",
+        "https://g1.globo.com/politica/noticia/2026/01/30/em-depoimento-diretor-do-bc-diz-que-master-tinha-apenas-r-4-milhoes-em-caixa-antes-de-liquidacao.ghtml",
+        "https://g1.globo.com/rj/rio-de-janeiro/noticia/2026/02/06/pf-investiga-destruicao-de-imagens-de-circuito-interno-de-cameras-de-predio-onde-mora-ex-presidente-do-rioprevidencia.ghtml",
+        "https://g1.globo.com/politica/blog/valdo-cruz/post/2026/01/27/devolucao-do-caso-master-para-justica-federal-pode-ter-vida-curta-ou-vai-sepultar-investigacao-de-peixes-graudos.ghtml",
+        "https://g1.globo.com/politica/noticia/2026/01/29/antes-da-liquidacao-da-will-diretor-do-bc-disse-que-eventuais-problemas-na-instituicao-poderiam-aumentar-prejuizo-do-brb.ghtml",
+        "https://g1.globo.com/politica/blog/valdo-cruz/post/2025/11/18/pf-vai-expor-os-tentaculos-politicos-no-master-e-assusta-brasilia.ghtml",
+        "https://g1.globo.com/economia/blog/ana-flor/post/2026/02/06/area-tecnica-do-tcu-conclui-relatorio-sobre-caso-master-e-agora-vai-enviar-documento-ao-ministro-relator.ghtml",
+        "https://g1.globo.com/sp/ribeirao-preto-franca/noticia/2026/02/06/banco-master-cpi-em-brodowski-sp-apura-investimentos-da-previdencia-de-servidores-municipais.ghtml",
+        "https://g1.globo.com/politica/blog/valdo-cruz/post/2026/01/12/ministros-do-tcu-querem-distancia-do-caso-master-plenario-nao-deve-aprovar-inspecao-no-bc.ghtml",
+        "https://g1.globo.com/politica/blog/camila-bomfim/post/2026/02/09/diretor-juridico-do-brb-renuncia-em-meio-ao-caso-master.ghtml"
+      ],
+      "metrics": {
+        "metrics": [
+          {
+            "k": 1,
+            "hits": 0,
+            "precision": 0.0,
+            "recall": 0.0
+          },
+          {
+            "k": 3,
+            "hits": 0,
+            "precision": 0.0,
+            "recall": 0.0
+          },
+          {
+            "k": 5,
+            "hits": 1,
+            "precision": 0.2,
+            "recall": 0.07142857142857142
+          },
+          {
+            "k": 10,
+            "hits": 2,
+            "precision": 0.2,
+            "recall": 0.14285714285714285
+          },
+          {
+            "k": 20,
+            "hits": 3,
+            "precision": 0.15,
+            "recall": 0.21428571428571427
+          }
+        ],
+        "relevant_total": 14,
+        "ranked_total": 100
+      }
+    },
+    {
+      "id": "brazil_selic_inflation",
+      "query": "Como as decisões do Banco Central sobre a Selic e a inflação afetaram a economia brasileira em 2025 e 2026?",
+      "relevant_urls": [
+        "https://g1.globo.com/economia/noticia/2025/06/18/selic-15percent.ghtml",
+        "https://g1.globo.com/economia/noticia/2025/06/19/copom-crava-selic-em-15percent-e-juros-mais-altos-por-tempo-bastante-prolongado-veja-recados.ghtml",
+        "https://g1.globo.com/economia/noticia/2025/07/10/ipca-precos-sobem-024percent-em-junho-diz-ibge.ghtml",
+        "https://g1.globo.com/economia/noticia/2025/07/30/copom-interrompe-ciclo-de-alta-de-juros-e-mantem-selic-em-15percent-ao-ano.ghtml",
+        "https://g1.globo.com/economia/noticia/2025/09/17/banco-central-mantem-taxa-basica-de-juros-em-15percent-ao-ano.ghtml",
+        "https://g1.globo.com/jornal-nacional/noticia/2025/11/05/copom-mantem-pela-terceira-vez-seguida-taxa-basica-de-juros-em-15percent-ao-ano.ghtml",
+        "https://g1.globo.com/jornal-nacional/noticia/2025/12/10/copom-mantem-taxa-basica-de-juros-em-15percent-pela-quarta-vez-seguida.ghtml",
+        "https://g1.globo.com/economia/noticia/2026/01/09/ipca-precos-sobem-051-em-dezembro.ghtml",
+        "https://g1.globo.com/economia/noticia/2026/01/29/com-selic-alta-para-conter-inflacao-juro-bancario-sobe-em-2025-credito-desacelera-e-inadimplencia-avanca.ghtml",
+        "https://g1.globo.com/jornal-nacional/noticia/2026/03/18/copom-reduz-taxa-basica-de-juros-em-025-ponto-percentual-selic-vai-para-1475percent-ao-ano.ghtml",
+        "https://g1.globo.com/jornal-nacional/noticia/2026/03/24/copom-afirma-que-guerra-no-oriente-medio-esta-entre-os-fatores-que-vao-determinar-o-futuro-da-taxa-de-juros-do-brasil.ghtml",
+        "https://g1.globo.com/economia/noticia/2026/04/29/copom-reduz-a-taxa-basica-de-juros-da-economia-a-selic-de-1475percent-para-145percent-ao-ano.ghtml",
+        "https://g1.globo.com/economia/noticia/2026/05/04/mercado-eleva-estimativa-de-inflacao-para-489percent-em-2026-na-8a-alta-seguida.ghtml"
+      ],
+      "ranked_urls": [
+        "https://g1.globo.com/economia/noticia/2025/09/10/dolar-ibovespa.ghtml",
+        "https://g1.globo.com/economia/noticia/2026/01/13/dolar-ibovespa.ghtml",
+        "https://g1.globo.com/economia/noticia/2025/12/15/dolar-ibovespa.ghtml",
+        "https://g1.globo.com/economia/noticia/2025/11/05/brasil-ranking-juros-reais-novembro.ghtml",
+        "https://g1.globo.com/economia/noticia/2025/09/17/brasil-ranking-juros-reais-setembro.ghtml",
+        "https://g1.globo.com/economia/noticia/2025/07/21/dolar-ibovespa.ghtml",
+        "https://g1.globo.com/economia/noticia/2025/09/08/dolar-ibovespa.ghtml",
+        "https://g1.globo.com/economia/noticia/2026/02/03/dolar-ibovespa.ghtml",
+        "https://g1.globo.com/economia/noticia/2025/11/24/dolar-ibovespa.ghtml",
+        "https://g1.globo.com/economia/noticia/2025/10/16/dolar-ibovespa.ghtml",
+        "https://g1.globo.com/economia/noticia/2026/01/27/dolar-ibovespa.ghtml",
+        "https://g1.globo.com/economia/noticia/2025/12/10/dolar-ibovespa.ghtml",
+        "https://g1.globo.com/economia/noticia/2025/10/06/dolar-ibovespa.ghtml",
+        "https://g1.globo.com/economia/noticia/2025/08/04/dolar-ibovespa.ghtml",
+        "https://g1.globo.com/economia/noticia/2025/12/09/dolar-ibovespa.ghtml",
+        "https://g1.globo.com/economia/noticia/2025/08/18/dolar-ibovespa.ghtml",
+        "https://g1.globo.com/economia/noticia/2026/01/29/dolar-ibovespa.ghtml",
+        "https://g1.globo.com/economia/noticia/2026/02/09/dolar-abre-atento-ao-boletim-focus-e-a-falas-de-galipolo.ghtml",
+        "https://g1.globo.com/economia/noticia/2025/08/11/dolar-ibovespa.ghtml",
+        "https://g1.globo.com/economia/noticia/2025/12/12/dolar-ibovespa.ghtml",
+        "https://g1.globo.com/economia/noticia/2025/12/08/dolar-ibovespa.ghtml",
+        "https://g1.globo.com/economia/noticia/2025/10/14/fmi-melhora-projecao-para-economia-do-brasil-em-2025-mas-ve-desaceleracao-mais-forte-em-2026.ghtml",
+        "https://g1.globo.com/economia/noticia/2025/05/27/dolar-ibovespa.ghtml",
+        "https://g1.globo.com/economia/noticia/2025/12/11/dolar-ibovespa.ghtml",
+        "https://g1.globo.com/economia/noticia/2026/01/02/dolar-ibovespa.ghtml",
+        "https://g1.globo.com/economia/noticia/2025/12/29/dolar-ibovespa.ghtml",
+        "https://g1.globo.com/economia/noticia/2025/12/18/dolar-ibovespa.ghtml",
+        "https://g1.globo.com/economia/noticia/2025/06/20/dolar-ibovespa.ghtml",
+        "https://g1.globo.com/economia/noticia/2025/09/29/dolar-ibovespa.ghtml",
+        "https://g1.globo.com/economia/noticia/2025/07/30/dolar-ibovespa.ghtml",
+        "https://g1.globo.com/economia/noticia/2025/10/01/shutdown-como-a-crise-orcamentaria-nos-eua-afetar-o-dolar-e-a-bolsa-brasileira.ghtml",
+        "https://g1.globo.com/economia/noticia/2025/11/06/juro-estavel-em-15percent-ao-ano-antes-mesmo-de-decisao-banco-central-foi-defendido-por-campos-neto-e-criticado-por-haddad.ghtml",
+        "https://g1.globo.com/economia/noticia/2025/04/22/fmi-reduz-projecoes-para-o-pib-do-brasil-para-2percent-em-2025-e-2026.ghtml",
+        "https://g1.globo.com/economia/noticia/2025/05/06/dolar-ibovespa.ghtml",
+        "https://g1.globo.com/economia/noticia/2025/05/07/dolar-ibovespa.ghtml",
+        "https://g1.globo.com/economia/noticia/2025/04/23/banco-mundial-estimativa-crescimento.ghtml",
+        "https://g1.globo.com/economia/noticia/2025/05/05/dolar-ibovespa.ghtml",
+        "https://g1.globo.com/economia/noticia/2026/02/03/haddad-confirma-indicacao-de-guilherme-mello-para-a-diretoria-do-bc-mas-diz-que-decisao-ainda-nao-foi-tomada-por-lula.ghtml",
+        "https://g1.globo.com/economia/noticia/2026/01/19/fmi-eleva-previsao-para-a-economia-global-em-2026-mas-reduz-crescimento-do-brasil.ghtml",
+        "https://g1.globo.com/economia/noticia/2025/06/10/banco-mundial-previsao-de-crescimento-global.ghtml",
+        "https://g1.globo.com/economia/noticia/2025/12/10/decisao-fed-juros-eua-dezembro.ghtml",
+        "https://g1.globo.com/economia/noticia/2026/01/28/decisao-fed-juros-eua-janeiro.ghtml",
+        "https://g1.globo.com/economia/noticia/2025/06/19/copom-crava-selic-em-15percent-e-juros-mais-altos-por-tempo-bastante-prolongado-veja-recados.ghtml",
+        "https://g1.globo.com/economia/noticia/2025/04/17/trump-diz-que-powell-esta-atrasado-e-errado-sobre-juros-nos-eua-e-que-fim-do-mandato-nao-chega-rapido-o-suficiente.ghtml",
+        "https://g1.globo.com/economia/noticia/2025/08/27/trump-x-fed-como-a-pressao-sobre-lisa-cook-pode-impactar-a-economia-dos-eua-e-do-brasil.ghtml",
+        "https://g1.globo.com/economia/noticia/2025/08/25/boletim-focus-mercado-baixa-expectativa-de-inflacao-de-2025-pela-13a-semana-seguida-para-486percent.ghtml",
+        "https://g1.globo.com/economia/noticia/2025/12/30/dolar-tera-queda-em-2025-veja-por-que.ghtml",
+        "https://g1.globo.com/economia/noticia/2025/12/30/ibovespa-dispara-apesar-dos-juros-elevados.ghtml",
+        "https://g1.globo.com/economia/noticia/2025/08/14/tarifaco-analistas-veem-impacto-favoravel-na-inflacao-brasileira-em-2025-cenario-e-incerto-no-futuro.ghtml",
+        "https://g1.globo.com/economia/noticia/2025/09/17/por-que-o-copom-manteve-a-selic-em-15percent-apos-deflacao-e-melhora-das-expectativas-do-mercado.ghtml",
+        "https://g1.globo.com/economia/noticia/2026/01/28/dolar-em-queda-frente-ao-real-o-que-explica.ghtml",
+        "https://g1.globo.com/economia/noticia/2026/01/26/boletim-focus-mercado-reduz-para-4percent-estimativa-de-inflacao-em-2026.ghtml",
+        "https://g1.globo.com/economia/noticia/2025/06/21/congresso-protege-o-andar-de-cima-ao-resistir-a-alta-de-impostos-de-haddad-diz-economista.ghtml",
+        "https://g1.globo.com/economia/noticia/2026/02/02/boletim-focus-mercado-financeiro-passa-a-prever-inflacao-abaixo-de-4percent-para-2026.ghtml",
+        "https://g1.globo.com/economia/noticia/2025/09/23/haddad-ve-espaco-para-juro-cair-acredito-que-nem-deveria-estar-em-15percent-ao-ano.ghtml",
+        "https://g1.globo.com/economia/noticia/2025/04/22/galipolo-ve-inflacao-disseminada-e-diz-que-bc-e-o-chato-da-festa-quando-o-pessoal-esta-subindo-em-cima-da-mesa-tira-a-bebida.ghtml",
+        "https://g1.globo.com/economia/noticia/2026/01/29/brasil-registra-criacao-de-127-milhao-de-novos-empregos-formais-em-2025-pior-saldo-desde-2020.ghtml",
+        "https://g1.globo.com/economia/noticia/2025/09/29/bc-galipolo-copom-selic-15-juros-itau.ghtml",
+        "https://g1.globo.com/economia/noticia/2025/11/04/haddad-diz-que-brasil-entra-em-2026-tranquilo-com-melhor-resultado-fiscal-em-quatro-anos.ghtml",
+        "https://g1.globo.com/economia/noticia/2025/05/07/copom-eleva-taxa-de-juros-para-1475percent-ao-ano-maior-patamar-em-quase-20-anos.ghtml",
+        "https://g1.globo.com/economia/noticia/2025/09/25/presidente-do-bc-diz-que-e-legitimo-haddad-criticar-politica-de-juros-acho-um-luxo-a-delicadeza.ghtml",
+        "https://g1.globo.com/economia/noticia/2026/01/05/veja-os-precos-que-mais-cairam-e-os-que-mais-subiram-em-2025.ghtml",
+        "https://g1.globo.com/economia/noticia/2025/05/07/copom-deve-subir-juro-para-1475percent-ao-ano-o-maior-patamar-em-quase-duas-decadas.ghtml",
+        "https://g1.globo.com/economia/noticia/2025/08/11/galipolo-fala-que-tarifaco-e-oportunidade-de-protecao-para-brasil.ghtml",
+        "https://g1.globo.com/economia/noticia/2025/12/04/brasil-do-pleno-emprego-ve-economia-desacelerar-por-que-isso-e-considerado-positivo-por-alguns-economistas.ghtml",
+        "https://g1.globo.com/economia/noticia/2025/09/17/banco-central-mantem-taxa-basica-de-juros-em-15percent-ao-ano.ghtml",
+        "https://g1.globo.com/economia/noticia/2025/07/09/sem-vitoria-por-ippon-galipolo-ve-desafio-gradual-para-reduzir-juros-e-inflacao.ghtml",
+        "https://g1.globo.com/economia/noticia/2025/12/01/galipolo-ve-mercado-de-trabalho-aquecido-e-diz-que-cenario-demanda-bc-conservador.ghtml",
+        "https://g1.globo.com/economia/noticia/2025/08/12/ipca-precos-sobem-026percent-em-julho-diz-ibge.ghtml",
+        "https://g1.globo.com/economia/noticia/2025/11/11/bc-nao-indica-quando-comecara-a-baixar-juro-mas-diz-ter-maior-conviccao-que-juro-atual-e-suficiente-para-atingir-meta.ghtml",
+        "https://g1.globo.com/politica/noticia/2025/10/03/lula-volta-a-criticar-selic-temos-problema-com-a-taxa-de-juros-que-esta-alta.ghtml",
+        "https://g1.globo.com/economia/noticia/2025/06/24/bc-confirma-parada-na-alta-de-juro-e-diz-que-e-cedo-para-concluir-qual-sera-o-impacto-da-guerra-no-ira-sobre-o-petroleo-e-a-economia.ghtml",
+        "https://g1.globo.com/economia/noticia/2025/06/16/com-mercado-financeiro-dividido-banco-central-pode-interromper-ciclo-de-alta-dos-juros-nesta-quarta.ghtml",
+        "https://g1.globo.com/jornal-nacional/noticia/2025/11/11/outubro-registra-a-menor-inflacao-em-27-anos-dolar-atinge-menor-cotacao-em-17-meses.ghtml",
+        "https://g1.globo.com/economia/noticia/2025/07/30/copom-interrompe-ciclo-de-alta-de-juros-e-mantem-selic-em-15percent-ao-ano.ghtml",
+        "https://g1.globo.com/economia/noticia/2025/09/25/bc-reduz-estimativa-de-alta-do-pib-para-2percent-em-2025-e-segue-vendo-estouro-da-meta-de-inflacao-ate-o-fim-do-ano.ghtml",
+        "https://g1.globo.com/economia/noticia/2025/11/25/galipolo-critica-especialistas-de-whatsapp-e-diz-que-bc-seguiu-regras-ao-liquidar-banco-master-e-manter-juros-elevados.ghtml",
+        "https://g1.globo.com/economia/noticia/2025/06/19/selic-a-15percent-o-que-muda-no-seu-bolso-e-como-ficam-poupanca-cdb-e-tesouro.ghtml",
+        "https://g1.globo.com/economia/noticia/2025/04/13/o-peso-da-inflacao-real-perdeu-87percent-do-valor-desde-o-lancamento-r-100-em-1994-equivalem-a-r-127-hoje.ghtml",
+        "https://g1.globo.com/economia/noticia/2025/11/05/pela-3a-vez-seguida-copom-deve-manter-juro-basico-em-15percent-ao-ano-maior-nivel-em-quase-20-anos.ghtml",
+        "https://g1.globo.com/economia/noticia/2025/07/30/apos-10-meses-subindo-juros-bc-deve-concluir-ciclo-de-alta-e-iniciar-periodo-longo-de-manutencao.ghtml",
+        "https://g1.globo.com/jornal-nacional/noticia/2025/09/17/juros-basicos-caem-nos-eua-e-ficam-inalterados-no-brasil.ghtml",
+        "https://g1.globo.com/economia/noticia/2025/12/18/com-juro-alto-bc-preve-alta-de-16percent-para-o-pib-em-2026-marcado-por-eleicoes-pior-resultado-em-seis-anos.ghtml",
+        "https://g1.globo.com/economia/noticia/2026/02/03/ata-do-copom-banco-central-confirma-sinalizacao-de-corte-de-juros-em-marco-mas-nao-da-pistas-sobre-tamanho-do-ciclo.ghtml",
+        "https://g1.globo.com/economia/noticia/2025/11/12/todo-mundo-pode-brigar-com-o-bc-o-bc-que-nao-pode-brigar-com-os-dados-diz-galipolo-sobre-juro-alto.ghtml",
+        "https://g1.globo.com/economia/noticia/2026/01/28/copom-mantem-taxa-basica-de-juros-em-15percent-ao-ano-maior-nivel-em-quase-20-anos.ghtml",
+        "https://g1.globo.com/economia/noticia/2025/12/16/ata-do-copom-bc-ve-melhora-no-cenario-para-inflacao-mas-diz-que-permanecera-vigilante-e-nao-indica-quando-pode-baixar-juro.ghtml",
+        "https://g1.globo.com/economia/noticia/2025/06/02/galipolo-economia-esta-resiliente-e-taxa-de-juros-devera-entrar-em-fase-contacionista.ghtml",
+        "https://g1.globo.com/economia/noticia/2025/05/19/faz-sentido-manter-juros-mais-altos-por-um-tempo-mais-prolongado-diz-presidente-do-bc.ghtml",
+        "https://g1.globo.com/economia/noticia/2026/01/30/taxa-media-de-desemprego-fica-em-134percent-em-2025-diz-ibge.ghtml",
+        "https://g1.globo.com/economia/noticia/2025/07/08/presidente-do-bc-vai-escrever-mais-uma-carta-ao-ministro-da-fazenda-sobre-o-descumprimento-da-meta-de-inflacao.ghtml",
+        "https://g1.globo.com/economia/noticia/2025/12/10/na-ultima-reuniao-de-2025-copom-deve-manter-novamente-juro-estavel-em-15percent-ao-ano.ghtml",
+        "https://g1.globo.com/economia/noticia/2025/04/29/presidente-do-banco-central-diz-que-indicacao-de-alta-de-juros-em-maio-segue-valendo.ghtml",
+        "https://g1.globo.com/economia/noticia/2025/12/10/copom-mantem-taxa-basica-de-juros-em-15percent-pela-quarta-vez-seguida.ghtml",
+        "https://g1.globo.com/economia/noticia/2025/09/17/copom-define-taxa-de-juros-nesta-quarta-com-expectativa-para-manutencao-em-15percent-ao-ano.ghtml",
+        "https://g1.globo.com/economia/noticia/2026/01/28/na-primeira-reuniao-de-2026-copom-deve-manter-juro-estavel-em-15percent-ao-ano-maior-nivel-em-quase-20-anos.ghtml",
+        "https://g1.globo.com/economia/noticia/2025/06/23/banco-central-deve-comecar-a-cortar-taxa-de-juros-somente-a-partir-de-janeiro-preve-mercado-financeiro.ghtml",
+        "https://g1.globo.com/politica/noticia/2025/06/03/lula-diz-que-acredita-que-o-banco-central-vai-tomar-atitude-correta-e-comecar-a-baixar-os-juros.ghtml",
+        "https://g1.globo.com/economia/noticia/2026/01/29/com-selic-alta-para-conter-inflacao-juro-bancario-sobe-em-2025-credito-desacelera-e-inadimplencia-avanca.ghtml",
+        "https://g1.globo.com/ro/rondonia/especial-publicitario/sicoob-credisul/noticia/2026/02/04/bc-mantem-selic-em-15percent-e-cenario-abre-oportunidades-para-investir.ghtml"
+      ],
+      "metrics": {
+        "metrics": [
+          {
+            "k": 1,
+            "hits": 0,
+            "precision": 0.0,
+            "recall": 0.0
+          },
+          {
+            "k": 3,
+            "hits": 0,
+            "precision": 0.0,
+            "recall": 0.0
+          },
+          {
+            "k": 5,
+            "hits": 0,
+            "precision": 0.0,
+            "recall": 0.0
+          },
+          {
+            "k": 10,
+            "hits": 0,
+            "precision": 0.0,
+            "recall": 0.0
+          },
+          {
+            "k": 20,
+            "hits": 0,
+            "precision": 0.0,
+            "recall": 0.0
+          }
+        ],
+        "relevant_total": 13,
+        "ranked_total": 100
+      }
+    }
+  ]
+}

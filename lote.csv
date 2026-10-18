@@ -1,0 +1,8 @@
+id,query,relevant_total,ranked_total,hits@1,precision@1,recall@1,hits@3,precision@3,recall@3,hits@5,precision@5,recall@5,hits@10,precision@10,recall@10,hits@20,precision@20,recall@20
+bolsonaro_stf_coup_trial,Quais foram os principais desdobramentos do julgamento de Jair Bolsonaro e da trama golpista no STF?,13,6,0,0.0,0.0,1,0.3333333333333333,0.07692307692307693,1,0.2,0.07692307692307693,1,0.16666666666666666,0.07692307692307693,1,0.16666666666666666,0.07692307692307693
+us_brazil_tariffs,"Como o tarifaço dos Estados Unidos afetou o Brasil, suas exportações e as relações entre Lula e Trump?",13,100,0,0.0,0.0,0,0.0,0.0,0,0.0,0.0,0,0.0,0.0,0,0.0,0.0
+inss_fraud,O que aconteceu na fraude dos descontos indevidos em benefícios do INSS e como avançaram as investigações e o ressarcimento?,12,10,0,0.0,0.0,0,0.0,0.0,0,0.0,0.0,0,0.0,0.0,0,0.0,0.0
+cop30_belem_climate,"Quais foram os principais impasses, debates e resultados da COP30 em Belém?",12,13,1,1.0,0.08333333333333333,1,0.3333333333333333,0.08333333333333333,2,0.4,0.16666666666666666,3,0.3,0.25,3,0.23076923076923078,0.25
+rio_security_operation,O que aconteceu na megaoperação contra o Comando Vermelho no Rio e quais foram as consequências e investigações?,11,1,0,0.0,0.0,0,0.0,0.0,0,0.0,0.0,0,0.0,0.0,0,0.0,0.0
+banco_master,"Como evoluíram a crise, a liquidação e as investigações envolvendo o Banco Master?",14,100,0,0.0,0.0,0,0.0,0.0,1,0.2,0.07142857142857142,2,0.2,0.14285714285714285,3,0.15,0.21428571428571427
+brazil_selic_inflation,Como as decisões do Banco Central sobre a Selic e a inflação afetaram a economia brasileira em 2025 e 2026?,13,100,0,0.0,0.0,0,0.0,0.0,0,0.0,0.0,0,0.0,0.0,0,0.0,0.0

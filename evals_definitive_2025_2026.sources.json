@@ -1,0 +1,993 @@
+{
+  "sources": [
+    {
+      "file": "evals.json",
+      "input_cases": 7,
+      "eligible_cases": 0,
+      "excluded_below_20": 7
+    },
+    {
+      "file": "evals2.json",
+      "input_cases": 6,
+      "eligible_cases": 0,
+      "excluded_below_20": 6
+    },
+    {
+      "file": "evals_additional_curated_2025_2026.json",
+      "input_cases": 3,
+      "eligible_cases": 3,
+      "excluded_below_20": 0
+    },
+    {
+      "file": "evals_additional_query_variants_2025_2026.json",
+      "input_cases": 24,
+      "eligible_cases": 24,
+      "excluded_below_20": 0
+    },
+    {
+      "file": "evals_additional_round2_curated_2025_2026.json",
+      "input_cases": 2,
+      "eligible_cases": 2,
+      "excluded_below_20": 0
+    },
+    {
+      "file": "evals_additional_round2_query_variants_2025_2026.json",
+      "input_cases": 16,
+      "eligible_cases": 16,
+      "excluded_below_20": 0
+    },
+    {
+      "file": "evals_curated_2025_2026.json",
+      "input_cases": 5,
+      "eligible_cases": 5,
+      "excluded_below_20": 0
+    },
+    {
+      "file": "evals_curated_query_variants_2025_2026.json",
+      "input_cases": 40,
+      "eligible_cases": 40,
+      "excluded_below_20": 0
+    },
+    {
+      "file": "evals_curated_query_variants_stages_2025_2026.json",
+      "input_cases": 40,
+      "eligible_cases": 40,
+      "excluded_below_20": 0
+    }
+  ],
+  "unique_cases": 80,
+  "duplicate_cases_removed": 50,
+  "cases": [
+    {
+      "id": "banco_master__keyword",
+      "sources": [
+        {
+          "file": "evals_curated_query_variants_2025_2026.json",
+          "id": "banco_master__keyword"
+        },
+        {
+          "file": "evals_curated_query_variants_stages_2025_2026.json",
+          "id": "banco_master__keyword"
+        }
+      ]
+    },
+    {
+      "id": "cao_orelha__keyword",
+      "sources": [
+        {
+          "file": "evals_additional_query_variants_2025_2026.json",
+          "id": "cao_orelha__keyword"
+        }
+      ]
+    },
+    {
+      "id": "caso_benicio__keyword",
+      "sources": [
+        {
+          "file": "evals_curated_query_variants_2025_2026.json",
+          "id": "caso_benicio__keyword"
+        },
+        {
+          "file": "evals_curated_query_variants_stages_2025_2026.json",
+          "id": "caso_benicio__keyword"
+        }
+      ]
+    },
+    {
+      "id": "cop30_negociacoes__keyword",
+      "sources": [
+        {
+          "file": "evals_additional_query_variants_2025_2026.json",
+          "id": "cop30_negociacoes__keyword"
+        }
+      ]
+    },
+    {
+      "id": "descontos_inss__keyword",
+      "sources": [
+        {
+          "file": "evals_curated_query_variants_2025_2026.json",
+          "id": "descontos_inss__keyword"
+        },
+        {
+          "file": "evals_curated_query_variants_stages_2025_2026.json",
+          "id": "descontos_inss__keyword"
+        }
+      ]
+    },
+    {
+      "id": "julgamento_nucleo_golpe__keyword",
+      "sources": [
+        {
+          "file": "evals_additional_round2_query_variants_2025_2026.json",
+          "id": "julgamento_nucleo_golpe__keyword"
+        }
+      ]
+    },
+    {
+      "id": "juliana_marins__keyword",
+      "sources": [
+        {
+          "file": "evals_additional_query_variants_2025_2026.json",
+          "id": "juliana_marins__keyword"
+        }
+      ]
+    },
+    {
+      "id": "metanol_bebidas__keyword",
+      "sources": [
+        {
+          "file": "evals_curated_query_variants_2025_2026.json",
+          "id": "metanol_bebidas__keyword"
+        },
+        {
+          "file": "evals_curated_query_variants_stages_2025_2026.json",
+          "id": "metanol_bebidas__keyword"
+        }
+      ]
+    },
+    {
+      "id": "operacao_contencao__keyword",
+      "sources": [
+        {
+          "file": "evals_additional_round2_query_variants_2025_2026.json",
+          "id": "operacao_contencao__keyword"
+        }
+      ]
+    },
+    {
+      "id": "tarifaco_eua_brasil__keyword",
+      "sources": [
+        {
+          "file": "evals_curated_query_variants_2025_2026.json",
+          "id": "tarifaco_eua_brasil__keyword"
+        },
+        {
+          "file": "evals_curated_query_variants_stages_2025_2026.json",
+          "id": "tarifaco_eua_brasil__keyword"
+        }
+      ]
+    },
+    {
+      "id": "banco_master__short_theme",
+      "sources": [
+        {
+          "file": "evals_curated_query_variants_2025_2026.json",
+          "id": "banco_master__short_theme"
+        },
+        {
+          "file": "evals_curated_query_variants_stages_2025_2026.json",
+          "id": "banco_master__short_theme"
+        }
+      ]
+    },
+    {
+      "id": "cao_orelha__short_theme",
+      "sources": [
+        {
+          "file": "evals_additional_query_variants_2025_2026.json",
+          "id": "cao_orelha__short_theme"
+        }
+      ]
+    },
+    {
+      "id": "caso_benicio__short_theme",
+      "sources": [
+        {
+          "file": "evals_curated_query_variants_2025_2026.json",
+          "id": "caso_benicio__short_theme"
+        },
+        {
+          "file": "evals_curated_query_variants_stages_2025_2026.json",
+          "id": "caso_benicio__short_theme"
+        }
+      ]
+    },
+    {
+      "id": "cop30_negociacoes__short_theme",
+      "sources": [
+        {
+          "file": "evals_additional_query_variants_2025_2026.json",
+          "id": "cop30_negociacoes__short_theme"
+        }
+      ]
+    },
+    {
+      "id": "descontos_inss__short_theme",
+      "sources": [
+        {
+          "file": "evals_curated_query_variants_2025_2026.json",
+          "id": "descontos_inss__short_theme"
+        },
+        {
+          "file": "evals_curated_query_variants_stages_2025_2026.json",
+          "id": "descontos_inss__short_theme"
+        }
+      ]
+    },
+    {
+      "id": "julgamento_nucleo_golpe__short_theme",
+      "sources": [
+        {
+          "file": "evals_additional_round2_query_variants_2025_2026.json",
+          "id": "julgamento_nucleo_golpe__short_theme"
+        }
+      ]
+    },
+    {
+      "id": "juliana_marins__short_theme",
+      "sources": [
+        {
+          "file": "evals_additional_query_variants_2025_2026.json",
+          "id": "juliana_marins__short_theme"
+        }
+      ]
+    },
+    {
+      "id": "metanol_bebidas__short_theme",
+      "sources": [
+        {
+          "file": "evals_curated_query_variants_2025_2026.json",
+          "id": "metanol_bebidas__short_theme"
+        },
+        {
+          "file": "evals_curated_query_variants_stages_2025_2026.json",
+          "id": "metanol_bebidas__short_theme"
+        }
+      ]
+    },
+    {
+      "id": "operacao_contencao__short_theme",
+      "sources": [
+        {
+          "file": "evals_additional_round2_query_variants_2025_2026.json",
+          "id": "operacao_contencao__short_theme"
+        }
+      ]
+    },
+    {
+      "id": "tarifaco_eua_brasil__short_theme",
+      "sources": [
+        {
+          "file": "evals_curated_query_variants_2025_2026.json",
+          "id": "tarifaco_eua_brasil__short_theme"
+        },
+        {
+          "file": "evals_curated_query_variants_stages_2025_2026.json",
+          "id": "tarifaco_eua_brasil__short_theme"
+        }
+      ]
+    },
+    {
+      "id": "banco_master__specific_keywords",
+      "sources": [
+        {
+          "file": "evals_curated_query_variants_2025_2026.json",
+          "id": "banco_master__specific_keywords"
+        },
+        {
+          "file": "evals_curated_query_variants_stages_2025_2026.json",
+          "id": "banco_master__specific_keywords"
+        }
+      ]
+    },
+    {
+      "id": "cao_orelha__specific_keywords",
+      "sources": [
+        {
+          "file": "evals_additional_query_variants_2025_2026.json",
+          "id": "cao_orelha__specific_keywords"
+        }
+      ]
+    },
+    {
+      "id": "caso_benicio__specific_keywords",
+      "sources": [
+        {
+          "file": "evals_curated_query_variants_2025_2026.json",
+          "id": "caso_benicio__specific_keywords"
+        },
+        {
+          "file": "evals_curated_query_variants_stages_2025_2026.json",
+          "id": "caso_benicio__specific_keywords"
+        }
+      ]
+    },
+    {
+      "id": "cop30_negociacoes__specific_keywords",
+      "sources": [
+        {
+          "file": "evals_additional_query_variants_2025_2026.json",
+          "id": "cop30_negociacoes__specific_keywords"
+        }
+      ]
+    },
+    {
+      "id": "descontos_inss__specific_keywords",
+      "sources": [
+        {
+          "file": "evals_curated_query_variants_2025_2026.json",
+          "id": "descontos_inss__specific_keywords"
+        },
+        {
+          "file": "evals_curated_query_variants_stages_2025_2026.json",
+          "id": "descontos_inss__specific_keywords"
+        }
+      ]
+    },
+    {
+      "id": "julgamento_nucleo_golpe__specific_keywords",
+      "sources": [
+        {
+          "file": "evals_additional_round2_query_variants_2025_2026.json",
+          "id": "julgamento_nucleo_golpe__specific_keywords"
+        }
+      ]
+    },
+    {
+      "id": "juliana_marins__specific_keywords",
+      "sources": [
+        {
+          "file": "evals_additional_query_variants_2025_2026.json",
+          "id": "juliana_marins__specific_keywords"
+        }
+      ]
+    },
+    {
+      "id": "metanol_bebidas__specific_keywords",
+      "sources": [
+        {
+          "file": "evals_curated_query_variants_2025_2026.json",
+          "id": "metanol_bebidas__specific_keywords"
+        },
+        {
+          "file": "evals_curated_query_variants_stages_2025_2026.json",
+          "id": "metanol_bebidas__specific_keywords"
+        }
+      ]
+    },
+    {
+      "id": "operacao_contencao__specific_keywords",
+      "sources": [
+        {
+          "file": "evals_additional_round2_query_variants_2025_2026.json",
+          "id": "operacao_contencao__specific_keywords"
+        }
+      ]
+    },
+    {
+      "id": "tarifaco_eua_brasil__specific_keywords",
+      "sources": [
+        {
+          "file": "evals_curated_query_variants_2025_2026.json",
+          "id": "tarifaco_eua_brasil__specific_keywords"
+        },
+        {
+          "file": "evals_curated_query_variants_stages_2025_2026.json",
+          "id": "tarifaco_eua_brasil__specific_keywords"
+        }
+      ]
+    },
+    {
+      "id": "banco_master__broad_theme",
+      "sources": [
+        {
+          "file": "evals_curated_query_variants_2025_2026.json",
+          "id": "banco_master__broad_theme"
+        },
+        {
+          "file": "evals_curated_query_variants_stages_2025_2026.json",
+          "id": "banco_master__broad_theme"
+        }
+      ]
+    },
+    {
+      "id": "cao_orelha__broad_theme",
+      "sources": [
+        {
+          "file": "evals_additional_query_variants_2025_2026.json",
+          "id": "cao_orelha__broad_theme"
+        }
+      ]
+    },
+    {
+      "id": "caso_benicio__broad_theme",
+      "sources": [
+        {
+          "file": "evals_curated_query_variants_2025_2026.json",
+          "id": "caso_benicio__broad_theme"
+        },
+        {
+          "file": "evals_curated_query_variants_stages_2025_2026.json",
+          "id": "caso_benicio__broad_theme"
+        }
+      ]
+    },
+    {
+      "id": "cop30_negociacoes__broad_theme",
+      "sources": [
+        {
+          "file": "evals_additional_query_variants_2025_2026.json",
+          "id": "cop30_negociacoes__broad_theme"
+        }
+      ]
+    },
+    {
+      "id": "descontos_inss__broad_theme",
+      "sources": [
+        {
+          "file": "evals_curated_query_variants_2025_2026.json",
+          "id": "descontos_inss__broad_theme"
+        },
+        {
+          "file": "evals_curated_query_variants_stages_2025_2026.json",
+          "id": "descontos_inss__broad_theme"
+        }
+      ]
+    },
+    {
+      "id": "julgamento_nucleo_golpe__broad_theme",
+      "sources": [
+        {
+          "file": "evals_additional_round2_query_variants_2025_2026.json",
+          "id": "julgamento_nucleo_golpe__broad_theme"
+        }
+      ]
+    },
+    {
+      "id": "juliana_marins__broad_theme",
+      "sources": [
+        {
+          "file": "evals_additional_query_variants_2025_2026.json",
+          "id": "juliana_marins__broad_theme"
+        }
+      ]
+    },
+    {
+      "id": "metanol_bebidas__broad_theme",
+      "sources": [
+        {
+          "file": "evals_curated_query_variants_2025_2026.json",
+          "id": "metanol_bebidas__broad_theme"
+        },
+        {
+          "file": "evals_curated_query_variants_stages_2025_2026.json",
+          "id": "metanol_bebidas__broad_theme"
+        }
+      ]
+    },
+    {
+      "id": "operacao_contencao__broad_theme",
+      "sources": [
+        {
+          "file": "evals_additional_round2_query_variants_2025_2026.json",
+          "id": "operacao_contencao__broad_theme"
+        }
+      ]
+    },
+    {
+      "id": "tarifaco_eua_brasil__broad_theme",
+      "sources": [
+        {
+          "file": "evals_curated_query_variants_2025_2026.json",
+          "id": "tarifaco_eua_brasil__broad_theme"
+        },
+        {
+          "file": "evals_curated_query_variants_stages_2025_2026.json",
+          "id": "tarifaco_eua_brasil__broad_theme"
+        }
+      ]
+    },
+    {
+      "id": "banco_master__short_question",
+      "sources": [
+        {
+          "file": "evals_curated_query_variants_2025_2026.json",
+          "id": "banco_master__short_question"
+        },
+        {
+          "file": "evals_curated_query_variants_stages_2025_2026.json",
+          "id": "banco_master__short_question"
+        }
+      ]
+    },
+    {
+      "id": "cao_orelha__short_question",
+      "sources": [
+        {
+          "file": "evals_additional_query_variants_2025_2026.json",
+          "id": "cao_orelha__short_question"
+        }
+      ]
+    },
+    {
+      "id": "caso_benicio__short_question",
+      "sources": [
+        {
+          "file": "evals_curated_query_variants_2025_2026.json",
+          "id": "caso_benicio__short_question"
+        },
+        {
+          "file": "evals_curated_query_variants_stages_2025_2026.json",
+          "id": "caso_benicio__short_question"
+        }
+      ]
+    },
+    {
+      "id": "cop30_negociacoes__short_question",
+      "sources": [
+        {
+          "file": "evals_additional_query_variants_2025_2026.json",
+          "id": "cop30_negociacoes__short_question"
+        }
+      ]
+    },
+    {
+      "id": "descontos_inss__short_question",
+      "sources": [
+        {
+          "file": "evals_curated_query_variants_2025_2026.json",
+          "id": "descontos_inss__short_question"
+        },
+        {
+          "file": "evals_curated_query_variants_stages_2025_2026.json",
+          "id": "descontos_inss__short_question"
+        }
+      ]
+    },
+    {
+      "id": "julgamento_nucleo_golpe__short_question",
+      "sources": [
+        {
+          "file": "evals_additional_round2_query_variants_2025_2026.json",
+          "id": "julgamento_nucleo_golpe__short_question"
+        }
+      ]
+    },
+    {
+      "id": "juliana_marins__short_question",
+      "sources": [
+        {
+          "file": "evals_additional_query_variants_2025_2026.json",
+          "id": "juliana_marins__short_question"
+        }
+      ]
+    },
+    {
+      "id": "metanol_bebidas__short_question",
+      "sources": [
+        {
+          "file": "evals_curated_query_variants_2025_2026.json",
+          "id": "metanol_bebidas__short_question"
+        },
+        {
+          "file": "evals_curated_query_variants_stages_2025_2026.json",
+          "id": "metanol_bebidas__short_question"
+        }
+      ]
+    },
+    {
+      "id": "operacao_contencao__short_question",
+      "sources": [
+        {
+          "file": "evals_additional_round2_query_variants_2025_2026.json",
+          "id": "operacao_contencao__short_question"
+        }
+      ]
+    },
+    {
+      "id": "tarifaco_eua_brasil__short_question",
+      "sources": [
+        {
+          "file": "evals_curated_query_variants_2025_2026.json",
+          "id": "tarifaco_eua_brasil__short_question"
+        },
+        {
+          "file": "evals_curated_query_variants_stages_2025_2026.json",
+          "id": "tarifaco_eua_brasil__short_question"
+        }
+      ]
+    },
+    {
+      "id": "banco_master__specific_question",
+      "sources": [
+        {
+          "file": "evals_curated_query_variants_2025_2026.json",
+          "id": "banco_master__specific_question"
+        },
+        {
+          "file": "evals_curated_query_variants_stages_2025_2026.json",
+          "id": "banco_master__specific_question"
+        }
+      ]
+    },
+    {
+      "id": "cao_orelha__specific_question",
+      "sources": [
+        {
+          "file": "evals_additional_query_variants_2025_2026.json",
+          "id": "cao_orelha__specific_question"
+        }
+      ]
+    },
+    {
+      "id": "caso_benicio__specific_question",
+      "sources": [
+        {
+          "file": "evals_curated_query_variants_2025_2026.json",
+          "id": "caso_benicio__specific_question"
+        },
+        {
+          "file": "evals_curated_query_variants_stages_2025_2026.json",
+          "id": "caso_benicio__specific_question"
+        }
+      ]
+    },
+    {
+      "id": "cop30_negociacoes__specific_question",
+      "sources": [
+        {
+          "file": "evals_additional_query_variants_2025_2026.json",
+          "id": "cop30_negociacoes__specific_question"
+        }
+      ]
+    },
+    {
+      "id": "descontos_inss__specific_question",
+      "sources": [
+        {
+          "file": "evals_curated_query_variants_2025_2026.json",
+          "id": "descontos_inss__specific_question"
+        },
+        {
+          "file": "evals_curated_query_variants_stages_2025_2026.json",
+          "id": "descontos_inss__specific_question"
+        }
+      ]
+    },
+    {
+      "id": "julgamento_nucleo_golpe__specific_question",
+      "sources": [
+        {
+          "file": "evals_additional_round2_query_variants_2025_2026.json",
+          "id": "julgamento_nucleo_golpe__specific_question"
+        }
+      ]
+    },
+    {
+      "id": "juliana_marins__specific_question",
+      "sources": [
+        {
+          "file": "evals_additional_query_variants_2025_2026.json",
+          "id": "juliana_marins__specific_question"
+        }
+      ]
+    },
+    {
+      "id": "metanol_bebidas__specific_question",
+      "sources": [
+        {
+          "file": "evals_curated_query_variants_2025_2026.json",
+          "id": "metanol_bebidas__specific_question"
+        },
+        {
+          "file": "evals_curated_query_variants_stages_2025_2026.json",
+          "id": "metanol_bebidas__specific_question"
+        }
+      ]
+    },
+    {
+      "id": "operacao_contencao__specific_question",
+      "sources": [
+        {
+          "file": "evals_additional_round2_query_variants_2025_2026.json",
+          "id": "operacao_contencao__specific_question"
+        }
+      ]
+    },
+    {
+      "id": "tarifaco_eua_brasil__specific_question",
+      "sources": [
+        {
+          "file": "evals_curated_query_variants_2025_2026.json",
+          "id": "tarifaco_eua_brasil__specific_question"
+        },
+        {
+          "file": "evals_curated_query_variants_stages_2025_2026.json",
+          "id": "tarifaco_eua_brasil__specific_question"
+        }
+      ]
+    },
+    {
+      "id": "banco_master__information_request",
+      "sources": [
+        {
+          "file": "evals_curated_query_variants_2025_2026.json",
+          "id": "banco_master__information_request"
+        },
+        {
+          "file": "evals_curated_query_variants_stages_2025_2026.json",
+          "id": "banco_master__information_request"
+        }
+      ]
+    },
+    {
+      "id": "cao_orelha__information_request",
+      "sources": [
+        {
+          "file": "evals_additional_query_variants_2025_2026.json",
+          "id": "cao_orelha__information_request"
+        }
+      ]
+    },
+    {
+      "id": "caso_benicio__information_request",
+      "sources": [
+        {
+          "file": "evals_curated_query_variants_2025_2026.json",
+          "id": "caso_benicio__information_request"
+        },
+        {
+          "file": "evals_curated_query_variants_stages_2025_2026.json",
+          "id": "caso_benicio__information_request"
+        }
+      ]
+    },
+    {
+      "id": "cop30_negociacoes__information_request",
+      "sources": [
+        {
+          "file": "evals_additional_query_variants_2025_2026.json",
+          "id": "cop30_negociacoes__information_request"
+        }
+      ]
+    },
+    {
+      "id": "descontos_inss__information_request",
+      "sources": [
+        {
+          "file": "evals_curated_query_variants_2025_2026.json",
+          "id": "descontos_inss__information_request"
+        },
+        {
+          "file": "evals_curated_query_variants_stages_2025_2026.json",
+          "id": "descontos_inss__information_request"
+        }
+      ]
+    },
+    {
+      "id": "julgamento_nucleo_golpe__information_request",
+      "sources": [
+        {
+          "file": "evals_additional_round2_query_variants_2025_2026.json",
+          "id": "julgamento_nucleo_golpe__information_request"
+        }
+      ]
+    },
+    {
+      "id": "juliana_marins__information_request",
+      "sources": [
+        {
+          "file": "evals_additional_query_variants_2025_2026.json",
+          "id": "juliana_marins__information_request"
+        }
+      ]
+    },
+    {
+      "id": "metanol_bebidas__information_request",
+      "sources": [
+        {
+          "file": "evals_curated_query_variants_2025_2026.json",
+          "id": "metanol_bebidas__information_request"
+        },
+        {
+          "file": "evals_curated_query_variants_stages_2025_2026.json",
+          "id": "metanol_bebidas__information_request"
+        }
+      ]
+    },
+    {
+      "id": "operacao_contencao__information_request",
+      "sources": [
+        {
+          "file": "evals_additional_round2_query_variants_2025_2026.json",
+          "id": "operacao_contencao__information_request"
+        }
+      ]
+    },
+    {
+      "id": "tarifaco_eua_brasil__information_request",
+      "sources": [
+        {
+          "file": "evals_curated_query_variants_2025_2026.json",
+          "id": "tarifaco_eua_brasil__information_request"
+        },
+        {
+          "file": "evals_curated_query_variants_stages_2025_2026.json",
+          "id": "tarifaco_eua_brasil__information_request"
+        }
+      ]
+    },
+    {
+      "id": "banco_master__baseline",
+      "sources": [
+        {
+          "file": "evals_curated_2025_2026.json",
+          "id": "banco_master"
+        },
+        {
+          "file": "evals_curated_query_variants_2025_2026.json",
+          "id": "banco_master__baseline"
+        },
+        {
+          "file": "evals_curated_query_variants_stages_2025_2026.json",
+          "id": "banco_master__baseline"
+        }
+      ]
+    },
+    {
+      "id": "cao_orelha__baseline",
+      "sources": [
+        {
+          "file": "evals_additional_curated_2025_2026.json",
+          "id": "cao_orelha"
+        },
+        {
+          "file": "evals_additional_query_variants_2025_2026.json",
+          "id": "cao_orelha__baseline"
+        }
+      ]
+    },
+    {
+      "id": "caso_benicio__baseline",
+      "sources": [
+        {
+          "file": "evals_curated_2025_2026.json",
+          "id": "caso_benicio"
+        },
+        {
+          "file": "evals_curated_query_variants_2025_2026.json",
+          "id": "caso_benicio__baseline"
+        },
+        {
+          "file": "evals_curated_query_variants_stages_2025_2026.json",
+          "id": "caso_benicio__baseline"
+        }
+      ]
+    },
+    {
+      "id": "cop30_negociacoes__baseline",
+      "sources": [
+        {
+          "file": "evals_additional_curated_2025_2026.json",
+          "id": "cop30_negociacoes"
+        },
+        {
+          "file": "evals_additional_query_variants_2025_2026.json",
+          "id": "cop30_negociacoes__baseline"
+        }
+      ]
+    },
+    {
+      "id": "descontos_inss__baseline",
+      "sources": [
+        {
+          "file": "evals_curated_2025_2026.json",
+          "id": "descontos_inss"
+        },
+        {
+          "file": "evals_curated_query_variants_2025_2026.json",
+          "id": "descontos_inss__baseline"
+        },
+        {
+          "file": "evals_curated_query_variants_stages_2025_2026.json",
+          "id": "descontos_inss__baseline"
+        }
+      ]
+    },
+    {
+      "id": "julgamento_nucleo_golpe__baseline",
+      "sources": [
+        {
+          "file": "evals_additional_round2_curated_2025_2026.json",
+          "id": "julgamento_nucleo_golpe"
+        },
+        {
+          "file": "evals_additional_round2_query_variants_2025_2026.json",
+          "id": "julgamento_nucleo_golpe__baseline"
+        }
+      ]
+    },
+    {
+      "id": "juliana_marins__baseline",
+      "sources": [
+        {
+          "file": "evals_additional_curated_2025_2026.json",
+          "id": "juliana_marins"
+        },
+        {
+          "file": "evals_additional_query_variants_2025_2026.json",
+          "id": "juliana_marins__baseline"
+        }
+      ]
+    },
+    {
+      "id": "metanol_bebidas__baseline",
+      "sources": [
+        {
+          "file": "evals_curated_2025_2026.json",
+          "id": "metanol_bebidas"
+        },
+        {
+          "file": "evals_curated_query_variants_2025_2026.json",
+          "id": "metanol_bebidas__baseline"
+        },
+        {
+          "file": "evals_curated_query_variants_stages_2025_2026.json",
+          "id": "metanol_bebidas__baseline"
+        }
+      ]
+    },
+    {
+      "id": "operacao_contencao__baseline",
+      "sources": [
+        {
+          "file": "evals_additional_round2_curated_2025_2026.json",
+          "id": "operacao_contencao"
+        },
+        {
+          "file": "evals_additional_round2_query_variants_2025_2026.json",
+          "id": "operacao_contencao__baseline"
+        }
+      ]
+    },
+    {
+      "id": "tarifaco_eua_brasil__baseline",
+      "sources": [
+        {
+          "file": "evals_curated_2025_2026.json",
+          "id": "tarifaco_eua_brasil"
+        },
+        {
+          "file": "evals_curated_query_variants_2025_2026.json",
+          "id": "tarifaco_eua_brasil__baseline"
+        },
+        {
+          "file": "evals_curated_query_variants_stages_2025_2026.json",
+          "id": "tarifaco_eua_brasil__baseline"
+        }
+      ]
+    }
+  ],
+  "source_sha256": {
+    "evals.json": "7385a10e129ac96d54b6b272212648f14f91d7e9055a978cb3f7d77c7dab7090",
+    "evals2.json": "b75abc8335e99d89408f07736cac38d899e4bec929b3ac737b743b9bf9fbcb63",
+    "evals_additional_curated_2025_2026.json": "da7e2710c99ebe99bf9a45c51161c224be028b43e0245ff52da551056940b123",
+    "evals_additional_query_variants_2025_2026.json": "a0e0c1b84ef45fb47f846549b051ac38dceec1cf4fb9581ce15a29cb4c573489",
+    "evals_additional_round2_curated_2025_2026.json": "5c525e4d54c3388d2b40e22bdc73adad5124df0f207164b8b1139a7244d8f1c0",
+    "evals_additional_round2_query_variants_2025_2026.json": "280b96e3d44a2cfdd69b7eaff60b803ffe43d59d5a43948be13d1e11a200c4e3",
+    "evals_curated_2025_2026.json": "c4323768784868d32a2ae05c7dbb9f99c3a8494f9d63f54a757efcee2a1e9e83",
+    "evals_curated_query_variants_2025_2026.json": "231ab20e2cbe5669c8b2891c5a2e18d404fc653fca60c8f1e638cfa5f46c50b4",
+    "evals_curated_query_variants_stages_2025_2026.json": "c7cc739a85b2df460043967ae84e664693140e59f49434df754766af73e0e4a6"
+  }
+}

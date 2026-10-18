@@ -1,0 +1,581 @@
+{
+  "version": 1,
+  "researched_on": "2026-10-15",
+  "source": "g1_articles; read-only local database",
+  "window": [
+    "2025-06-01",
+    "2026-05-20"
+  ],
+  "themes": [
+    {
+      "id": "juliana_marins",
+      "name": "Juliana Marins: queda no Rinjani, resgate e perícias",
+      "scope": "Acidente, tentativas de resgate, perícias e apuração de responsabilidades; exclui homenagens, vaquinhas e turismo sem evidência central.",
+      "caution": "As estimativas de 10–20 minutos dizem respeito ao trauma fatal, não necessariamente à primeira queda. A estimativa posterior de 32 horas é atribuída ao perito. Alegações de negligência não equivalem a decisão judicial. O corpo da matéria sobre limitações do IML contém uma referência cronológica inconsistente a sábado (6); ela não foi adotada como data do encontro do corpo.",
+      "candidate_count": 113,
+      "snapshot_sha256": "b124fc58e1bf9a1ce0beb3953f3cf79f03e9ea69787b02e4cfef81f1ac0682f3",
+      "articles": [
+        {
+          "rank": 1,
+          "url": "https://g1.globo.com/rj/rio-de-janeiro/noticia/2025/07/10/caso-juliana-marins-perguntas-e-respostas-apos-nova-autopsia.ghtml",
+          "date": "2025-07-10",
+          "title": "Caso Juliana Marins: Veja perguntas e respostas após nova autópsia | G1",
+          "rationale": "Síntese das conclusões e perguntas remanescentes após a perícia brasileira; melhor porta de entrada.",
+          "evidence": "A causa imediata da morte foi hemorragia interna provocada por lesões poliviscerais e politraumatismo, compatíveis com impacto de alta energia.",
+          "body_sha256": "3451e1d363dcf488f486d2c3730af0ab76324f48e25e6eda9381f118d8d11c68"
+        },
+        {
+          "rank": 2,
+          "url": "https://g1.globo.com/rj/rio-de-janeiro/noticia/2025/07/11/juliana-marins-coletiva-detalhes-morte-e-autopsia.ghtml",
+          "date": "2025-07-11",
+          "title": "Juliana Marins desceu 220 metros na primeira queda e morreu em uma segunda; perito estima que ela permaneceu viva 32 horas | G1",
+          "rationale": "Atualiza a reconstrução: separa a primeira queda do impacto fatal e atribui ao perito a estimativa de sobrevida.",
+          "evidence": "Na coletiva, um perito afirmou que é possível estimar que ela permaneceu viva 32 horas após a primeira queda.",
+          "body_sha256": "c1d18a32b8eabb670150f9f7fe0cb54bb7c99a83bb1042e931ba8427cecc194d"
+        },
+        {
+          "rank": 3,
+          "url": "https://g1.globo.com/rj/rio-de-janeiro/noticia/2025/06/25/caso-juliana-marins-especialistas-listam-possiveis-erros-antes-e-depois-do-acidente-em-vulcao-na-indonesia.ghtml",
+          "date": "2025-06-25",
+          "title": "Caso Juliana Marins: possíveis falhas antes e depois de acidente | G1",
+          "rationale": "Organiza hipóteses de falhas de segurança e registra o contraponto da agência de resgate.",
+          "evidence": "Especialistas em montanhismo, guias experientes e turistas que já estiveram no local apontam falhas graves que podem ter contribuído para a tragédia.",
+          "body_sha256": "b8dbda6156f0024cd7b38e0d269e5a907d0d96ba66cb50b5c18562da7df03343"
+        },
+        {
+          "rank": 4,
+          "url": "https://g1.globo.com/rj/rio-de-janeiro/noticia/2025/06/26/por-que-levou-dias-para-brasileira-juliana-marins-ser-resgatada-de-vulcao-na-indonesia.ghtml",
+          "date": "2025-06-26",
+          "title": "Por que levou dias para brasileira Juliana Marins ser resgatada de vulcão na Indonésia | G1",
+          "rationale": "Explica mecanismos do atraso com entrevistas sobre equipamento, clima e disponibilidade de socorristas.",
+          "evidence": "Primeiro, eles dizem que o equipamento de resgate de emergência era muito limitado.",
+          "body_sha256": "2361aeaccbfb3d3e6c6f6fae98fc866f9f3329cafa6a5e3950af932888fecac6"
+        },
+        {
+          "rank": 5,
+          "url": "https://g1.globo.com/jornal-nacional/noticia/2025/06/24/brasileira-juliana-marins-e-encontrada-morta-600-metros-abaixo-da-trilha-do-vulcao-rinjani-na-indonesia.ghtml",
+          "date": "2025-06-24",
+          "title": "Brasileira Juliana Marins é encontrada morta 600 metros abaixo da trilha do vulcão Rinjani, na Indonésia | G1",
+          "rationale": "Marco da confirmação da morte e reconstrução das buscas; distingue notícia confirmada de informação depois desmentida.",
+          "evidence": "A família chegou a ser informada que as equipes de resgate tinham chegado até a jovem e dado comida e água. Mas a informação foi desmentida depois.",
+          "body_sha256": "4eb0b771e618b13bcb1e4fa705e30821da2749703d47b2d490e0fc7c6080f654"
+        },
+        {
+          "rank": 6,
+          "url": "https://g1.globo.com/rj/rio-de-janeiro/noticia/2025/06/27/o-que-autopsia-revela-sobre-morte-de-juliana-marins-em-vulcao-na-indonesia.ghtml",
+          "date": "2025-06-27",
+          "title": "Autópsia de Juliana Marins: saiba o que causou morte de brasileira em vulcão | G1",
+          "rationale": "Documenta a conclusão da autópsia indonésia, como etapa histórica da investigação.",
+          "evidence": "Um trauma contundente, resultando em danos a órgãos internos e hemorragia, foi a causa da morte de Juliana Marins",
+          "body_sha256": "9b84536f86f95d81c3e6ccb1b212607564a9a767d8b8e36238c69ec0f2133d5d"
+        },
+        {
+          "rank": 7,
+          "url": "https://g1.globo.com/rj/rio-de-janeiro/noticia/2025/07/01/juliana-marins-policia-investigacao.ghtml",
+          "date": "2025-07-01",
+          "title": "Juliana Marins: Polícia investiga negligência em trilha na Indonésia | G1",
+          "rationale": "Mostra abertura da apuração local e pessoas chamadas a depor, sem converter suspeitas em autoria provada.",
+          "evidence": "Além do guia, responsáveis pela agência de turismo, o carregador que levava as bagagens pela trilha e um policial florestal foram intimados a prestar depoimento.",
+          "body_sha256": "4f416213066187f8922959ea6f0f681d7f018e43a0b428fd9b3fff7031bd68c8"
+        },
+        {
+          "rank": 8,
+          "url": "https://g1.globo.com/rj/rio-de-janeiro/noticia/2025/06/27/monte-rinjani-quem-e-responsavel-pela-seguranca-dos-montanhistas.ghtml",
+          "date": "2025-06-27",
+          "title": "Monte Rinjani: quem é responsável pela segurança dos montanhistas? | G1",
+          "rationale": "Explica responsabilidades institucionais e operacionais pela segurança, além do relato do acidente.",
+          "evidence": "A BBC News Indonesia (serviço de notícias da BBC em idioma indonésio) conversou com especialistas no país para entender de quem seriam as responsabilidades.",
+          "body_sha256": "64ded20281aa01dcdfa9003046d2e1d45d17895aff7ee993e8399b447ddd9ff9"
+        },
+        {
+          "rank": 9,
+          "url": "https://g1.globo.com/podcast/o-assunto/noticia/2025/06/26/morte-de-juliana-marins-entenda-se-era-possivel-mandar-cobertor-e-comida-durante-resgate-em-vulcao.ghtml",
+          "date": "2025-06-26",
+          "title": "Morte de Juliana Marins: por que é difícil usar helicóptero e cordas em resgate? Especialistas explicam | G1",
+          "rationale": "Contraponto técnico à certeza de negligência; o texto do podcast tem informação suficiente sem ouvir o áudio.",
+          "evidence": "Os especialistas ouvidos por Natuza Nery afirmam que, apesar das falhas apontadas, ainda não é possível afirmar com certeza que houve negligência no resgate de Juliana Marins.",
+          "body_sha256": "1b8fa3cdb43d0d17fa2ea43f1c2d28a555e905376a7febceaf13319e4fba300c"
+        },
+        {
+          "rank": 10,
+          "url": "https://g1.globo.com/fantastico/noticia/2025/06/29/imagens-ineditas-revelam-primeiras-tentativas-de-resgate-de-juliana-marins-ela-caiu-em-um-penhasco-diz-guia-em-gravacao.ghtml",
+          "date": "2025-06-29",
+          "title": "'Ela caiu em um penhasco', diz guia em gravação após queda de Juliana Marins | G1",
+          "rationale": "Relato textual das primeiras tentativas e horários atribuídos à família; os vídeos não foram usados como evidência autônoma.",
+          "evidence": "Um registro feito pelo próprio guia mostra a lanterna do capacete de Juliana ainda acesa após a queda.",
+          "body_sha256": "6bb6ca0796604b7d62e976d22679ccaa54ff622ba319ce45e20b878778752cc0"
+        },
+        {
+          "rank": 11,
+          "url": "https://g1.globo.com/rj/rio-de-janeiro/noticia/2025/08/02/guia-indonesio-juliana-marins.ghtml",
+          "date": "2025-08-02",
+          "title": "Guia indonésio relata último contato com Juliana Marins | G1",
+          "rationale": "Versão posterior do guia sobre divisão do grupo e último contato, necessária como contraponto atribuído.",
+          "evidence": "O jovem disse que a niteroiense pedia ‘socorro’.",
+          "body_sha256": "7e7543ea9b9c8f27cf33d1d64b15283eea6db3d2116d5d9a500aaaa16f979a0e"
+        },
+        {
+          "rank": 12,
+          "url": "https://g1.globo.com/rj/rio-de-janeiro/noticia/2025/07/08/policia-do-rj-confirma-que-traumas-de-queda-mataram-juliana-marins-mas-nao-descarta-agonia-antes-da-morte.ghtml",
+          "date": "2025-07-08",
+          "title": "Polícia do RJ confirma que traumas de queda mataram Juliana Marins | G1",
+          "rationale": "Marco da confirmação pericial brasileira e dos limites para estabelecer o horário do óbito.",
+          "evidence": "A estimativa exata da data da morte foi considerada prejudicada devido às condições em que o corpo chegou ao IML, já embalsamado.",
+          "body_sha256": "e66a4fce7b71b272930a0526e676e1a441ece552dfb3919b111deeccbf21075a"
+        },
+        {
+          "rank": 13,
+          "url": "https://g1.globo.com/rj/rio-de-janeiro/noticia/2025/07/09/caso-juliana-marins-estado-do-corpo-comprometeu-parte-das-analises-periciais-aponta-laudo-do-iml.ghtml",
+          "date": "2025-07-09",
+          "title": "Caso Juliana Marins: Estado do corpo comprometeu parte das análises periciais | G1",
+          "rationale": "Detalha limitações materiais da perícia; a inconsistência de data no corpo exige cautela, não correção silenciosa da fonte.",
+          "evidence": "Segundo o laudo, o embalsamamento realizado antes da necropsia impediu que os especialistas estimassem com precisão o horário da morte",
+          "body_sha256": "7470ff591908cfb8c6bbde19d95ee6541259f58b3525a09a198270d6cf1a4e6c"
+        },
+        {
+          "rank": 14,
+          "url": "https://g1.globo.com/jornal-nacional/noticia/2025/06/27/legistas-nao-esclareceram-em-que-dia-juliana-marins-morreu.ghtml",
+          "date": "2025-06-27",
+          "title": "Legistas não esclareceram em que dia Juliana Marins morreu | G1",
+          "rationale": "Distingue causa da morte de data da morte na primeira divulgação pericial.",
+          "evidence": "Mas os legistas não esclareceram em que dia a Juliana Marins morreu.",
+          "body_sha256": "7b4287c7b382c586d0433725beaf8fc0e929e150d227c2252dafb3a60de19d91"
+        },
+        {
+          "rank": 15,
+          "url": "https://g1.globo.com/rj/rio-de-janeiro/noticia/2025/07/01/defensora-fala-sobre-nova-autopsia-no-corpo-de-juliana-marins.ghtml",
+          "date": "2025-07-01",
+          "title": "Nova autópsia pode levar caso Juliana Marins à Justiça internacional | G1",
+          "rationale": "Registra o pedido da DPU e possíveis vias de apuração, ainda condicionais.",
+          "evidence": "A DPU pediu nesta segunda-feira (30) que a Polícia Federal (PF) apure se houve crime de omissão no abandono de Juliana por parte das autoridades indonésias.",
+          "body_sha256": "680969ed87c8e1d4241a9309a879b43d4e960b379aeae37301afbbce26626ea3"
+        },
+        {
+          "rank": 16,
+          "url": "https://g1.globo.com/rj/rio-de-janeiro/noticia/2025/07/02/autopsia-no-corpo-de-juliana-marins-no-iml-do-rio.ghtml",
+          "date": "2025-07-02",
+          "title": "Juliana Marins: autópsia no Rio busca respostas sobre a morte | G1",
+          "rationale": "Execução da segunda autópsia e participação de peritos e representantes da família.",
+          "evidence": "A necropsia é realizada por peritos da Polícia Civil, com a presença de um perito federal e de um representante da família.",
+          "body_sha256": "c7aa72fc35177639e09f0bf21b9a622367f4073bee1d8f4ce9aa6707506c597b"
+        },
+        {
+          "rank": 17,
+          "url": "https://g1.globo.com/rj/rio-de-janeiro/noticia/2025/06/25/corpo-de-juliana-marins-e-icado-de-vulcao-na-indonesia.ghtml",
+          "date": "2025-06-25",
+          "title": "Corpo de Juliana Marins é resgatado | G1",
+          "rationale": "Documenta conclusão da retirada do corpo e etapas operacionais em horários locais distintos.",
+          "evidence": "O mau tempo impediu que helicópteros fossem usados na operação, e a solução foi instalar diversos pontos de ancoragem na pedra.",
+          "body_sha256": "05dae4e9f7e752eb8fe7b5fb02570f417209b66f2d3ec60903bc0fd72d386911"
+        },
+        {
+          "rank": 18,
+          "url": "https://g1.globo.com/rj/rio-de-janeiro/noticia/2025/06/24/socorristas-na-indonesia-montam-acampamento-avancado-perto-de-onde-juliana-marins-esta.ghtml",
+          "date": "2025-06-24",
+          "title": "Socorristas da Indonésia montam acampamento em penhasco perto de onde Juliana Marins está após cair durante trilha | G1",
+          "rationale": "Comunicado do parque sobre a aproximação dos socorristas e restrição por neblina, antes da confirmação do óbito.",
+          "evidence": "as tentativas de auxílio aéreo por helicóptero ainda não tiveram sucesso devido à forte neblina na área",
+          "body_sha256": "740fb7901366009f0e7d7a09d2d68a0e6d766ffe3ab0421533de717a7266157b"
+        },
+        {
+          "rank": 19,
+          "url": "https://g1.globo.com/rj/rio-de-janeiro/noticia/2025/06/24/parque-fecha-trilha-para-resgate-de-juliana-marins-brasileira-que-caiu-em-vulcao-na-indonesia.ghtml",
+          "date": "2025-06-24",
+          "title": "Parque fecha trilha para resgate de Juliana Marins | G1",
+          "rationale": "Medida concreta para restringir a trilha e permitir a operação de resgate.",
+          "evidence": "A medida foi tomada para acelerar o trabalho de resgate da niteroiense Juliana Marins",
+          "body_sha256": "744ab3e1cc3fac251543d72bc739ad1776d09b53646f61d549eee3f87c17cb80"
+        },
+        {
+          "rank": 20,
+          "url": "https://g1.globo.com/rj/rio-de-janeiro/noticia/2025/07/04/familia-de-juliana-marins-decide-enterrar-corpo.ghtml",
+          "date": "2025-07-04",
+          "title": "Família de Juliana Marins vai enterrar corpo para possível nova autópsia | G1",
+          "rationale": "Consequência ligada à preservação de possibilidade de nova perícia, não selecionada pela homenagem funerária.",
+          "evidence": "Então ela teria que ser enterrada caso precisasse fazer uma exumação futura",
+          "body_sha256": "9f2f95fba02c7d07e712a41a101085581d7b9e090ae08f293a4c57255c247222"
+        }
+      ]
+    },
+    {
+      "id": "cao_orelha",
+      "name": "Cão Orelha: morte, limites da perícia e revisão da investigação",
+      "scope": "Investigação do cachorro comunitário da Praia Brava, evidência veterinária/pericial, defesa, revisão pelo MP e consequências institucionais; exclui homônimos, homenagens e manifestações sem novidade central.",
+      "caution": "As notícias iniciais falam em eutanásia e vários suspeitos; versões posteriores corrigem esses pontos. A exumação não determinou a causa da morte nem excluiu trauma por ausência de fraturas. Suspeita, representação e pedido de internação não são condenação. A suspensão de apuração penal do delegado não suspende automaticamente apurações cíveis; o decreto aparece como anunciado, não como publicação já confirmada naquele texto.",
+      "candidate_count": 81,
+      "snapshot_sha256": "1338379d763fa56111b2daa3528aaf0e9fec5a6d395db70a025805933f93e223",
+      "articles": [
+        {
+          "rank": 1,
+          "url": "https://g1.globo.com/sc/santa-catarina/noticia/2026/02/26/cao-orelha-laudo-exumacao-lesoes-cabeca.ghtml",
+          "date": "2026-02-26",
+          "title": "Cão Orelha: laudo de exumação não identifica lesões | G1",
+          "rationale": "Prioriza o limite probatório mais importante: exumação sem causa determinada, sem confundir ausência de fratura com exclusão de trauma.",
+          "evidence": "A análise dos restos mortais não permitiu afirmar qual foi a causa da morte.",
+          "body_sha256": "922509752cb5aef1eb66a3ce2565d9cae7236e7d3f038b8d8ab4af0de6f3cdb1"
+        },
+        {
+          "rank": 2,
+          "url": "https://g1.globo.com/sc/santa-catarina/noticia/2026/02/06/pancada-piora-progressiva-adolescente-indiciado-o-que-se-sabe-cao-orelha.ghtml",
+          "date": "2026-02-06",
+          "title": "Pancada e indiciamento de adolescente: o que se sabe sobre caso Orelha | G1",
+          "rationale": "Síntese dos fatos, evidências e versões antes da exumação; deve ser lida junto da atualização pericial superior.",
+          "evidence": "Inicialmente, a polícia afirmou que Orelha passou por eutanásia após as agressões. Depois, essa hipótese foi descartada.",
+          "body_sha256": "aaf83aebda0c35d52576f816e27c2beeaa803b8ae54b4bb7b2ebca4a1754984a"
+        },
+        {
+          "rank": 3,
+          "url": "https://g1.globo.com/sc/santa-catarina/noticia/2026/02/02/cao-orelha-linha-do-tempo-e-o-que-se-sabe-ate-agora.ghtml",
+          "date": "2026-02-02",
+          "title": "Cão Orelha: linha do tempo dos fatos e o que se sabe até agora | G1",
+          "rationale": "Reconstrói a sequência de eventos e separa o caso Orelha do cão Caramelo.",
+          "evidence": "A Polícia reiterou que não tem imagens que mostrem as agressões sofridas pelo cão.",
+          "body_sha256": "3d78d9fb9d9078718e0682455ae7eb344afca40c64e70f112c54873302c7527c"
+        },
+        {
+          "rank": 4,
+          "url": "https://g1.globo.com/sc/santa-catarina/noticia/2026/03/04/cao-orelha-laudo-exumacao-animal-doenca-degenerativa-cronica-infeccao-ossea.ghtml",
+          "date": "2026-03-04",
+          "title": "Cão Orelha: laudo aponta doença degenerativa e infecção óssea | G1",
+          "rationale": "Aprofunda condições prévias e alcance restrito da análise óssea, evitando inferência causal indevida.",
+          "evidence": "Mesmo assim, os peritos destacam que a ausência de fraturas não descarta a possibilidade de trauma na cabeça.",
+          "body_sha256": "40c35cb9796242d84383f4b7ca9c8a3fcb39ccb0fc260f6327e9f4f4cf9a9e5c"
+        },
+        {
+          "rank": 5,
+          "url": "https://g1.globo.com/sc/santa-catarina/noticia/2026/02/12/justica-sc-acata-35-pedidos-investigacoes-morte-cao-orelha-veja-quais.ghtml",
+          "date": "2026-02-12",
+          "title": "Justiça acata 35 pedidos nas investigações da morte do cão Orelha | G1",
+          "rationale": "Marco judicial da ampliação das diligências e adiamento da análise de internação.",
+          "evidence": "O juiz André Milani postergou a análise do pedido da Polícia Civil de internação do adolescente apontado como suspeito da morte de Orelha.",
+          "body_sha256": "2eee3798907ef25d2ad102413c27996e9c0b9022afda43d3371c4a7d5c78ef53"
+        },
+        {
+          "rank": 6,
+          "url": "https://g1.globo.com/sc/santa-catarina/noticia/2026/02/06/caso-orelha-mpsc-vai-pedir-mais-respostas-a-policia-inqueritos.ghtml",
+          "date": "2026-02-06",
+          "title": "Caso Orelha: MPSC pede novas respostas à polícia sobre inquéritos | G1",
+          "rationale": "Explica por que o Ministério Público considerou a apuração insuficiente e pediu complementação.",
+          "evidence": "A 10ª Promotoria identificou lacunas na apuração sobre a possível participação de adolescentes",
+          "body_sha256": "f2726f5fe376b811b827db68bc5cc18a6854e0c22655e7095021b59e0219cd2c"
+        },
+        {
+          "rank": 7,
+          "url": "https://g1.globo.com/sc/santa-catarina/noticia/2026/02/04/orelha-defesa-contesta-autoria-video-cao-andando-agressoes.ghtml",
+          "date": "2026-02-04",
+          "title": "Caso Orelha: defesa contesta indiciamento com vídeo do cão andando | G1",
+          "rationale": "Contraponto da defesa e resposta policial à cronologia apresentada em vídeo.",
+          "evidence": "Os advogados negam que o adolescente tenha participado das agressões e afirmam que o vídeo contradiz a linha do tempo apresentada pela polícia.",
+          "body_sha256": "68cbf0f5f5154433a5eca1ac69d048ed90b39ce89f8464447e58ac03827e2d03"
+        },
+        {
+          "rank": 8,
+          "url": "https://g1.globo.com/jornal-nacional/noticia/2026/02/03/policia-de-sc-conclui-que-apenas-um-adolescente-teve-envolvimento-na-morte-do-cao-orelha.ghtml",
+          "date": "2026-02-03",
+          "title": "Polícia de SC conclui que apenas um adolescente teve envolvimento na morte do cão Orelha | G1",
+          "rationale": "Documenta a conclusão policial de fevereiro como versão atribuída, posteriormente submetida a novas diligências.",
+          "evidence": "No caso do cão Orelha, a polícia afirmou que só um dos adolescentes suspeitos teve envolvimento nas agressões.",
+          "body_sha256": "13a1c604e1ce6a66f6888c85356532df355172bf8b73340f239c76a85f21ec10"
+        },
+        {
+          "rank": 9,
+          "url": "https://g1.globo.com/fantastico/noticia/2026/02/02/veterinario-que-atendeu-cao-orelha-descarta-acidente-foi-uma-agressao.ghtml",
+          "date": "2026-02-02",
+          "title": "Veterinário que atendeu cão Orelha descarta acidente: 'Foi uma agressão' | G1",
+          "rationale": "Fonte do atendimento inicial; permite comparar achados clínicos com a exumação posterior.",
+          "evidence": "Derli Royer, responsável pelo socorro emergencial, contou que o animal tinha lesões graves na cabeça e no olho esquerdo, além de forte desidratação.",
+          "body_sha256": "197a04291c0db8dc5b6e10c1171b6615402770fbd1763b49d3edddc7471b4e52"
+        },
+        {
+          "rank": 10,
+          "url": "https://g1.globo.com/jornal-nacional/noticia/2026/01/27/parentes-de-adolescentes-suspeitos-de-matar-cachorro-orelha-sao-indiciados-por-coacao-de-testemunha-em-florianopolis.ghtml",
+          "date": "2026-01-27",
+          "title": "Parentes de adolescentes suspeitos de agredir cachorro Orelha são indiciados por coação de testemunha em Florianópolis | G1",
+          "rationale": "Marco da investigação de adultos por coação; a informação inicial de eutanásia no mesmo texto foi posteriormente revista.",
+          "evidence": "A polícia indiciou nesta terça-feira (27) dois empresários e um advogado.",
+          "body_sha256": "d4f78c41c200742b1a36b8757bc0761555b321c7dbcbdcad4cc613fe287e6add"
+        },
+        {
+          "rank": 11,
+          "url": "https://g1.globo.com/sc/santa-catarina/noticia/2026/02/10/mpsc-pede-exumacao-corpo-cao-orelha.ghtml",
+          "date": "2026-02-10",
+          "title": "Caso Orelha: Ministério Público de SC pede exumação do corpo do cão | G1",
+          "rationale": "Fundamentação do pedido de exumação e distinção entre laudo indireto e exame do corpo.",
+          "evidence": "Um laudo indireto, baseado em atendimento veterinário, apontou que a causa da morte foi um golpe na cabeça por objeto contundente.",
+          "body_sha256": "bd7e65ca4434d999001167838b77793b2ec1645ac1d4966e3f3c460aa89db476"
+        },
+        {
+          "rank": 12,
+          "url": "https://g1.globo.com/sc/santa-catarina/noticia/2026/02/13/corpo-de-cao-orelha-e-exumado-para-producao-de-novo-laudo-sobre-morte-em-florianopolis.ghtml",
+          "date": "2026-02-13",
+          "title": "Corpo do cão Orelha é exumado após MP apontar lacunas na investigação | G1",
+          "rationale": "Confirma execução da diligência, em vez de apenas o pedido de exumação.",
+          "evidence": "A exumação ocorreu na quarta-feira (11).",
+          "body_sha256": "1b5a040c342f7cb883b3ae5ed15a38540505827dd4fc619e02c8d1edf4b7fb7a"
+        },
+        {
+          "rank": 13,
+          "url": "https://g1.globo.com/sc/santa-catarina/noticia/2026/02/10/orelha-mp-prazo-policia-refazer-depoimentos-esclarecer-coacao-ameaca.ghtml",
+          "date": "2026-02-10",
+          "title": "Caso Orelha: MP dá prazo para polícia refazer depoimentos | G1",
+          "rationale": "Delimita o procedimento de coação e ameaça de adultos, diferente da autoria dos maus-tratos.",
+          "evidence": "A apuração atual trata apenas do conflito entre os adultos",
+          "body_sha256": "907a331f65a214e37b02b31aafe684aae3bce17e618fc1b306d4ba505ed312dd"
+        },
+        {
+          "rank": 14,
+          "url": "https://g1.globo.com/sc/santa-catarina/noticia/2026/01/26/cao-orelha-operacao-mandados-investigados-maus-tratos-coacao-florianopolis.ghtml",
+          "date": "2026-01-26",
+          "title": "Cão Orelha: operação cumpre mandados contra investigados por morte de cachorro comunitário em Florianópolis | G1",
+          "rationale": "Operação inicial e apreensão de dispositivos para reconstrução da prova, antes do estreitamento das suspeitas.",
+          "evidence": "Aparelhos celulares e outros dispositivos eletrônicos foram apreendidos e passarão por análise.",
+          "body_sha256": "4376def8af26ad9fd092233dc1e4be051cb9cfff15a06dc94a384ed74c182937"
+        },
+        {
+          "rank": 15,
+          "url": "https://g1.globo.com/fantastico/noticia/2026/02/03/cuidadora-de-cao-orelha-nega-boatos-sobre-caso-e-alerta-inventaram-um-monte-de-coisa.ghtml",
+          "date": "2026-02-03",
+          "title": "Cuidadora de cão Orelha nega boatos sobre caso e alerta: 'Inventaram um monte de coisa' | G1",
+          "rationale": "Desmente detalhes virais que não devem ser incorporados à reconstrução factual sem prova.",
+          "evidence": "Inventaram um monte de coisa, de eutanásia, de beisebol, de prego, não tem nada disso",
+          "body_sha256": "ffd4d924576f6dd5d6c2f277b5d12f4129317c16b50bfe554beddc2a4d1a68b4"
+        },
+        {
+          "rank": 16,
+          "url": "https://g1.globo.com/sc/santa-catarina/noticia/2026/02/06/caso-orelha-menina-em-video-com-adolescente-nao-viu-ataque.ghtml",
+          "date": "2026-02-06",
+          "title": "Cão Orelha: Menina em vídeo não viu agressão, diz polícia | G1",
+          "rationale": "Esclarece que a acompanhante não testemunhou agressão e registra a correção dos horários do vídeo divulgado.",
+          "evidence": "a corporação esclareceu nesta sexta (6) que, na verdade, os registros mostram a saída do adolescente em outro horário, às 6h35, e o retorno às 6h37.",
+          "body_sha256": "e48ec94ef4bba1e3939f3de6c7176cae33ef91e36efbb7caf6fd6503fd187aeb"
+        },
+        {
+          "rank": 17,
+          "url": "https://g1.globo.com/sc/santa-catarina/noticia/2026/04/15/cao-orelha-mp-entra-acao-improbidade-contra-ex-delegado-geral-da-policia-civil-de-sc.ghtml",
+          "date": "2026-04-15",
+          "title": "Cão Orelha: MP entra com ação de improbidade contra ex-delegado-geral | G1",
+          "rationale": "Desdobramento institucional mais recente: ação cível sobre a condução da apuração, ainda sem julgamento informado.",
+          "evidence": "O processo é de improbidade administrativa com indenização por dano moral coletivo em relação a atuação dele no caso do cão Orelha",
+          "body_sha256": "f065dcc327c5e8baee1848e436ea548cb1221ed01171729c34764d4e297e513f"
+        },
+        {
+          "rank": 18,
+          "url": "https://g1.globo.com/sc/santa-catarina/noticia/2026/03/18/cao-orelha-justica-suspende-investigacao-criminal-conduta-ex-delegado-geral.ghtml",
+          "date": "2026-03-18",
+          "title": "Cão Orelha: Justiça suspende investigação criminal contra ex-delegado | G1",
+          "rationale": "Contraponto judicial: suspensão por competência, sem confundir com arquivamento de toda apuração.",
+          "evidence": "As investigações cíveis ou administrativas seguem normalmente.",
+          "body_sha256": "147037fba9b606f9afa5becff4abeaa46f49d3a60a11570a9278c9050cbeebd5"
+        },
+        {
+          "rank": 19,
+          "url": "https://g1.globo.com/politica/noticia/2026/03/12/governo-publica-decreto-cao-orelha-que-endurece-penas-para-maus-tratos-a-animais.ghtml",
+          "date": "2026-03-12",
+          "title": "Governo anuncia decreto Cão Orelha, que endurece penas para maus-tratos a animais | G1",
+          "rationale": "Consequência regulatória nacional; o corpo registra que o anúncio ainda aguardava publicação no DOU.",
+          "evidence": "Até a última atualização desta reportagem, o decreto ainda não tinha sido publicado no Diário Oficial da União (DOU).",
+          "body_sha256": "49d4b3e641a6d53e1c9605c0c1c9e6b19c70f99b6c3c739f2846cc2f94927f95"
+        },
+        {
+          "rank": 20,
+          "url": "https://g1.globo.com/sc/santa-catarina/noticia/2026/01/30/cao-orelha-quais-proximos-passos-investigacao.ghtml",
+          "date": "2026-01-30",
+          "title": "Cão Orelha: quais os próximos passos da investigação em SC | G1",
+          "rationale": "Explica procedimentos e garantias dos adolescentes, bem como a revisão das suspeitas iniciais.",
+          "evidence": "um dos quatro adolescentes inicialmente identificados como suspeitos do ato infracional foi ouvido nesta semana e negou que estava na praia no momento do ocorrido.",
+          "body_sha256": "911f3b3f19973c32adfbcc380ea10abe01c3179e7531c85622fb3e23cb6e5059"
+        }
+      ]
+    },
+    {
+      "id": "cop30_negociacoes",
+      "name": "COP30: negociações, financiamento e resultados de Belém",
+      "scope": "Preparação diplomática, metas climáticas, financiamento, transição energética, adaptação e implementação após Belém; exclui turismo, publicidade, festas, obras locais e incidentes sem contribuição central para os acordos.",
+      "caution": "Propostas, rascunhos e iniciativas da presidência não equivalem a decisões consensuais nem a recursos desembolsados. Diferenciar o Roteiro de Baku a Belém, o mapa do caminho para fósseis e os acordos finais. As críticas e expectativas prévias são preservadas como etapas históricas, sem substituir o resultado final.",
+      "candidate_count": 668,
+      "snapshot_sha256": "467a4c914bdebeca0c7e4bd3379c0df55637d75dafcb4c38e74e92a02d263652",
+      "articles": [
+        {
+          "rank": 1,
+          "url": "https://g1.globo.com/meio-ambiente/cop-30/noticia/2025/11/23/entenda-em-12-topicos-os-avancos-e-as-pendencias-da-cop30.ghtml",
+          "date": "2025-11-23",
+          "title": "Entenda em 12 tópicos os avanços e as pendências da COP30 | G1",
+          "rationale": "Síntese retrospectiva de resultados e limites, prioridade sobre expectativas anteriores à cúpula.",
+          "evidence": "Um dos principais resultados foi a adoção de um conjunto comum de indicadores para a chamada Meta Global de Adaptação.",
+          "body_sha256": "46b3e185c3cd6d106663fdbf57c1162a8332b51e59014f7f0f0b7efe4340ffeb"
+        },
+        {
+          "rank": 2,
+          "url": "https://g1.globo.com/meio-ambiente/cop-30/noticia/2025/11/22/cop30-aprova-acordos-sem-mapa-do-caminho.ghtml",
+          "date": "2025-11-22",
+          "title": "COP30 aprova acordos com meta de triplicar financiamento e sem definição para o 'mapa do caminho' | G1",
+          "rationale": "Marco da adoção dos acordos, meta financeira e controvérsia sobre o processo de aprovação.",
+          "evidence": "O texto do Mutirão não cita os combustíveis fósseis, mas cria estruturas que ampliam a agenda de cooperação, organizam debates e inclui a meta de triplicar o financiamento para adaptação até 2035.",
+          "body_sha256": "a11240467509aa0e27d372a72a52942f9e1988c1e103c4ffe5f43fd6bad52187"
+        },
+        {
+          "rank": 3,
+          "url": "https://g1.globo.com/meio-ambiente/cop-30/noticia/2025/11/21/por-que-rota-para-fim-de-combustiveis-fosseis-virou-impasse-na-cop30.ghtml",
+          "date": "2025-11-21",
+          "title": "Por que rota para fim de combustíveis fósseis virou impasse na COP30? | G1",
+          "rationale": "Explicador causal do principal impasse, conectando compromisso anterior e coalizões de negociação.",
+          "evidence": "Os anfitriões brasileiros chegaram a cogitar mencionar um roteiro para a eliminação gradual dos combustíveis fósseis, mas o tema ficou de fora da agenda oficial e do último rascunho do texto final da cúpula",
+          "body_sha256": "ee4df048b28c01565d4fd6bb1aef628c7e717fd6b8231ee95ba6019815b7eb34"
+        },
+        {
+          "rank": 4,
+          "url": "https://g1.globo.com/meio-ambiente/cop-30/noticia/2025/11/05/presidencia-da-cop30-lanca-plano-de-us-13-trilhao-anuais-que-pode-ajudar-paises-na-luta-contra-crise-do-clima.ghtml",
+          "date": "2025-11-05",
+          "title": "COP30 apresenta plano de US$ 1,3 trilhão por ano para países pobres | G1",
+          "rationale": "Distingue financiamento proposto pelo roteiro Baku–Belém de tratado negociado e de desembolso realizado.",
+          "evidence": "O texto não tem força de tratado internacional nem será objeto de negociação entre países",
+          "body_sha256": "fc2d49816919f3e4496e4a32ec05af17d6bc799a8e347f5e8de763eeea71f15e"
+        },
+        {
+          "rank": 5,
+          "url": "https://g1.globo.com/meio-ambiente/cop-30/noticia/2025/11/22/mapa-do-caminho-fica-fora-dos-textos-da-cop30-e-vai-ser-uma-iniciativa-da-presidencia-brasileira-diz-andre-correa-do-lago.ghtml",
+          "date": "2025-11-22",
+          "title": "Mapa do caminho fica fora dos textos da COP30 e vai ser uma iniciativa da presidência brasileira, diz André Corrêa do Lago | G1",
+          "rationale": "Explica a saída institucional para o roteiro dos fósseis fora do consenso final.",
+          "evidence": "o chamado \"mapa do caminho\" (roadmap) para o fim do uso dos combustíveis fósseis não será incorporado aos textos finais",
+          "body_sha256": "867625708b38dad1c93520769434e7edaee253c87b1875e9c2612cd93284e078"
+        },
+        {
+          "rank": 6,
+          "url": "https://g1.globo.com/politica/noticia/2026/01/27/em-carta-presidencia-da-cop30-defende-aceleracao-de-decisoes-climaticas-e-admite-resultado-aquem-do-esperado.ghtml",
+          "date": "2026-01-27",
+          "title": "Em carta, Presidência da COP30 defende aceleração de decisões climáticas e admite resultado 'aquém do esperado' | G1",
+          "rationale": "Balanço posterior da presidência e continuidade do trabalho após a conferência.",
+          "evidence": "a Presidência da COP30 reconheceu que os resultados do evento ficaram \"aquém do esperado\"",
+          "body_sha256": "622abe153ec4b8915f1114bc0527df5117f0ed3943472cd02379eef2957c38cd"
+        },
+        {
+          "rank": 7,
+          "url": "https://g1.globo.com/meio-ambiente/cop-30/noticia/2025/06/27/conferencia-preparatoria-da-cop30-deixa-principais-impasses-de-belem-sem-solucao-entenda-em-5-pontos.ghtml",
+          "date": "2025-06-27",
+          "title": "Conferência preparatória da COP30 deixa principais impasses de Belém sem solução; entenda em 5 pontos | G1",
+          "rationale": "Antecedente diplomático: problemas já identificados em Bonn, antes da reunião de Belém.",
+          "evidence": "a conferência alemã que deveria preparar o terreno para acordos na COP30 esbarrou em impasses sobre financiamento climático, adaptação e transição energética.",
+          "body_sha256": "28591e5cc93faef5238f6ce02621ade82e27241c6abb4a40849a4f0bb70476b3"
+        },
+        {
+          "rank": 8,
+          "url": "https://g1.globo.com/meio-ambiente/cop-30/noticia/2025/11/08/em-10-pontos-entenda-o-que-a-cupula-de-lideres-mostra-sobre-o-rumo-da-cop30-e-seus-desafios.ghtml",
+          "date": "2025-11-08",
+          "title": "Em 10 pontos, entenda o que a Cúpula de Líderes mostra sobre a COP30 | G1",
+          "rationale": "Distingue sinalização política da cúpula de líderes de acordos negociados formalmente.",
+          "evidence": "São considerados passos iniciais e sinalizações importantes.",
+          "body_sha256": "15f45996bca95ba4dfa21dd834325bb5eb16a1dfc0697dfc1c1dc7ffcc734d55"
+        },
+        {
+          "rank": 9,
+          "url": "https://g1.globo.com/meio-ambiente/cop-30/noticia/2025/08/02/a-100-dias-da-cop30-metas-climaticas-atrasadas-aumentam-a-pressao-por-resultados-em-belem.ghtml",
+          "date": "2025-08-02",
+          "title": "A 100 dias da COP30, metas climáticas atrasadas aumentam a pressão por resultados em Belém | G1",
+          "rationale": "Explica a pressão das NDCs atrasadas e o elo com o Acordo de Paris.",
+          "evidence": "Até o fim de julho, apenas 25 países haviam enviado suas novas metas oficiais à ONU",
+          "body_sha256": "581d8ddb5d62d5ddefc8af8e2f4e2f05b5e23ea8371ff625d0bc725fdd31939a"
+        },
+        {
+          "rank": 10,
+          "url": "https://g1.globo.com/meio-ambiente/cop-30/noticia/2025/11/10/fantastico-acordo-presidente-da-cop30-celebra-consenso-sobre-agenda-do-1o-dia-conferencia.ghtml",
+          "date": "2025-11-10",
+          "title": "‘Fantástico acordo’: presidente da COP30 celebra consenso sobre agenda | G1",
+          "rationale": "Marco procedimental que permitiu iniciar negociações; não é aprovação do acordo final.",
+          "evidence": "o acordo costurado ainda no fim de semana foi considerado essencial para destravar o início das discussões formais.",
+          "body_sha256": "b0ee8d57b85519c318ff80563498ba46c7c012043ae5c1369fcb06c0a29b9d0c"
+        },
+        {
+          "rank": 11,
+          "url": "https://g1.globo.com/meio-ambiente/cop-30/noticia/2025/11/11/arabia-saudita-negociacoes-plano-transicao-energetica-observadores-cop30.ghtml",
+          "date": "2025-11-11",
+          "title": "Arábia Saudita trava negociações sobre plano para transição energética, dizem observadores da COP30 | G1",
+          "rationale": "Mostra resistência de produtores de petróleo e interesses econômicos por trás do impasse.",
+          "evidence": "A Arábia Saudita, um dos líderes mundiais de petróleo, vem se posicionando contra a tentativa de um plano prático para abandonar os combustíveis fósseis na COP30.",
+          "body_sha256": "996bb1b9f9179db8b1be440fe53f7e2460177f2d9ba750e976d4c64bf5277b02"
+        },
+        {
+          "rank": 12,
+          "url": "https://g1.globo.com/meio-ambiente/cop-30/noticia/2025/11/15/nos-bastidores-da-cop30-brasil-arma-estrategia-para-destravar-plano-global-contra-combustiveis-fosseis.ghtml",
+          "date": "2025-11-15",
+          "title": "COP30: Brasil tenta destravar plano global contra combustíveis fósseis | G1",
+          "rationale": "Estratégia de articulação brasileira para incluir um tema inicialmente fora da agenda.",
+          "evidence": "O governo brasileiro tem se mobilizado nos bastidores da COP30 para que o \"mapa do caminho\" para abandonar os combustíveis fósseis seja oficializado na agenda da conferência.",
+          "body_sha256": "9dff0661ddca8f47c390c772caae7d4d836e8ef736cfeb9505393881cf1f4cf5"
+        },
+        {
+          "rank": 13,
+          "url": "https://g1.globo.com/meio-ambiente/cop-30/noticia/2025/11/18/paises-apoiam-mapa-caminho-fim-combustiveis-fosseis-cop3.ghtml",
+          "date": "2025-11-18",
+          "title": "Na COP30, grupo de países apoia a adoção de 'mapa do caminho' pelo fim do uso de combustíveis fósseis | G1",
+          "rationale": "Formação de coalizão pró-roteiro; apoio público não é aprovação consensual.",
+          "evidence": "Um grupo de cerca de 80 países defendeu, nesta terça-feira (18) em Belém (PA), a importância da adoção de um \"mapa do caminho\" para o fim do uso dos combustíveis fósseis.",
+          "body_sha256": "78375b30aa9bb82001f325f6aa329e43f7eeac8a0548152eb53785a27b7d9d9e"
+        },
+        {
+          "rank": 14,
+          "url": "https://g1.globo.com/jornal-nacional/jn-na-cop30/noticia/2025/11/19/na-cop30-cientistas-publicam-carta-em-que-criticam-plano-dos-negociadores-contra-combustiveis-fosseis.ghtml",
+          "date": "2025-11-19",
+          "title": "Na COP30, cientistas publicam carta em que criticam plano dos negociadores contra combustíveis fósseis | G1",
+          "rationale": "Contraponto científico à ambição dos roteiros propostos durante as negociações.",
+          "evidence": "Na carta, os cientistas afirmaram ainda que não pode haver nenhum novo investimento em combustíveis fósseis.",
+          "body_sha256": "82898925c167ec1bd6f90e5e02810ffe0f0ed4c5c5a11394e7b77c10518eb7f1"
+        },
+        {
+          "rank": 15,
+          "url": "https://g1.globo.com/jornal-nacional/jn-na-cop30/noticia/2025/11/21/cop30-rascunho-de-acordo-e-criticado-por-nao-citar-reducao-de-combustiveis-fosseis-nem-origem-de-financiamento-a-paises-pobres.ghtml",
+          "date": "2025-11-21",
+          "title": "COP30: rascunho de acordo é criticado por não citar redução de combustíveis fósseis nem origem de financiamento a países pobres | G1",
+          "rationale": "Relaciona a ausência do roteiro ao desacordo sobre volume e origem do financiamento.",
+          "evidence": "O documento fala em duplicar o financiamento, enquanto o grupo de negociadores africanos vinha pedindo para triplicar",
+          "body_sha256": "da2d7ba151d16c762251303022429b693d53189f81b78a30e6153e89cbaab973"
+        },
+        {
+          "rank": 16,
+          "url": "https://g1.globo.com/meio-ambiente/cop-30/noticia/2025/11/21/ue-ameaca-barrar-acordo-da-cop30-e-critica-ausencia-de-metas-sobre-combustiveis-fosseis.ghtml",
+          "date": "2025-11-21",
+          "title": "UE ameaça barrar acordo da COP30 e critica ausência de metas sobre com | G1",
+          "rationale": "Contradição entre pressão europeia por ambição e resistência financeira atribuída por observadores.",
+          "evidence": "a União Europeia dificulta as negociações em outra frente: mostra resistência em ampliar recursos para o enfrentamento da crise do clima.",
+          "body_sha256": "367371e7396fb3cb556981bb354994d7e218de7646d0091b7eabea352479a982"
+        },
+        {
+          "rank": 17,
+          "url": "https://g1.globo.com/jornal-nacional/jn-na-cop30/noticia/2025/11/22/resultado-da-cop30-frustra-cientistas-ambientalistas-e-representantes-de-diversos-paises.ghtml",
+          "date": "2025-11-22",
+          "title": "Resultado da COP30 frustra cientistas, ambientalistas e representantes de diversos países | G1",
+          "rationale": "Avaliação plural do resultado, contrapondo frustração e preservação do consenso multilateral.",
+          "evidence": "Cientistas, ambientalistas e representantes de diversos países declararam frustração com o resultado final da COP30, mas afirmaram que foi o acordo possível.",
+          "body_sha256": "322700e154c9684a85f36a0b86d605b2176bd9d13f6b5240eef7814380728102"
+        },
+        {
+          "rank": 18,
+          "url": "https://g1.globo.com/pa/para/noticia/2025/11/13/plano-de-acao-em-saude-e-lancado-na-cop-30-em-belem-para-enfrentar-adaptacao-climatica.ghtml",
+          "date": "2025-11-13",
+          "title": "Plano de ação em saúde é lançado na COP 30 em Belém para enfrentar adaptação climática | G1",
+          "rationale": "Resultado setorial concreto de adaptação em saúde, além da negociação energética.",
+          "evidence": "foi lançado o Plano de Ação em Saúde de Belém, o primeiro plano internacional dedicado exclusivamente à adaptação climática no setor de saúde.",
+          "body_sha256": "c3116333673a44575261c89e82c464c7be319bab825bae861314366ef4c41f2c"
+        },
+        {
+          "rank": 19,
+          "url": "https://g1.globo.com/politica/noticia/2025/12/08/apos-cop-sem-acordo-sobre-combustiveis-fosseis-lula-da-60-dias-para-governo-elaborar-proposta-de-transicao-energetica.ghtml",
+          "date": "2025-12-08",
+          "title": "Transição Energética: Lula dá prazo para proposta após COP30 | G1",
+          "rationale": "Seguimento doméstico da pendência internacional: elaboração de diretrizes e mecanismos de financiamento.",
+          "evidence": "No despacho desta segunda-feira (8), Lula determinou que os ministérios elaborem um texto para estabelecer as diretrizes desse \"mapa do caminho\".",
+          "body_sha256": "018bf8876d30f01430b48967e0afaebb0e27fc6da7ddc1f49679886f403f8a6f"
+        },
+        {
+          "rank": 20,
+          "url": "https://g1.globo.com/pa/para/noticia/2025/08/13/cop30-na-amazonia-reforca-desafio-antigo-e-urgente-mobilizar-trilhoes-para-financiamento-climatico-global.ghtml",
+          "date": "2025-08-13",
+          "title": "COP30 reforça desafio antigo: mobilizar recursos para financiamento climático | G1",
+          "rationale": "Contexto da dívida histórica de financiamento e da demanda de países em desenvolvimento.",
+          "evidence": "Ainda em 2009, durante a COP15 em Copenhague, países desenvolvidos comprometeram-se a mobilizar US$ 100 bilhões anuais até 2020",
+          "body_sha256": "8f6b7e68f4eaf961def8a10bb9908b29b9dc062a20330aa57bdecf176b650455"
+        }
+      ]
+    }
+  ]
+}

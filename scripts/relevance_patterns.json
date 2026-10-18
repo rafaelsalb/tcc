@@ -1,0 +1,12 @@
+{
+  "master": "\\m(master|vorcaro)\\M",
+  "inss": "(INSS.*(fraud|descont|ressarc|devol|operaç|CPMI)|((fraud|descont|ressarc|devol|CPMI).*(INSS|aposentad)))",
+  "tarifaco": "(tarifaço|tarifas?.*(Brasil|brasileir)|Brasil.*tarifas?)",
+  "metanol": "metanol",
+  "contencao": "(contenção|operaç.*(Penha|Alemão)|megaoperaç.*Rio)",
+  "benicio": "Benício",
+  "rinjani": "(Juliana Marins|Rinjani)",
+  "orelha": "(cão Orelha|cachorro Orelha|caso Orelha)",
+  "cop30": "COP.?30",
+  "golpe": "(trama golpista|tentativa de golpe|julgamento.*Bolsonaro|Bolsonaro.*(condena|réu))"
+}

@@ -1,0 +1,339 @@
+from copy import deepcopy
+import csv
+import json
+import threading
+import time
+from types import SimpleNamespace
+
+import pytest
+
+from services.batch_search import evaluate_request
+from services.ranking import RankingService
+from services import batch_evaluation as batch
+
+
+def setup_services():
+    articles = [SimpleNamespace(url=u, title=u) for u in ("a", "b", "c")]
+    entities = [SimpleNamespace(text_=f"Pessoa {i}", canonical=None) for i in range(12)]
+    ranker = RankingService(
+        SimpleNamespace(get_all=lambda **kwargs: articles),
+        SimpleNamespace(entity_repository=None,
+                        batch_get_or_extract_entities_and_store_for_articles=lambda *args, **kwargs: {
+                            a.url: entities for a in articles}),
+    )
+    data = {"retrieval_id": "pool", "result_unit": "articles",
+            "ranked": [{"article": u, "score": 1 / (i + 1)} for i, u in enumerate(("a", "b", "c"))],
+            "lexical_ranked": [{"article": u, "score": 1.0} for u in ("b", "a", "c")],
+            "results": [{"article_url": u, "article_title": u} for u in ("a", "b", "c")],
+            "diagnostics": {"returned_articles": 3}}
+    calls = []
+
+    def search(**kwargs):
+        calls.append(kwargs)
+        return deepcopy(data)
+
+    return SimpleNamespace(search=search), ranker, calls, data
+
+
+def configurations():
+    return [{"stage": "ppr", "ranking": ranking, "seed_method": seed, "mode": "ranking"}
+            for seed in ("louvain", "hits", "ppr_top10")
+            for ranking in ("ppr", "hybrid_max", "rrf", "cross_encoder", "fused", "mmr")]
+
+
+def test_reuse_benchmark_preserves_results_and_reduces_work(monkeypatch):
+    searcher, ranker, calls, data = setup_services()
+    reranks = []
+
+    def rerank(query, rows):
+        reranks.append(query)
+        return [{"article": row["article_url"], "score": 1.0} for row in rows]
+
+    monkeypatch.setattr("services.search_pipeline._cross_encoder_rank", rerank)
+    original = deepcopy(data)
+    report = evaluate_request(searcher, ranker, {
+        "search": {"query": "teste", "result_unit": "articles"},
+        "configurations": configurations(), "benchmark": True,
+    })
+    assert report["performance"]["equivalent"] is True
+    assert report["performance"]["optimized"]["counts"] == {
+        "retrieval_calls": 1, "ranking_calls": 12, "graph_builds": 1, "ppr_runs": 3,
+    }
+    assert report["performance"]["baseline"]["counts"] == {
+        "retrieval_calls": 18, "ranking_calls": 18, "graph_builds": 9, "ppr_runs": 9,
+    }
+    assert len(reranks) == 4  # One optimized pass, three independent passes.
+    assert len(report["results"]) == 18 and len(calls) == 19
+    assert data == original
+    assert not hasattr(ranker, "_batch_graphs")
+
+
+def test_batch_endpoint_evaluates_configurable_ensemble_and_benchmark(monkeypatch):
+    searcher, ranker, calls, _ = setup_services()
+    monkeypatch.setattr("services.search_pipeline._cross_encoder_rank", lambda query, rows: [
+        {"article": row["article_url"], "score": float(i)} for i, row in enumerate(reversed(rows))
+    ])
+    report = evaluate_request(searcher, ranker, {
+        "search": {"query": "teste", "result_unit": "articles",
+                   "ensemble_rankings": ["rrf", "cross_encoder", "ppr"]},
+        "configurations": [{"mode": "ranking", "stage": "ppr", "ranking": "ensemble_rrf",
+                            "seed_method": "hits"}],
+        "benchmark": True,
+    })
+    assert report["performance"]["equivalent"] is True
+    assert len(report["results"]) == 1
+    assert len(report["results"][0]["ranked"]) == 3
+    assert len(calls) == 2  # one reused retrieval plus one independent baseline retrieval
+    assert report["performance"]["optimized"]["counts"]["graph_builds"] == 1
+    assert report["performance"]["optimized"]["counts"]["ppr_runs"] == 1
+
+
+def test_compare_rows_and_ordinary_rows_keep_their_identity():
+    searcher, ranker, _, _ = setup_services()
+    entries = [{"mode": "compare", "stage": stage, "ranking": stage,
+                "seed_method": "none" if stage in ("lexical", "hybrid") else "hits"}
+               for stage in ("lexical", "hybrid", "ppr", "fused")]
+    entries += [{"mode": "ranking", "stage": "ppr", "ranking": "fused", "seed_method": "hits"}]
+    report = evaluate_request(searcher, ranker, {"search": {"query": "teste"}, "configurations": entries})
+    assert report["results"][0]["retrieval_id"] == "pool:lexical"
+    assert report["performance"]["optimized"]["counts"]["ppr_runs"] == 1
+    assert [r["mode"] for r in report["results"]] == ["compare"] * 4 + ["ranking"]
+
+
+def test_empty_evaluation_group_completes_without_model_or_graph(monkeypatch):
+    import sys
+
+    searcher, ranker, _, data = setup_services()
+    data.update(ranked=[], lexical_ranked=[], results=[])
+    monkeypatch.setattr("services.search_pipeline._CROSS_ENCODER", None)
+    monkeypatch.setitem(sys.modules, "sentence_transformers", None)
+    monkeypatch.setattr(ranker, "_prepare_graph", lambda *args: pytest.fail("empty pool must not build a graph"))
+    report = evaluate_request(searcher, ranker, {
+        "search": {"query": "no matches"}, "configurations": configurations(), "benchmark": True,
+    })
+    assert len(report["results"]) == 18
+    assert all(entry["ranked"] == [] for entry in report["results"])
+    assert report["performance"]["equivalent"] is True
+    assert report["performance"]["optimized"]["counts"]["graph_builds"] == 0
+    for entry in report["results"]:
+        if entry["ranking"] == "cross_encoder":
+            assert entry["diagnostics"]["cross_encoder_reranked_count"] == 0
+            assert entry["diagnostics"]["cross_encoder_missing_document_count"] == 0
+
+
+@pytest.mark.parametrize("body", [None, {}, {"search": {}, "configurations": []},
+    {"search": {}, "configurations": [{"stage": "ppr", "ranking": "bad"}]}])
+def test_invalid_evaluations_rejected(body):
+    with pytest.raises(ValueError):
+        evaluate_request(None, None, body)
+
+
+def test_cli_reuse_checkpoints_each_row_and_resumes_inside_group(monkeypatch, tmp_path):
+    monkeypatch.setattr(batch, "_validate_relevant_urls_exist", lambda *args: None)
+    monkeypatch.setattr(batch, "SEARCH_PRESETS", {"rapido": {"limit": 50, "top_k": 10}})
+    calls = []
+    url = "https://g1.globo.com/teste.ghtml"
+
+    def request(base, item, task, configs, benchmark):
+        calls.append(task["quorum"])
+        return {"results": [{**c, "ranked": [{"article": url, "score": 1.0}],
+                             "diagnostics": {}, "retrieval_id": "pool", "computation_reused": False}
+                            for c in configs],
+                "performance": {"optimized": {"wall_seconds": 1.0,
+                                "counts": {"retrieval_calls": 1, "graph_builds": 1, "ppr_runs": 3}}}}
+
+    monkeypatch.setattr(batch, "_evaluation_from_api", request)
+    args = (None, "http://localhost:5000", [{"id": "case", "query": "teste", "relevant_urls": [url]}],
+            tmp_path / "report.json", tmp_path / "report.csv")
+    append = batch.ResultJournal.append
+
+    def interrupt(journal, task, result):
+        if journal.completed == 1:
+            raise KeyboardInterrupt()
+        append(journal, task, result)
+
+    monkeypatch.setattr(batch.ResultJournal, "append", interrupt)
+    options = dict(reuse=True, compare_stages=True, quorums=(0.3, 0.7), result_unit="articles")
+    summary = batch.run_batch_evaluation(*args, **options)
+    assert summary["completed_results"] == 1
+    monkeypatch.setattr(batch.ResultJournal, "append", append)
+    summary = batch.run_batch_evaluation(*args, resume=True, **options)
+    expected_rows = 2 * (2 + 2 * len(batch.SEED_METHODS) + len(batch.RANKINGS) * len(batch.SEED_METHODS))
+    assert summary["completed_results"] == summary["total_results"] == expected_rows
+    assert calls == [0.3, 0.3, 0.7]  # Only the partially saved group is fetched again.
+    with args[4].open(encoding="utf-8-sig", newline="") as stream:
+        rows = list(csv.DictReader(stream))
+    assert len(rows) == expected_rows
+    assert all(row["retrieval_calls"] == "1" for row in rows)
+    report = json.loads(args[3].read_text())
+    assert report["reuse"] is True
+    assert all(row["ranked_urls"] == [url] for row in report["evaluations"][0]["results"])
+
+
+def test_batch_transport_validates_equivalence_and_preserves_pool_diagnostics(monkeypatch):
+    import json
+
+    searcher, ranker, _, data = setup_services()
+    data["diagnostics"]["lexical_candidate_article_urls"] = ["a", "b"]
+    data["diagnostics"]["hybrid_eligible_article_urls"] = ["a"]
+    configs = [c for c in configurations() if c["ranking"] in ("ppr", "fused", "mmr")]
+    damaged = False
+
+    def urlopen(request, timeout):
+        assert request.full_url == "http://localhost:5000/evaluate"
+        assert request.get_method() == "POST"
+        payload = evaluate_request(searcher, ranker, json.loads(request.data))
+        if damaged:
+            payload["performance"]["equivalent"] = False
+
+        class Response:
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *args):
+                pass
+
+            def read(self):
+                return json.dumps(payload).encode()
+
+        return Response()
+
+    monkeypatch.setattr(batch, "urlopen", urlopen)
+    item = {"query": "teste", "relevant_urls": ["a", "b"]}
+    task = {"limit": 50, "top_k": 10, "quorum": 0.7, "result_unit": "articles"}
+    report = batch._evaluation_from_api("http://localhost:5000", item, task, configs, benchmark=True)
+    assert report["results"][0]["diagnostics"]["lexical_reference_in_pool"] == 2
+    assert report["results"][0]["diagnostics"]["hybrid_eligible_reference_in_pool"] == 1
+    damaged = True
+    with pytest.raises(RuntimeError, match="refusing to save"):
+        batch._evaluation_from_api("http://localhost:5000", item, task, configs, benchmark=True)
+
+
+def test_parallel_batch_bounds_workers_and_commits_in_task_order(monkeypatch, tmp_path):
+    import csv
+    import json
+
+    monkeypatch.setattr(batch, "_validate_relevant_urls_exist", lambda *args: None)
+    monkeypatch.setattr(batch, "SEARCH_PRESETS", {"rapido": {"limit": 50, "top_k": 10}})
+    monkeypatch.setattr(batch, "SEED_METHODS", ("hits",))
+    monkeypatch.setattr(batch, "RANKINGS", ("hybrid_max",))
+    active = maximum = 0
+    lock = threading.Lock()
+    calls = []
+
+    def request(base, item, task, configs, benchmark):
+        nonlocal active, maximum
+        with lock:
+            active += 1
+            maximum = max(maximum, active)
+            calls.append(item["id"])
+        time.sleep(0.12 if item["id"] == "case0" else 0.02)
+        with lock:
+            active -= 1
+        return {"results": [{**config, "ranked": [{"article": item["relevant_urls"][0], "score": 1.0}],
+                              "diagnostics": {}, "retrieval_id": item["id"], "computation_reused": False}
+                             for config in configs],
+                "performance": {"optimized": {"wall_seconds": 0.1,
+                                "counts": {"retrieval_calls": 1, "graph_builds": 0, "ppr_runs": 0}}}}
+
+    monkeypatch.setattr(batch, "_evaluation_from_api", request)
+    evaluations = [{"id": f"case{i}", "query": f"query{i}",
+                   "relevant_urls": [f"https://g1.globo.com/{i}.ghtml"]} for i in range(5)]
+    json_path, csv_path = tmp_path / "parallel.json", tmp_path / "parallel.csv"
+    summary = batch.run_batch_evaluation(None, "http://localhost:5000", evaluations, json_path, csv_path,
+                                         reuse=True, workers=2, presets=("rapido",), quorums=(0.7,),
+                                         seed_methods=("hits",), rankings=("hybrid_max",))
+    assert summary["completed_results"] == 5
+    assert maximum == 2
+    assert len(calls) == 5 and set(calls) == {f"case{i}" for i in range(5)}
+    report = json.loads(json_path.read_text())
+    assert [item["id"] for item in report["evaluations"]] == [f"case{i}" for i in range(5)]
+    records = [json.loads(line) for line in json_path.with_suffix(".jsonl").read_text().splitlines()[1:]]
+    assert [record["index"] for record in records] == list(range(5))
+    with csv_path.open(encoding="utf-8-sig", newline="") as stream:
+        assert [row["id"] for row in csv.DictReader(stream)] == [f"case{i}" for i in range(5)]
+
+
+def test_parallel_failure_resumes_from_ordered_checkpoint_prefix(monkeypatch, tmp_path):
+    import csv
+
+    monkeypatch.setattr(batch, "_validate_relevant_urls_exist", lambda *args: None)
+    monkeypatch.setattr(batch, "SEARCH_PRESETS", {"rapido": {"limit": 50, "top_k": 10}})
+    monkeypatch.setattr(batch, "SEED_METHODS", ("hits",))
+    monkeypatch.setattr(batch, "RANKINGS", ("hybrid_max",))
+    calls = []
+    fail = True
+
+    def request(base, item, task, configs, benchmark):
+        calls.append(item["id"])
+        if item["id"] == "case1" and fail:
+            time.sleep(0.01)
+            raise RuntimeError("simulated task failure")
+        time.sleep(0.05 if item["id"] == "case0" else 0.01)
+        return {"results": [{**config, "ranked": [{"article": item["relevant_urls"][0], "score": 1.0}],
+                              "diagnostics": {}, "retrieval_id": item["id"], "computation_reused": False}
+                             for config in configs],
+                "performance": {"optimized": {"wall_seconds": 0.1,
+                                "counts": {"retrieval_calls": 1, "graph_builds": 0, "ppr_runs": 0}}}}
+
+    monkeypatch.setattr(batch, "_evaluation_from_api", request)
+    evaluations = [{"id": f"case{i}", "query": f"query{i}",
+                   "relevant_urls": [f"https://g1.globo.com/{i}.ghtml"]} for i in range(4)]
+    json_path, csv_path = tmp_path / "resume-parallel.json", tmp_path / "resume-parallel.csv"
+    options = dict(reuse=True, workers=2, presets=("rapido",), quorums=(0.7,),
+                   seed_methods=("hits",), rankings=("hybrid_max",))
+    with pytest.raises(RuntimeError, match="simulated task failure"):
+        batch.run_batch_evaluation(None, "http://localhost:5000", evaluations, json_path, csv_path, **options)
+    partial = json.loads(json_path.read_text())
+    assert partial["completed_results"] == 1
+    fail = False
+    summary = batch.run_batch_evaluation(None, "http://localhost:5000", evaluations, json_path, csv_path,
+                                         resume=True, **options)
+    assert summary["completed_results"] == 4
+    assert calls.count("case0") == 1
+    assert calls.count("case1") == 2
+    # case2 may have completed while case1 failed, but it was not checkpointed
+    # out of order and is safely repeated on resume.
+    assert calls.count("case2") == 2
+    assert calls.count("case3") == 1
+    with csv_path.open(encoding="utf-8-sig", newline="") as stream:
+        assert [row["id"] for row in csv.DictReader(stream)] == [f"case{i}" for i in range(4)]
+
+
+@pytest.mark.parametrize("workers", [0, 17, True])
+def test_worker_limit_must_be_between_one_and_sixteen(monkeypatch, tmp_path, workers):
+    args = (None, "http://localhost:5000", [{"id": "case", "query": "query",
+            "relevant_urls": ["https://g1.globo.com/a"]}], tmp_path / "bad.json", tmp_path / "bad.csv")
+    with pytest.raises(ValueError, match="workers"):
+        batch.run_batch_evaluation(*args, workers=workers)
+
+
+def test_parallel_legacy_mode_also_obeys_worker_bound(monkeypatch, tmp_path):
+    monkeypatch.setattr(batch, "_validate_relevant_urls_exist", lambda *args: None)
+    monkeypatch.setattr(batch, "SEARCH_PRESETS", {"rapido": {"limit": 50, "top_k": 10}})
+    monkeypatch.setattr(batch, "SEED_METHODS", ("hits",))
+    monkeypatch.setattr(batch, "RANKINGS", ("ppr",))
+    active = maximum = 0
+    lock = threading.Lock()
+
+    def search(base, query, preset, seed, quorum, **options):
+        nonlocal active, maximum
+        with lock:
+            active += 1
+            maximum = max(maximum, active)
+        time.sleep(0.04)
+        with lock:
+            active -= 1
+        return [query]
+
+    monkeypatch.setattr(batch, "_ranked_urls_from_api", search)
+    evaluations = [{"id": f"case{i}", "query": f"url-{i}",
+                   "relevant_urls": [f"https://g1.globo.com/{i}"]} for i in range(6)]
+    json_path, csv_path = tmp_path / "legacy-parallel.json", tmp_path / "legacy-parallel.csv"
+    summary = batch.run_batch_evaluation(None, "http://localhost:5000", evaluations, json_path, csv_path,
+                                         reuse=False, workers=2, presets=("rapido",), quorums=(0.7,),
+                                         seed_methods=("hits",), rankings=("ppr",))
+    assert summary["completed_results"] == 6
+    assert maximum == 2
+    report = json.loads(json_path.read_text())
+    assert [item["id"] for item in report["evaluations"]] == [f"case{i}" for i in range(6)]
