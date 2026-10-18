@@ -13,6 +13,10 @@ from config import REDIS_URL
 
 
 app = Flask(__name__)
+# The dashboard template and its ES module evolve together. In development,
+# do not let Flask keep serving a stale index.html against newer static JS.
+app.config["TEMPLATES_AUTO_RELOAD"] = True
+app.jinja_env.auto_reload = True
 g1_app = G1App()
 r = Redis.from_url(REDIS_URL, decode_responses=True)
 judgment_repo = JudgmentRepository(g1_app.article_repo.engine)

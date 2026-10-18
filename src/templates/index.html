@@ -310,16 +310,29 @@
                         </div>
                     </div>
 
-                    <div class="dashboard-filterbar">
+                    <div class="dashboard-filterbar" id="dashboard-filterbar">
                         <label>Ranking<select id="dashboard-filter-ranking"><option value="">Todos</option></select></label>
                         <label>Seed<select id="dashboard-filter-seed"><option value="">Todas</option></select></label>
                         <label>Preset<select id="dashboard-filter-preset"><option value="">Todos</option></select></label>
                         <label>Quorum<select id="dashboard-filter-quorum"><option value="">Todos</option></select></label>
-                        <label>Tema<select id="dashboard-filter-theme"><option value="">Todos</option></select></label>
+                        <details class="dashboard-multi-filter">
+                            <summary id="dashboard-filter-theme-summary">Temas · todos</summary>
+                            <label for="dashboard-filter-theme-mode">Filtro de temas</label>
+                            <select id="dashboard-filter-theme-mode"><option value="include">Incluir selecionados</option><option value="exclude">Excluir selecionados</option></select>
+                            <div class="dashboard-multi-filter-actions"><button type="button" class="btn-ghost" id="dashboard-filter-theme-all">Selecionar todos</button><button type="button" class="btn-ghost" id="dashboard-filter-theme-clear">Limpar</button></div>
+                            <div id="dashboard-filter-theme-options" class="dashboard-multi-filter-options"></div>
+                        </details>
                         <label>Consulta<select id="dashboard-filter-query"><option value="">Todas</option></select></label>
-                        <label>Formulação<select id="dashboard-filter-formulation"><option value="">Todas</option></select></label>
+                        <details class="dashboard-multi-filter">
+                            <summary id="dashboard-filter-formulation-summary">Formulações · todas</summary>
+                            <label for="dashboard-filter-formulation-mode">Filtro de formulação</label>
+                            <select id="dashboard-filter-formulation-mode"><option value="include">Incluir selecionadas</option><option value="exclude">Excluir selecionadas</option></select>
+                            <div class="dashboard-multi-filter-actions"><button type="button" class="btn-ghost" id="dashboard-filter-formulation-all">Selecionar todas</button><button type="button" class="btn-ghost" id="dashboard-filter-formulation-clear">Limpar</button></div>
+                            <div id="dashboard-filter-formulation-options" class="dashboard-multi-filter-options"></div>
+                        </details>
                         <label>Ranking de referência<select id="dashboard-baseline-ranking"><option value="hybrid_max">hybrid_max</option></select></label>
                         <label>Métrica<select id="dashboard-metric"><option value="f1">F1</option><option value="precision">Precisão</option><option value="recall">Revocação</option><option value="ndcg">NDCG</option><option value="map">MAP</option></select></label>
+                        <label>Escala<select id="dashboard-metric-view"><option value="raw">Valor original</option><option value="oracle">Fração do teto do pool</option></select></label>
                         <label>k<select id="dashboard-k"><option>1</option><option>3</option><option>5</option><option>10</option><option selected>20</option></select></label>
                         <button type="button" class="btn-ghost" id="dashboard-clear-filters">Limpar filtros</button>
                     </div>
@@ -328,13 +341,26 @@
                         <div class="dashboard-threshold-controls">
                             <label class="dashboard-threshold-enable">
                                 <input type="checkbox" id="dashboard-threshold-enabled">
-                                <span id="dashboard-threshold-heading">Excluir resultados abaixo do mínimo</span>
+                                <span id="dashboard-threshold-heading">Filtrar resultados pela métrica</span>
                             </label>
-                            <label for="dashboard-threshold-range">Mínimo de <strong id="dashboard-threshold-metric-label">F1@20</strong></label>
-                            <input type="range" id="dashboard-threshold-range" min="0" max="1" step="0.01" value="0.70" aria-label="Valor mínimo da métrica">
-                            <input type="number" id="dashboard-threshold-number" min="0" max="1" step="0.01" value="0.70" aria-label="Valor mínimo da métrica, entre 0 e 1">
-                            <output id="dashboard-threshold-percent" for="dashboard-threshold-range dashboard-threshold-number">70%</output>
-                            <span class="dashboard-muted">Escala de 0 a 1 (0,70 = 70%). Valores menores ou sem métrica saem das análises, tabela e exportação; o progresso da rodada não muda.</span>
+                            <label for="dashboard-threshold-mode">Modo</label>
+                            <select id="dashboard-threshold-mode">
+                                <option value="absolute">Piso absoluto</option>
+                                <option value="sd">Desvios padrão por configuração</option>
+                            </select>
+                            <div id="dashboard-absolute-threshold-controls" class="dashboard-threshold-mode-controls">
+                                <label for="dashboard-threshold-range">Mínimo de <strong id="dashboard-threshold-metric-label">F1@20</strong></label>
+                                <input type="range" id="dashboard-threshold-range" min="0" max="1" step="0.01" value="0.70" aria-label="Valor mínimo da métrica">
+                                <input type="number" id="dashboard-threshold-number" min="0" max="1" step="0.01" value="0.70" aria-label="Valor mínimo da métrica, entre 0 e 1">
+                                <output id="dashboard-threshold-percent" for="dashboard-threshold-range dashboard-threshold-number">70%</output>
+                            </div>
+                            <div id="dashboard-sd-threshold-controls" class="dashboard-threshold-mode-controls" hidden>
+                                <label for="dashboard-sd-threshold-range">Manter z ≥</label>
+                                <input type="range" id="dashboard-sd-threshold-range" min="-3" max="2" step="0.1" value="-1" aria-label="Mínimo z-score em desvios padrão">
+                                <input type="number" id="dashboard-sd-threshold-number" min="-3" max="2" step="0.1" value="-1" aria-label="Mínimo z-score em desvios padrão">
+                                <output id="dashboard-sd-threshold-value" for="dashboard-sd-threshold-range dashboard-sd-threshold-number">−1,0σ</output>
+                            </div>
+                            <span class="dashboard-muted">O filtro usa o valor de <strong id="dashboard-threshold-metric-context">F1@20</strong>; faltas de métrica são excluídas. O progresso não muda.</span>
                         </div>
                         <div id="dashboard-exclusion-audit" class="dashboard-exclusion-audit" hidden>
                             <div class="dashboard-exclusion-summary" aria-live="polite">
@@ -380,6 +406,14 @@
                     </article>
 
                     <div class="dashboard-chart-grid">
+                        <article class="dashboard-card dashboard-chart-card dashboard-timeline-card">
+                            <h3>Distribuição da métrica</h3>
+                            <p class="dashboard-muted" id="dashboard-distribution-caption">Distribuição antes do filtro de métrica. Média, desvio padrão amostral e corte são calculados dentro de cada configuração.</p>
+                            <label class="dashboard-distribution-choice" for="dashboard-distribution-config">Configuração exibida
+                                <select id="dashboard-distribution-config"></select>
+                            </label>
+                            <div id="dashboard-metric-distribution" class="dashboard-chart"></div>
+                        </article>
                         <article class="dashboard-card dashboard-chart-card">
                             <h3>Desempenho por configuração</h3>
                             <p class="dashboard-muted">Média macro por tema; ponto = média e traço = intervalo interquartil entre temas. Mostra todos os grupos filtrados.</p>
@@ -388,12 +422,12 @@
                         </article>
                         <article class="dashboard-card dashboard-chart-card">
                             <h3>Diferença pareada contra referência</h3>
-                            <p class="dashboard-muted">Diferença da métrica para o ranking de referência, pareada nas mesmas consultas e configurações. Este gráfico ignora apenas o filtro Ranking; os demais filtros permanecem. Zero significa empate.</p>
+                            <p class="dashboard-muted">Diferença da métrica para o ranking de referência, pareada nas mesmas consultas e configurações. Ignora apenas o filtro Ranking; os demais filtros permanecem. Um par só aparece se os dois resultados passarem o filtro de métrica. Zero significa empate.</p>
                             <div id="dashboard-paired-delta" class="dashboard-chart"></div>
                         </article>
                         <article class="dashboard-card dashboard-chart-card">
                             <h3>Ranking × seed × parâmetros</h3>
-                            <p class="dashboard-muted">Cor e número representam a média macro por tema (0–100%). Célula vazia significa sem observações.</p>
+                            <p class="dashboard-muted">Cor e número representam a média macro por tema; a escala aparece abaixo. Célula vazia significa sem observações.</p>
                             <div id="dashboard-heatmap" class="dashboard-chart dashboard-chart--heatmap"></div>
                         </article>
                         <article class="dashboard-card dashboard-chart-card">

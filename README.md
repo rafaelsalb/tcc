@@ -176,6 +176,12 @@ resumos e diagnósticos são persistidos no PostgreSQL (`evaluation_runs`,
 rodadas ou resultados no sistema de arquivos.** A API lista conjuntos embutidos em
 `GET /dashboard/evaluation-sets`, inicia rodadas em `POST /dashboard/runs` e
 expõe status, resumo e páginas de resultados em `/dashboard/runs/<id>`.
+
+Na visualização, escolha **Valor original** ou **Fração do teto do pool**. A segunda
+opção calcula métrica observada ÷ oracle da mesma métrica e `k`; está disponível
+para precisão, revocação e F1, não para MAP/NDCG. O oracle é o melhor valor possível
+dentro dos artigos recuperados, não um teto para todo o corpus. Valores sem teto
+positivo aparecem como indisponíveis; valores acima de 100% não são truncados.
 O navegador preserva a aba, filtros, ordenação, recorte top-N, tópicos selecionados,
 rodada atual, configurações do painel e seleção de artigos relevantes em
 `localStorage`; os julgamentos da aba Avaliação também continuam salvos no servidor.
@@ -183,6 +189,16 @@ Se a API reiniciar durante uma rodada, os resultados já gravados continuam
 acessíveis e a rodada aparece como interrompida; ela não é retomada
 automaticamente. Mantenha a API em um único processo enquanto uma rodada estiver
 ativa.
+
+O painel também mostra a distribuição da métrica/corte selecionados em um
+histograma por configuração (ranking, seed, preset e quorum), com média, desvio
+padrão amostral e mediana. O filtro pode usar um piso absoluto ou um z-score
+mínimo; no segundo modo, cada resultado é comparado somente à distribuição da
+própria configuração: `z = (valor - média) / desvio padrão`. Por exemplo, `z ≥ -1`
+mantém resultados até um desvio padrão abaixo da média. Esse filtro é descritivo,
+não um teste de significância. Configurações com menos de duas observações ou
+desvio padrão zero não são filtradas por z-score e aparecem como não avaliáveis;
+valores ausentes continuam identificados na auditoria de exclusões.
 
 ### Importar rodadas antigas do painel
 

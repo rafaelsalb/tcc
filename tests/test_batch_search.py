@@ -324,7 +324,9 @@ def test_dashboard_run_persists_results_and_summary_in_store_without_run_files(m
             {"article": "c", "score": 1 / 3},
         ]
         summary = manager._memory_artifacts[(run["run_id"], '[null,null,null,"summary"]')]
-        assert summary["fastest_combinations"][0]["parameters"]["ranking"] == "hybrid_max"
+        assert {entry["parameters"]["ranking"] for entry in summary["groups"]["rankings"]} == {
+            "hybrid_max", "vector",
+        }
         assert manager._memory_results[run["run_id"]][0]["result"]["ranked_urls"] == ["a", "b", "c"]
         assert not list(tmp_path.rglob("results.jsonl"))
         assert not list(tmp_path.rglob("state.json"))

@@ -501,6 +501,7 @@ function setActiveTab(tabId) {
     for (const panel of els.tabPanels) {
         panel.classList.toggle("active", panel.id === tabId);
     }
+    document.body.classList.toggle("dashboard-fullscreen", tabId === "panel-dashboard");
     setUiState("activeTab", tabId);
     const savedScroll = getUiState().scrollPositions?.[tabId];
     if (Number.isFinite(savedScroll)) requestAnimationFrame(() => window.scrollTo(0, savedScroll));
