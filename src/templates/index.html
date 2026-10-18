@@ -48,11 +48,12 @@
                             </div>
                         </div>
                         <div class="field">
-                            <label for="seed-method">Método de tópicos<button type="button" class="help-dot" data-help="Escolhe como os tópicos que guiam a ordenação dos resultados são selecionados: pelos mais citados no conjunto, ou por representantes de grupos de tópicos relacionados, o que favorece a variedade.">?</button></label>
+                            <label for="seed-method">Método de tópicos<button type="button" class="help-dot" data-help="Escolhe como os tópicos que guiam a ordenação são selecionados: pelas entidades com maior autoridade HITS, por representantes de comunidades Louvain ou pelo top 10% do PageRank inicial normalizado.">?</button></label>
                             <select id="seed-method">
-                                <option value="hits">Mais citados</option>
+                                <option value="hits">HITS · autoridade</option>
                                 <option value="louvain" selected>Por comunidades</option>
                                 <option value="ppr_top10">Top 10% por PageRank normalizado</option>
+                                <option value="query_entities">Entidades da consulta</option>
                             </select>
                         </div>
                         <div class="field">
@@ -69,7 +70,7 @@
                     <p class="form-hint">Níveis mais profundos exploram mais artigos e levam mais tempo; o período restringe as datas de publicação.</p>
                 </form>
                 <section class="entity-picker" id="entity-picker" hidden>
-                    <label for="entity-picker-input">Filtrar por tópicos<button type="button" class="help-dot" data-help="Escolha assuntos citados nas notícias (pessoas, lugares, organizações) para mostrar só os artigos que mencionam os tópicos selecionados.">?</button></label>
+                    <label for="entity-picker-input">Filtrar por tópicos<button type="button" class="help-dot" data-help="Escolha assuntos encontrados nas notícias (pessoas, lugares, organizações) para mostrar só os artigos que mencionam os tópicos selecionados.">?</button></label>
                     <input type="text" id="entity-picker-input" placeholder="Buscar tópico…" autocomplete="off">
                     <ul class="entity-picker-list" id="entity-picker-list"></ul>
                 </section>
@@ -85,6 +86,7 @@
                     <button class="tab-button active" type="button" role="tab" data-tab="panel-timeline" aria-selected="true">Linha do tempo</button>
                     <button class="tab-button" type="button" role="tab" data-tab="panel-graph" aria-selected="false">Mapa de tópicos</button>
                     <button class="tab-button" type="button" role="tab" data-tab="panel-eval" aria-selected="false">Avaliação</button>
+                    <button class="tab-button" type="button" role="tab" data-tab="panel-dashboard" aria-selected="false">Painel de avaliações</button>
                 </div>
 
                 <section class="tab-panel active" id="panel-timeline" role="tabpanel">
@@ -99,7 +101,7 @@
                         </div>
                         <div class="stat">
                             <div class="stat-value" id="stat-avg">—</div>
-                            <div class="stat-label">Relevância média<button type="button" class="help-dot" data-help="Média de relevância dos artigos exibidos, de 0 a 1.">?</button></div>
+                            <div class="stat-label">Score médio<button type="button" class="help-dot" data-help="Score médio dos artigos atualmente exibidos. É relativo à busca e ao método de ordenação; não é probabilidade e não deve ser comparado diretamente entre consultas.">?</button></div>
                         </div>
                         <div class="stat">
                             <div class="stat-value" id="stat-entities">—</div>
@@ -109,7 +111,7 @@
 
                     <div class="score-plot-card" id="score-plot-card" hidden>
                         <div class="score-plot-header">
-                            <h3>Relevância ao longo do tempo<button type="button" class="help-dot" data-help="Cada ponto é um artigo, em ordem de publicação. A altura mostra a relevância; clique para localizar o artigo na linha do tempo.">?</button></h3>
+                            <h3>Artigos por data e relevância<button type="button" class="help-dot" data-help="Cada ponto é um artigo. O eixo horizontal usa datas proporcionais ao tempo e a altura mostra o score relativo desta busca. Os pontos não formam uma série contínua; clique ou use Enter para localizar o artigo.">?</button></h3>
                         </div>
                         <div id="score-plot" class="score-plot"></div>
                         <div id="score-plot-tooltip" class="graph-tooltip" role="tooltip"></div>
@@ -145,7 +147,7 @@
                             <div class="match-toggle" id="match-toggle" role="group" aria-label="Modo de combinação dos tópicos">
                                 <button type="button" data-match="any" class="active">Qualquer</button>
                                 <button type="button" data-match="all">Todas</button>
-                                <button type="button" class="help-dot" data-help="Com tópicos selecionados: &quot;Qualquer&quot; mostra artigos que citam pelo menos um deles; &quot;Todas&quot;, apenas os que citam todos.">?</button>
+                                <button type="button" class="help-dot" data-help="Com tópicos selecionados: &quot;Qualquer&quot; mostra artigos que mencionam pelo menos um deles; &quot;Todas&quot;, apenas os que mencionam todos.">?</button>
                             </div>
                             <div id="entity-chip-slot" style="display: flex; flex-wrap: wrap; gap: 6px;"></div>
                         </div>
@@ -164,7 +166,7 @@
                                     <button type="button" class="help-dot" data-help="Mostra apenas os artigos, ligados quando compartilham um tópico.">?</button>
                                 </label>
                                 <div class="graph-controls-group">
-                                    <label for="top-n-graph">Destaques<button type="button" class="help-dot" data-help="Limita o mapa aos artigos mais relevantes e aos tópicos que eles citam.">?</button></label>
+                                    <label for="top-n-graph">Destaques<button type="button" class="help-dot" data-help="Limita o mapa aos artigos mais relevantes e aos tópicos associados a eles.">?</button></label>
                                     <input type="range" id="top-n-graph" min="1" max="1" step="1" value="1">
                                     <span class="top-n-value" id="top-n-graph-value">—</span>
                                     <div class="topk-buttons" id="topk-buttons-graph" aria-label="Atalhos de destaques">
@@ -190,8 +192,8 @@
                                         <tr>
                                             <th data-key="label">Tópico<button type="button" class="help-dot" data-help="Nome do assunto.">?</button></th>
                                             <th class="num-cell" data-key="score">Relevância<button type="button" class="help-dot" data-help="Participação do tópico na relevância dos resultados: quanto maior, mais ele pesa nessa busca.">?</button></th>
-                                            <th class="num-cell" data-key="hits">Peso<button type="button" class="help-dot" data-help="Força do tópico como centro das citações dos artigos: tópicos em que as citações se concentram pesam mais.">?</button></th>
-                                            <th class="num-cell" data-key="degree">Citações<button type="button" class="help-dot" data-help="Em quantos artigos o tópico aparece.">?</button></th>
+                                            <th class="num-cell" data-key="hits">Peso HITS<button type="button" class="help-dot" data-help="Pontuação de autoridade HITS da entidade no grafo desta busca. Não é contagem de citações.">?</button></th>
+                                            <th class="num-cell" data-key="degree">Artigos relacionados<button type="button" class="help-dot" data-help="Número de artigos conectados a este tópico no grafo exibido.">?</button></th>
                                         </tr>
                                     </thead>
                                     <tbody id="entity-table-body"></tbody>
@@ -238,6 +240,198 @@
                             </div>
                         </div>
                     </div>
+                </section>
+
+                <section class="tab-panel" id="panel-dashboard" role="tabpanel">
+                    <div class="dashboard-launch-card">
+                        <div class="dashboard-heading-row">
+                            <div>
+                                <h2>Execução de avaliação</h2>
+                                <p class="dashboard-muted">Inicie uma rodada e acompanhe os resultados conforme cada ranking termina.</p>
+                            </div>
+                            <div class="dashboard-history-control">
+                                <select id="dashboard-existing-run" aria-label="Rodadas existentes"><option value="">Rodadas salvas…</option></select>
+                                <button type="button" class="btn-ghost" id="dashboard-load-run">Abrir</button>
+                                <span class="dashboard-status-badge" id="dashboard-status">Pronto</span>
+                            </div>
+                        </div>
+                        <details class="dashboard-settings" id="dashboard-settings" open>
+                            <summary>Configurar nova rodada</summary>
+                        <div class="dashboard-controls-grid">
+                            <fieldset class="dashboard-method-fieldset dashboard-wide dashboard-theme-picker">
+                                <legend>Temas de avaliação</legend>
+                                <p class="dashboard-muted">Marque um ou mais temas. “Atual” identifica o snapshot correspondente aos arquivos de avaliação atuais; snapshots anteriores mostram a data em que foram salvos.</p>
+                                <div class="dashboard-theme-picker-actions">
+                                    <button type="button" class="btn-ghost" id="dashboard-clear-themes">Limpar seleção</button>
+                                    <span id="dashboard-theme-selection-summary" class="dashboard-muted">Nenhum tema selecionado.</span>
+                                </div>
+                                <div id="dashboard-theme-sets" class="dashboard-theme-groups"></div>
+                            </fieldset>
+                            <div class="field">
+                                <label for="dashboard-unit">Unidade de resultado</label>
+                                <select id="dashboard-unit"><option value="articles" selected>Artigos</option><option value="chunks">Chunks</option></select>
+                            </div>
+                            <div class="field">
+                                <label for="dashboard-fallback">Fallback de entidades</label>
+                                <select id="dashboard-fallback"><option value="hits" selected>HITS</option><option value="louvain">Louvain</option><option value="ppr_top10">PPR top 10%</option></select>
+                            </div>
+                            <fieldset class="dashboard-method-fieldset">
+                                <legend>Presets</legend>
+                                <div id="dashboard-presets" class="dashboard-check-grid"></div>
+                            </fieldset>
+                            <fieldset class="dashboard-method-fieldset">
+                                <legend>Quorum</legend>
+                                <div id="dashboard-quorums" class="dashboard-check-grid"></div>
+                            </fieldset>
+                            <fieldset class="dashboard-method-fieldset dashboard-wide">
+                                <legend>Rankings</legend>
+                                <div id="dashboard-rankings" class="dashboard-check-grid dashboard-check-grid--wide"></div>
+                            </fieldset>
+                            <fieldset class="dashboard-method-fieldset dashboard-wide">
+                                <legend>Seeds</legend>
+                                <div id="dashboard-seeds" class="dashboard-check-grid"></div>
+                            </fieldset>
+                            <fieldset class="dashboard-method-fieldset dashboard-wide">
+                                <legend>Componentes de ensemble_rrf</legend>
+                                <div id="dashboard-ensemble-components" class="dashboard-check-grid dashboard-check-grid--wide"></div>
+                            </fieldset>
+                        </div>
+                        <div class="dashboard-launch-actions">
+                            <button type="button" class="btn-primary" id="dashboard-start">Iniciar avaliação</button>
+                        </div>
+                        </details>
+                        <p id="dashboard-launch-hint" class="dashboard-muted"></p>
+                        <div class="dashboard-progress-wrap" id="dashboard-progress-wrap" hidden>
+                        <div class="dashboard-progress-meta">
+                            <span id="dashboard-progress-label">0 / 0</span>
+                            <span id="dashboard-progress-current"></span>
+                            </div>
+                            <progress id="dashboard-progress" max="1" value="0"></progress>
+                        </div>
+                    </div>
+
+                    <div class="dashboard-filterbar">
+                        <label>Ranking<select id="dashboard-filter-ranking"><option value="">Todos</option></select></label>
+                        <label>Seed<select id="dashboard-filter-seed"><option value="">Todas</option></select></label>
+                        <label>Preset<select id="dashboard-filter-preset"><option value="">Todos</option></select></label>
+                        <label>Quorum<select id="dashboard-filter-quorum"><option value="">Todos</option></select></label>
+                        <label>Tema<select id="dashboard-filter-theme"><option value="">Todos</option></select></label>
+                        <label>Consulta<select id="dashboard-filter-query"><option value="">Todas</option></select></label>
+                        <label>Formulação<select id="dashboard-filter-formulation"><option value="">Todas</option></select></label>
+                        <label>Ranking de referência<select id="dashboard-baseline-ranking"><option value="hybrid_max">hybrid_max</option></select></label>
+                        <label>Métrica<select id="dashboard-metric"><option value="f1">F1</option><option value="precision">Precisão</option><option value="recall">Revocação</option><option value="ndcg">NDCG</option><option value="map">MAP</option></select></label>
+                        <label>k<select id="dashboard-k"><option>1</option><option>3</option><option>5</option><option>10</option><option selected>20</option></select></label>
+                        <button type="button" class="btn-ghost" id="dashboard-clear-filters">Limpar filtros</button>
+                    </div>
+
+                    <section class="dashboard-threshold-panel" aria-labelledby="dashboard-threshold-heading">
+                        <div class="dashboard-threshold-controls">
+                            <label class="dashboard-threshold-enable">
+                                <input type="checkbox" id="dashboard-threshold-enabled">
+                                <span id="dashboard-threshold-heading">Excluir resultados abaixo do mínimo</span>
+                            </label>
+                            <label for="dashboard-threshold-range">Mínimo de <strong id="dashboard-threshold-metric-label">F1@20</strong></label>
+                            <input type="range" id="dashboard-threshold-range" min="0" max="1" step="0.01" value="0.70" aria-label="Valor mínimo da métrica">
+                            <input type="number" id="dashboard-threshold-number" min="0" max="1" step="0.01" value="0.70" aria-label="Valor mínimo da métrica, entre 0 e 1">
+                            <output id="dashboard-threshold-percent" for="dashboard-threshold-range dashboard-threshold-number">70%</output>
+                            <span class="dashboard-muted">Escala de 0 a 1 (0,70 = 70%). Valores menores ou sem métrica saem das análises, tabela e exportação; o progresso da rodada não muda.</span>
+                        </div>
+                        <div id="dashboard-exclusion-audit" class="dashboard-exclusion-audit" hidden>
+                            <div class="dashboard-exclusion-summary" aria-live="polite">
+                                <strong id="dashboard-exclusion-summary-text">Nenhum resultado excluído.</strong>
+                                <span id="dashboard-exclusion-counts"></span>
+                            </div>
+                            <div class="dashboard-exclusion-breakdown-wrap">
+                                <h3>Combinações excluídas</h3>
+                                <div class="dashboard-exclusion-table-scroll">
+                                    <table class="dashboard-exclusion-table">
+                                        <thead><tr><th>Ranking</th><th>Seed</th><th>Preset</th><th>Quorum</th><th>Unidade</th><th>Casos</th><th>Temas</th><th>Motivos</th></tr></thead>
+                                        <tbody id="dashboard-exclusion-combinations"></tbody>
+                                    </table>
+                                </div>
+                            </div>
+                            <details class="dashboard-exclusion-details" id="dashboard-exclusion-details">
+                                <summary>Ver casos excluídos</summary>
+                                <label for="dashboard-exclusion-search" class="dashboard-exclusion-search-label">Filtrar casos excluídos</label>
+                                <input type="search" id="dashboard-exclusion-search" placeholder="Consulta, ranking, seed ou motivo…" autocomplete="off">
+                                <p id="dashboard-exclusion-result-count" class="dashboard-muted"></p>
+                                <div class="dashboard-exclusion-table-scroll dashboard-exclusion-cases-scroll">
+                                    <table class="dashboard-exclusion-table">
+                                        <thead><tr><th>ID</th><th>Consulta</th><th>Tema</th><th>Ranking</th><th>Seed</th><th>Preset</th><th>Quorum</th><th>Métrica</th><th>Motivo</th></tr></thead>
+                                        <tbody id="dashboard-excluded-results"></tbody>
+                                    </table>
+                                </div>
+                                <button type="button" class="btn-ghost" id="dashboard-exclusion-more" hidden>Mostrar mais casos</button>
+                            </details>
+                        </div>
+                    </section>
+
+                    <div class="dashboard-kpis">
+                            <div class="dashboard-kpi"><strong id="dashboard-kpi-completed">0 / 0</strong><span>Resultados</span><small id="dashboard-kpi-completed-note">concluídos / previstos</small></div>
+                            <div class="dashboard-kpi"><strong id="dashboard-kpi-elapsed">—</strong><span>Duração</span><small id="dashboard-kpi-elapsed-note">tempo da rodada</small></div>
+                            <div class="dashboard-kpi"><strong id="dashboard-kpi-quality">—</strong><span id="dashboard-kpi-quality-label">Média macro</span><small id="dashboard-kpi-quality-note">por tema · filtros atuais</small></div>
+                            <div class="dashboard-kpi"><strong id="dashboard-kpi-coverage">—</strong><span>Recall da referência no pool</span><small id="dashboard-kpi-coverage-note">por tema · filtros atuais</small></div>
+                        </div>
+
+                    <article class="dashboard-card dashboard-insights-card">
+                        <h3>Como ler este resumo</h3>
+                        <p class="dashboard-muted" id="dashboard-summary-context">Os resultados serão agregados primeiro por consulta dentro de cada tema e depois com o mesmo peso por tema. O intervalo interquartil descreve a variação observada entre temas; não é intervalo de confiança.</p>
+                        <p class="dashboard-muted" id="dashboard-insight-findings">Aguardando resultados suficientes para resumir as configurações.</p>
+                    </article>
+
+                    <div class="dashboard-chart-grid">
+                        <article class="dashboard-card dashboard-chart-card">
+                            <h3>Desempenho por configuração</h3>
+                            <p class="dashboard-muted">Média macro por tema; ponto = média e traço = intervalo interquartil entre temas. Mostra todos os grupos filtrados.</p>
+                            <label class="dashboard-show-all-label"><input type="checkbox" id="dashboard-show-all-combinations"> Mostrar todos os grupos (pode ser extenso)</label>
+                            <div id="dashboard-quality-latency" class="dashboard-chart"></div>
+                        </article>
+                        <article class="dashboard-card dashboard-chart-card">
+                            <h3>Diferença pareada contra referência</h3>
+                            <p class="dashboard-muted">Diferença da métrica para o ranking de referência, pareada nas mesmas consultas e configurações. Este gráfico ignora apenas o filtro Ranking; os demais filtros permanecem. Zero significa empate.</p>
+                            <div id="dashboard-paired-delta" class="dashboard-chart"></div>
+                        </article>
+                        <article class="dashboard-card dashboard-chart-card">
+                            <h3>Ranking × seed × parâmetros</h3>
+                            <p class="dashboard-muted">Cor e número representam a média macro por tema (0–100%). Célula vazia significa sem observações.</p>
+                            <div id="dashboard-heatmap" class="dashboard-chart dashboard-chart--heatmap"></div>
+                        </article>
+                        <article class="dashboard-card dashboard-chart-card">
+                            <h3>Cobertura do pool × qualidade</h3>
+                            <p class="dashboard-muted">Cada ponto é uma configuração/consulta. Cobertura é a fração dos artigos relevantes encontrados no pool; pontos podem se sobrepor.</p>
+                            <div id="dashboard-coverage" class="dashboard-chart"></div>
+                        </article>
+                        <article class="dashboard-card dashboard-chart-card">
+                            <h3>Métricas por corte · configuração selecionada</h3>
+                            <p class="dashboard-muted" id="dashboard-step-caption">Selecione uma linha na tabela para ver precisão, revocação, F1 e teto do pool em cada k.</p>
+                            <div id="dashboard-step-timing" class="dashboard-step-timing"></div>
+                        </article>
+                        <article class="dashboard-card dashboard-chart-card dashboard-timeline-card">
+                            <h3>Desempenho por tema e ranking</h3>
+                            <p class="dashboard-muted">Mapa de calor por categoria, sem ligar temas como se fossem uma sequência. Valores agregam as demais dimensões selecionadas.</p>
+                            <div id="dashboard-run-timeline" class="dashboard-chart"></div>
+                        </article>
+                        <article class="dashboard-card dashboard-chart-card dashboard-timeline-card">
+                            <h3>Métrica por estratégia de formulação</h3>
+                            <p class="dashboard-muted" id="dashboard-formulation-caption">Média macro por tema para a métrica e o corte selecionados; o intervalo mostra a variação entre temas. As demais dimensões seguem os filtros atuais.</p>
+                            <div id="dashboard-formulation-chart" class="dashboard-chart"></div>
+                        </article>
+                    </div>
+
+                    <article class="dashboard-card dashboard-results-card">
+                        <div class="dashboard-heading-row">
+                            <div><h3>Resultados incrementais</h3><p class="dashboard-muted" id="dashboard-result-count">Nenhuma rodada carregada.</p></div>
+                            <div class="dashboard-table-actions"><button type="button" class="btn-ghost" id="dashboard-export">Exportar CSV</button><button type="button" class="btn-ghost" id="dashboard-refresh">Atualizar</button></div>
+                        </div>
+                        <div class="dashboard-table-scroll">
+                            <table class="dashboard-table">
+                                <thead><tr><th data-sort="evaluation_id">Consulta</th><th data-sort="ranking">Ranking</th><th data-sort="seed_method">Seed</th><th data-sort="preset">Preset</th><th data-sort="quorum">Quorum</th><th data-sort="metric">Métrica</th><th data-sort="computation_seconds">Tempo</th><th data-sort="computation_reused">Reutilizado</th></tr></thead>
+                                <tbody id="dashboard-results-body"><tr><td colspan="8" class="dashboard-empty">Inicie ou selecione uma rodada.</td></tr></tbody>
+                            </table>
+                        </div>
+                        <button type="button" class="btn-ghost dashboard-show-more" id="dashboard-show-more" hidden>Mostrar resultados anteriores</button>
+                        <div id="dashboard-result-detail" class="dashboard-result-detail" hidden></div>
+                    </article>
                 </section>
             </main>
         </div>

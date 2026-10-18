@@ -36,7 +36,8 @@ def _validate(body):
 
 
 def _execute(searcher, ranker, params, configurations, reuse, progress_callback=None,
-             progress_offset=0, progress_total=None, phase="optimized"):
+             progress_offset=0, progress_total=None, phase="optimized",
+             include_completed_entries=False):
     started = perf_counter()
     retrieval = None
     retrieval_steps = {}
@@ -127,8 +128,18 @@ def _execute(searcher, ranker, params, configurations, reuse, progress_callback=
                 for name, seconds in active_ranker.batch_timings.items():
                     phases[name] = phases.get(name, 0.0) + seconds
         entries.append({**configuration, **deepcopy(outputs[key]), "computation_reused": reused})
-        report_progress(completed=progress_offset + len(entries), total=progress_total,
-                        activity="ranking", configuration=configuration)
+        completed_event = {
+            "completed": progress_offset + len(entries), "total": progress_total,
+            "activity": "ranking", "configuration": configuration,
+        }
+        if include_completed_entries:
+            completed_event.update(
+                entry=deepcopy(entries[-1]), retrieval_steps=deepcopy(retrieval_steps),
+                retrieval_seconds=retrieval_seconds,
+                group_elapsed_seconds=perf_counter() - started,
+                retrieval_snapshot=deepcopy(retrieval),
+            )
+        report_progress(**completed_event)
     if reuse:
         for name in ("graph_builds", "ppr_runs"):
             counts[name] = batch_ranker.batch_counts[name]
@@ -151,13 +162,13 @@ def _equivalent(left, right):
     )
 
 
-def evaluate_request(searcher, ranker, body, progress_callback=None):
+def evaluate_request(searcher, ranker, body, progress_callback=None, include_completed_entries=False):
     configurations = _validate(body)
     progress_total = len(configurations) * (2 if body.get("benchmark", False) else 1)
     optimized, timings, membership = _execute(
         searcher, ranker, body["search"], configurations, reuse=True,
         progress_callback=progress_callback, progress_total=progress_total,
-        phase="optimized",
+        phase="optimized", include_completed_entries=include_completed_entries,
     )
     report = {"search_version": SEARCH_VERSION, "evaluation_version": "reuse_v1",
               "cache_bypassed": True, "results": optimized, "pool_membership": membership,
@@ -167,6 +178,7 @@ def evaluate_request(searcher, ranker, body, progress_callback=None):
             searcher, ranker, body["search"], configurations, reuse=False,
             progress_callback=progress_callback, progress_offset=len(configurations),
             progress_total=progress_total, phase="baseline",
+            include_completed_entries=include_completed_entries,
         )
         report["performance"].update(
             baseline=baseline_timings,

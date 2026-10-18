@@ -9,6 +9,7 @@ import pytest
 
 from services.batch_search import evaluate_request
 from services.evaluation_jobs import EvaluationJobManager
+from services.dashboard_runs import DashboardRunManager
 from services.ranking import RankingService
 from services import batch_evaluation as batch
 
@@ -280,6 +281,157 @@ def test_batch_job_transport_polls_until_completed_and_reports_progress(monkeypa
     )
     assert result["results"][0]["ranked"][0]["article"] == "a"
     assert "0/1 configurations): ppr/hits" in capsys.readouterr().out
+
+
+def test_dashboard_run_persists_results_and_summary_in_store_without_run_files(monkeypatch, tmp_path):
+    from services import dashboard_runs as dashboard_module
+
+    searcher, ranker, _, _ = setup_services()
+    data_dir = tmp_path / "datasets"
+    data_dir.mkdir()
+    (data_dir / "evals_tiny.json").write_text(json.dumps({
+        "schema_version": 1,
+        "evaluations": [{"id": "tema__short_question", "query": "teste",
+                         "relevant_urls": ["https://g1.globo.com/a.ghtml"]}],
+    }), encoding="utf-8")
+    monkeypatch.setattr(dashboard_module, "_validate_relevant_urls_exist", lambda *args: None)
+    manager = DashboardRunManager(searcher, ranker, None, data_dir)
+    try:
+        run = manager.start("evals_tiny.json", {
+            "presets": ["rapido"], "quorums": [0.3], "seed_methods": ["hits"],
+            "rankings": ["hybrid_max", "vector"], "result_unit": "articles",
+        })
+        deadline = time.monotonic() + 5
+        state = manager.get(run["run_id"])
+        while state["status"] not in ("completed", "failed") and time.monotonic() < deadline:
+            time.sleep(0.01)
+            state = manager.get(run["run_id"])
+        assert state["status"] == "completed"
+        assert state["completed_at"] >= state["created_at"]
+        assert state["progress"]["completed"] == state["progress"]["total"] == 2
+        page = manager.results(run["run_id"], after=0, limit=1)
+        assert len(page["events"]) == 1
+        assert page["has_more"] is True
+        assert "ranked_urls" not in page["events"][0]["result"]
+        assert "ranked_results" not in page["events"][0]["result"]
+        next_page = manager.results(run["run_id"], after=page["cursor"], limit=1)
+        assert len(next_page["events"]) == 1 and next_page["has_more"] is False
+        detail = manager.result(run["run_id"], 1)
+        assert detail["result"]["ranked_urls"] == ["a", "b", "c"]
+        assert detail["result"]["ranked_results"] == [
+            {"article": "a", "score": 1.0},
+            {"article": "b", "score": 0.5},
+            {"article": "c", "score": 1 / 3},
+        ]
+        summary = manager._memory_artifacts[(run["run_id"], '[null,null,null,"summary"]')]
+        assert summary["fastest_combinations"][0]["parameters"]["ranking"] == "hybrid_max"
+        assert manager._memory_results[run["run_id"]][0]["result"]["ranked_urls"] == ["a", "b", "c"]
+        assert not list(tmp_path.rglob("results.jsonl"))
+        assert not list(tmp_path.rglob("state.json"))
+        assert not list(tmp_path.rglob("run.summary.*"))
+    finally:
+        manager.shutdown()
+
+
+def test_dashboard_dataset_catalog_groups_json_evaluations_by_theme(tmp_path):
+    from services.dashboard_runs import available_evaluation_sets
+
+    (tmp_path / "evals_themes.json").write_text(json.dumps({
+        "schema_version": 1,
+        "evaluations": [
+            {"id": f"tema__q{i}", "query": f"consulta {i}",
+             "relevant_urls": ["https://g1.globo.com/a.ghtml", "https://g1.globo.com/b.ghtml"]}
+            for i in range(2)
+        ] + [{"id": "outro__q", "query": "outra consulta",
+              "relevant_urls": ["https://g1.globo.com/c.ghtml"]}],
+    }), encoding="utf-8")
+    sets = available_evaluation_sets(tmp_path)
+    assert sets == [
+        {"id": "evals_themes.json::tema", "label": "tema", "source": "evals_themes.json",
+         "count": 2, "articles": 2},
+        {"id": "evals_themes.json::outro", "label": "outro", "source": "evals_themes.json",
+         "count": 1, "articles": 1},
+    ]
+
+
+def test_dashboard_resolves_multiple_theme_snapshots_and_deduplicates_identical_queries(tmp_path):
+    shared = {"id": "tema__q1", "query": "consulta compartilhada",
+              "relevant_urls": ["https://g1.globo.com/a.ghtml"]}
+    (tmp_path / "evals_a.json").write_text(json.dumps({
+        "schema_version": 1,
+        "evaluations": [shared, {"id": "outro__q2", "query": "outra",
+                                 "relevant_urls": ["https://g1.globo.com/b.ghtml"]}],
+    }), encoding="utf-8")
+    (tmp_path / "evals_b.json").write_text(json.dumps({
+        "schema_version": 1, "evaluations": [shared],
+    }), encoding="utf-8")
+    manager = DashboardRunManager(None, None, None, tmp_path)
+    try:
+        choices = manager.available_sets()
+        assert all(choice["version_label"] == "Atual" for choice in choices)
+        selected = [choice["id"] for choice in choices if choice["label"] in ("tema", "outro")]
+        _, evaluations, snapshot, _, _, label = manager._resolve_dataset_selection(selected)
+        assert [item["id"] for item in evaluations] == ["tema__q1", "outro__q2"]
+        assert snapshot["evaluations"] == evaluations
+        assert "Atual" in label
+    finally:
+        manager.shutdown()
+
+
+def test_dashboard_exposes_a_row_before_the_evaluation_group_finishes(monkeypatch, tmp_path):
+    from threading import Event
+    from services import dashboard_runs as dashboard_module
+
+    searcher, ranker, _, _ = setup_services()
+    data_dir = tmp_path / "datasets"
+    data_dir.mkdir()
+    (data_dir / "evals_tiny.json").write_text(json.dumps({
+        "schema_version": 1,
+        "evaluations": [{"id": "tema__query", "query": "teste",
+                         "relevant_urls": ["https://g1.globo.com/a.ghtml"]}],
+    }), encoding="utf-8")
+    monkeypatch.setattr(dashboard_module, "_validate_relevant_urls_exist", lambda *args: None)
+    first_row_persisted = Event()
+    allow_group_to_finish = Event()
+
+    def slow_group(_searcher, _ranker, body, progress_callback, include_completed_entries):
+        assert include_completed_entries is True
+        configs = body["configurations"]
+        for index, config in enumerate(configs):
+            entry = {**config, "ranked": [{"article": "a", "score": 1.0}],
+                     "diagnostics": {}, "retrieval_id": "pool", "computation_seconds": 0.01,
+                     "step_timings": {}}
+            progress_callback({"activity": "ranking", "completed": index + 1,
+                               "total": len(configs), "configuration": config,
+                               "entry": entry, "retrieval_steps": {},
+                               "retrieval_seconds": 0.1, "group_elapsed_seconds": 0.1})
+            if index == 0:
+                first_row_persisted.set()
+                assert allow_group_to_finish.wait(5)
+        return {"performance": {"optimized": {"wall_seconds": 0.2}}}
+
+    monkeypatch.setattr(dashboard_module, "evaluate_request", slow_group)
+    manager = DashboardRunManager(searcher, ranker, None, data_dir)
+    try:
+        run = manager.start("evals_tiny.json", {
+            "presets": ["rapido"], "quorums": [0.3], "seed_methods": ["hits"],
+            "rankings": ["hybrid_max", "vector"], "result_unit": "articles",
+        })
+        assert first_row_persisted.wait(5)
+        page = manager.results(run["run_id"], after=0, limit=10)
+        assert [event["seq"] for event in page["events"]] == [1]
+        assert manager.get(run["run_id"])["progress"]["completed"] == 1
+        allow_group_to_finish.set()
+        deadline = time.monotonic() + 5
+        state = manager.get(run["run_id"])
+        while state["status"] not in ("completed", "failed") and time.monotonic() < deadline:
+            time.sleep(0.01)
+            state = manager.get(run["run_id"])
+        assert state["status"] == "completed"
+        assert state["progress"]["completed"] == 2
+    finally:
+        allow_group_to_finish.set()
+        manager.shutdown()
 
 
 def test_parallel_batch_bounds_workers_and_commits_in_task_order(monkeypatch, tmp_path):

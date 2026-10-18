@@ -8,16 +8,16 @@ const X_TICK_FORMAT = new Intl.DateTimeFormat("pt-BR", {
     month: "short",
     timeZone: "UTC",
 });
+const FULL_DATE_FORMAT = new Intl.DateTimeFormat("pt-BR", {
+    day: "2-digit", month: "short", year: "numeric", timeZone: "UTC",
+});
 
 /**
- * Pure data prep: the current view (already filtered by Top-N and entity
- * filters) ordered chronologically — date ascending, score descending within
- * a date. Articles without a publication date are excluded. Spacing is
- * ordinal: every article occupies an even slot on the x-axis regardless of
- * the time gap between publications.
+ * The current view, with publication timestamps preserved for a true time axis.
  */
 export function computePlotData(state) {
     const { articles } = computeView(state);
+    const missingDateCount = articles.filter((article) => !article.date || Number.isNaN(article.date.getTime())).length;
     const points = articles
         .filter((article) => article.date && !Number.isNaN(article.date.getTime()))
         .sort((a, b) => a.date.getTime() - b.date.getTime() || (b.score ?? 0) - (a.score ?? 0))
@@ -27,18 +27,7 @@ export function computePlotData(state) {
             score: article.score ?? 0,
             date: article.date.getTime(),
         }));
-    return { points };
-}
-
-function gradientStops(gradient) {
-    gradient.append("stop")
-        .attr("offset", "0%")
-        .attr("stop-color", ACCENT)
-        .attr("stop-opacity", 0.28);
-    gradient.append("stop")
-        .attr("offset", "100%")
-        .attr("stop-color", ACCENT)
-        .attr("stop-opacity", 0);
+    return { points, missingDateCount, totalCount: articles.length };
 }
 
 function placeholderNode(message) {
@@ -71,10 +60,8 @@ function hideTooltip(tooltipEl) {
 }
 
 /**
- * Line plot with a transparent gradient area under the curve, one dot per
- * article, evenly spaced on the x-axis (ordinal — not time-proportional).
- * Only the x-axis labels show dates (the publication date of the article at
- * each labeled slot). Dot click -> onDotClick(url); hover -> tooltip.
+ * Scatter plot with a true date-scaled x axis. Points are independent articles,
+ * not a continuous series. Dot click/keyboard activation -> onDotClick(url).
  */
 export function renderScorePlot(containerEl, tooltipEl, state, { onDotClick } = {}) {
     if (!containerEl) return;
@@ -88,98 +75,65 @@ export function renderScorePlot(containerEl, tooltipEl, state, { onDotClick } = 
     const innerWidth = Math.max(50, width - MARGIN.left - MARGIN.right);
     const innerHeight = Math.max(40, height - MARGIN.top - MARGIN.bottom);
 
-    const { points } = computePlotData(state);
+    const { points, missingDateCount, totalCount } = computePlotData(state);
     containerEl.hidden = false;
     containerEl.replaceChildren();
 
     if (points.length === 0) {
-        containerEl.appendChild(placeholderNode("Sem artigos com data de publicação para exibir."));
+        containerEl.appendChild(placeholderNode(
+            `Sem artigos com data de publicação. ${missingDateCount} de ${totalCount} artigos foram excluídos deste gráfico.`
+        ));
         return;
     }
 
     const n = points.length;
     const maxScore = Math.max(0.000001, ...points.map((p) => p.score));
-    const xAt = (index) => n === 1
-        ? MARGIN.left + innerWidth / 2
-        : MARGIN.left + (index * innerWidth) / (n - 1);
-    const y = (score) => MARGIN.top + innerHeight * (1 - score / maxScore);
-    points.forEach((p, i) => {
-        p.px = xAt(i);
-        p.py = y(p.score);
-    });
+    let [minDate, maxDate] = d3.extent(points, (point) => point.date);
+    if (minDate === maxDate) {
+        minDate -= 12 * 60 * 60 * 1000;
+        maxDate += 12 * 60 * 60 * 1000;
+    }
+    const x = d3.scaleTime().domain([new Date(minDate), new Date(maxDate)]).range([MARGIN.left, MARGIN.left + innerWidth]);
+    const y = d3.scaleLinear().domain([0, maxScore]).nice().range([MARGIN.top + innerHeight, MARGIN.top]);
+    points.forEach((point) => { point.px = x(new Date(point.date)); point.py = y(point.score); });
 
     const svg = d3.select(containerEl)
         .append("svg")
-        .attr("width", width)
+        .attr("width", "100%")
         .attr("height", height)
-        .attr("viewBox", `0 0 ${width} ${height}`);
-
-    const gradient = svg.append("defs")
-        .append("linearGradient")
-        .attr("id", "score-plot-gradient")
-        .attr("x1", "0%")
-        .attr("y1", "0%")
-        .attr("x2", "0%")
-        .attr("y2", "100%");
-    gradientStops(gradient);
+        .attr("viewBox", `0 0 ${width} ${height}`)
+        .attr("role", "group")
+        .attr("aria-label", `Gráfico de dispersão com ${n} artigos: data de publicação no eixo horizontal e score de relevância relativo a esta busca no eixo vertical.`);
+    svg.append("title").text("Artigos por data de publicação e score relativo de relevância");
 
     const g = svg.append("g");
+    const axisFormat = maxDate - minDate > 330 * 24 * 60 * 60 * 1000
+        ? new Intl.DateTimeFormat("pt-BR", { month: "short", year: "numeric", timeZone: "UTC" })
+        : X_TICK_FORMAT;
+    const xAxis = d3.axisBottom(x).ticks(Math.min(6, n)).tickFormat(axisFormat);
+    const yAxis = d3.axisLeft(y).ticks(4).tickSize(-innerWidth).tickFormat((value) => Number(value).toFixed(3));
+    g.append("g").attr("transform", `translate(0,${MARGIN.top + innerHeight})`).call(xAxis);
+    g.append("g").attr("transform", `translate(${MARGIN.left},0)`).call(yAxis);
+    g.selectAll(".tick line").attr("stroke", "var(--border)").attr("opacity", 0.45);
+    g.append("text").attr("class", "score-plot-axis-label")
+        .attr("x", MARGIN.left + innerWidth / 2).attr("y", height - 1).attr("text-anchor", "middle").text("Data de publicação");
+    g.append("text").attr("class", "score-plot-axis-label")
+        .attr("transform", "rotate(-90)").attr("x", -(MARGIN.top + innerHeight / 2)).attr("y", 12)
+        .attr("text-anchor", "middle").text("Score relativo nesta busca");
 
-    const area = d3.area()
-        .x((p) => p.px)
-        .y0(y(0))
-        .y1((p) => y(p.score))
-        .curve(d3.curveMonotoneX);
-    const line = d3.line()
-        .x((p) => p.px)
-        .y((p) => y(p.score))
-        .curve(d3.curveMonotoneX);
-
-    g.append("path")
-        .attr("class", "score-plot-area")
-        .attr("fill", "url(#score-plot-gradient)")
-        .attr("d", area(points));
-    g.append("path")
-        .attr("class", "score-plot-line")
-        .attr("stroke", ACCENT)
-        .attr("stroke-width", 1.5)
-        .attr("fill", "none")
-        .attr("d", line(points));
-
-    // Y gridlines + tick labels
-    for (let i = 0; i <= 4; i++) {
-        const tick = (maxScore * i) / 4;
-        g.append("line")
-            .attr("class", "score-plot-grid")
-            .attr("x1", MARGIN.left)
-            .attr("x2", MARGIN.left + innerWidth)
-            .attr("y1", y(tick))
-            .attr("y2", y(tick));
-        g.append("text")
-            .attr("class", "score-plot-tick")
-            .attr("x", MARGIN.left - 6)
-            .attr("y", y(tick) + 3)
-            .attr("text-anchor", "end")
-            .text(i === 0 ? "0" : tick.toFixed(3));
-    }
-
-    // X labels: the publication date of the article at evenly sampled slots.
-    const labelCount = Math.min(6, n);
-    const indices = new Set();
-    for (let i = 0; i < labelCount; i++) {
-        indices.add(Math.round((i * (n - 1)) / Math.max(1, labelCount - 1)));
-    }
-    const labeled = [...indices].sort((a, b) => a - b);
-    labeled.forEach((index, k) => {
-        g.append("text")
-            .attr("class", "score-plot-tick score-plot-date")
-            .attr("x", xAt(index))
-            .attr("y", height - 6)
-            .attr("text-anchor", labeled.length === 1 ? "middle" : (k === 0 ? "start" : (k === labeled.length - 1 ? "end" : "middle")))
-            .text(X_TICK_FORMAT.format(new Date(points[index].date)));
-    });
-
-    // Dots
+    const showPointTooltip = (event, point) => {
+        const circle = d3.select(event.currentTarget);
+        circle.attr("r", 6);
+        showTooltip(tooltipEl, point, point.px, point.py - 10, containerEl);
+    };
+    const hidePointTooltip = (event) => {
+        d3.select(event.currentTarget).attr("r", 4);
+        hideTooltip(tooltipEl);
+    };
+    const activatePoint = (event, point) => {
+        event.stopPropagation();
+        if (onDotClick) onDotClick(point.url);
+    };
     g.selectAll("circle.score-plot-dot")
         .data(points)
         .join("circle")
@@ -188,16 +142,17 @@ export function renderScorePlot(containerEl, tooltipEl, state, { onDotClick } = 
         .attr("fill", ACCENT)
         .attr("cx", (p) => p.px)
         .attr("cy", (p) => p.py)
-        .on("mouseover", (event, p) => {
-            d3.select(event.currentTarget).attr("r", 6);
-            showTooltip(tooltipEl, p, p.px, p.py - 10, containerEl);
+        .attr("tabindex", 0).attr("role", "button")
+        .attr("aria-label", (point) => `${point.title}, ${FULL_DATE_FORMAT.format(new Date(point.date))}, score relativo ${point.score.toFixed(3)}. Ative para localizar o artigo.`)
+        .on("mouseover focus", showPointTooltip)
+        .on("mouseout blur", hidePointTooltip)
+        .on("click", activatePoint)
+        .on("keydown", (event, point) => {
+            if (event.key === "Enter" || event.key === " ") { event.preventDefault(); activatePoint(event, point); }
         })
-        .on("mouseout", (event) => {
-            d3.select(event.currentTarget).attr("r", 4);
-            hideTooltip(tooltipEl);
-        })
-        .on("click", (event, p) => {
-            event.stopPropagation();
-            if (onDotClick) onDotClick(p.url);
-        });
+        .append("title").text((point) => `${point.title} · ${FULL_DATE_FORMAT.format(new Date(point.date))} · score ${point.score.toFixed(3)}`);
+    const note = document.createElement("p");
+    note.className = "score-plot-note";
+    note.textContent = `Cada ponto é um artigo; datas no eixo são proporcionais ao tempo. O score é relativo a esta busca, não comparável diretamente entre consultas.${missingDateCount ? ` ${missingDateCount} de ${totalCount} artigos sem data não aparecem.` : ""}`;
+    containerEl.appendChild(note);
 }

@@ -1,4 +1,5 @@
 from flask import Flask, render_template, request, jsonify
+from pathlib import Path
 from app import App as G1App
 from redis import Redis
 
@@ -7,6 +8,7 @@ from services.metrics import DEFAULT_KS, evaluate
 from services.search_pipeline import search_request
 from services.batch_search import evaluate_request
 from services.evaluation_jobs import EvaluationJobManager
+from services.dashboard_runs import DashboardRunManager
 from config import REDIS_URL
 
 
@@ -15,6 +17,11 @@ g1_app = G1App()
 r = Redis.from_url(REDIS_URL, decode_responses=True)
 judgment_repo = JudgmentRepository(g1_app.article_repo.engine)
 evaluation_jobs = EvaluationJobManager()
+repo_root = Path(__file__).resolve().parent.parent
+dashboard_runs = DashboardRunManager(
+    g1_app.search_service, g1_app.ranking_service, g1_app.article_repo.engine,
+    evaluations_directory=repo_root,
+)
 
 @app.route("/search", methods=["GET"])
 def search():
@@ -57,6 +64,57 @@ def batch_evaluation_job_status(job_id):
     if job is None:
         return jsonify({"error": "evaluation job not found or expired"}), 404
     return jsonify(job)
+
+
+@app.get("/dashboard/evaluation-sets")
+def dashboard_evaluation_sets():
+    return jsonify({"datasets": dashboard_runs.available_sets()})
+
+
+@app.post("/dashboard/runs")
+def start_dashboard_run():
+    body = request.get_json(silent=True) or {}
+    try:
+        run = dashboard_runs.start(body.get("datasets", body.get("dataset")), body.get("settings", {}))
+    except (ValueError, FileNotFoundError) as exc:
+        return jsonify({"error": str(exc)}), 400
+    return jsonify(run), 202
+
+
+@app.get("/dashboard/runs")
+def list_dashboard_runs():
+    return jsonify({"runs": dashboard_runs.list()})
+
+
+@app.get("/dashboard/runs/<run_id>")
+def dashboard_run_status(run_id):
+    run = dashboard_runs.get(run_id)
+    if run is None:
+        return jsonify({"error": "dashboard run not found"}), 404
+    return jsonify(run)
+
+
+@app.get("/dashboard/runs/<run_id>/results")
+def dashboard_run_results(run_id):
+    try:
+        after = int(request.args.get("after", 0))
+        limit = int(request.args.get("limit", 100))
+        if after < 0 or limit < 1:
+            raise ValueError
+    except ValueError:
+        return jsonify({"error": "after must be nonnegative and limit must be positive integers"}), 400
+    results = dashboard_runs.results(run_id, after=after, limit=limit)
+    if results is None:
+        return jsonify({"error": "dashboard run not found"}), 404
+    return jsonify(results)
+
+
+@app.get("/dashboard/runs/<run_id>/results/<int:seq>")
+def dashboard_run_result_detail(run_id, seq):
+    result = dashboard_runs.result(run_id, seq)
+    if result is None:
+        return jsonify({"error": "dashboard result not found"}), 404
+    return jsonify(result)
 
 
 @app.get("/articles")

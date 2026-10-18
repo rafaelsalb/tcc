@@ -56,7 +56,7 @@ function projectedLinks(nodes, links) {
         for (const [entityId, articleId] of [[source, target], [target, source]]) {
             if (isArticle.has(articleId) && !isArticle.has(entityId)) {
                 if (!entityToArticles.has(entityId)) entityToArticles.set(entityId, []);
-                entityToArticles.get(entityId).push(articleId);
+                if (!entityToArticles.get(entityId).includes(articleId)) entityToArticles.get(entityId).push(articleId);
             }
         }
     }
@@ -129,9 +129,10 @@ function tooltipContent(data) {
     label.textContent = data.label || data.id;
     const hitsPart = data.hits != null ? ` · HITS ${relevancePct(data.hits)}` : "";
     const lines = document.createElement("span");
+    const related = data.type === "article" ? `${data.degree ?? 0} tópicos relacionados` : `${data.degree ?? 0} artigos relacionados`;
     lines.textContent = data.type === "article"
-        ? `Artigo · Relevância ${relevancePct(data.score)} · ${data.degree ?? 0} citações${hitsPart}`
-        : `Tópico · Relevância ${relevancePct(data.score)} · ${data.degree ?? 0} citações${hitsPart}`;
+        ? `Artigo · Score ${relevancePct(data.score)} · ${related}${hitsPart}`
+        : `Tópico · Score ${relevancePct(data.score)} · ${related}${hitsPart}`;
     const fragment = document.createDocumentFragment();
     fragment.append(label, lines);
     if (data.type === "article" && data.mmr) {
@@ -281,8 +282,10 @@ function renderLegend(graph, onlyArticles, mmrFlagged) {
     ));
 
     legend.append(articleItem, entityItem);
+    entityDot.style.borderRadius = "1px";
+    entityDot.style.transform = "rotate(45deg)";
     legend.appendChild(helpDot(
-        "Cada bola é um artigo (azul) ou um tópico (laranja); as linhas mostram quem cita quem. Passe o mouse para detalhes, arraste para organizar, clique para filtrar ou abrir o artigo.",
+        "Círculos azuis são artigos e losangos laranja são tópicos; tamanho indica score relativo neste grafo. Linhas indicam associação artigo–tópico, sem direção. O mapa reflete top-N e poda do grafo, portanto pode omitir nós. Em “Só artigos”, linhas unem artigos que compartilham tópicos. Passe o mouse ou navegue por teclado para detalhes; clique para filtrar o tópico ou localizar o artigo.",
         "help-dot--inline"
     ));
 
@@ -346,6 +349,11 @@ function renderEntityTable(graph, opts) {
             renderTooltip();
         });
         row.addEventListener("click", () => selectEntity(node, opts));
+        row.tabIndex = 0;
+        row.setAttribute("aria-label", `Filtrar por tópico ${node.label || node.id}, conectado a ${node.degree ?? 0} artigos.`);
+        row.addEventListener("keydown", (event) => {
+            if (event.key === "Enter" || event.key === " ") { event.preventDefault(); selectEntity(node, opts); }
+        });
 
         const nameCell = document.createElement("td");
         nameCell.textContent = node.label || node.id;
@@ -418,6 +426,7 @@ function bindEntitySortListeners() {
             } else {
                 entitySort = { key, dir: ENTITY_SORT_DEFAULTS[key]?.dir ?? "desc" };
             }
+            window.dispatchEvent(new Event("g1-graph-ui-state-change"));
             renderSortIndicators();
             if (lastGraph) {
                 renderEntityTable(lastGraph, lastOpts);
@@ -434,6 +443,22 @@ export function setTopicFilter(query) {
         renderEntityTable(lastGraph, lastOpts);
         updateStyles();
     }
+}
+
+export function getGraphUiState() {
+    return { topicQuery, entitySort: { ...entitySort } };
+}
+
+export function restoreGraphUiState(saved = {}) {
+    topicQuery = typeof saved.topicQuery === "string" ? saved.topicQuery : "";
+    const validKeys = new Set(["label", "score", "hits", "degree"]);
+    if (validKeys.has(saved.entitySort?.key)
+        && ["asc", "desc"].includes(saved.entitySort?.dir)) {
+        entitySort = { key: saved.entitySort.key, dir: saved.entitySort.dir };
+    } else {
+        entitySort = { key: "degree", dir: "desc" };
+    }
+    if (lastGraph && lastOpts) renderEntityTable(lastGraph, lastOpts);
 }
 
 export function clearGraph() {
@@ -508,10 +533,11 @@ export function renderGraph(opts) {
         : graph.nodes.map((node) => ({ ...node, mmr: node.type === "article" && mmrFlagged.has(node.id) }));
     const links = onlyArticles
         ? projectedLinks(graph.nodes, graph.links)
-        : graph.links.map((link) => ({
-            source: typeof link.source === "object" ? link.source.id : link.source,
-            target: typeof link.target === "object" ? link.target.id : link.target,
-        }));
+        : [...new Map(graph.links.map((link) => {
+            const source = typeof link.source === "object" ? link.source.id : link.source;
+            const target = typeof link.target === "object" ? link.target.id : link.target;
+            return [[source, target].sort().join("\u0000"), { source, target }];
+        })).values()];
 
     if (nodes.length === 0) {
         showPlaceholder("Nada para exibir aqui.");
@@ -528,7 +554,9 @@ export function renderGraph(opts) {
         .append("svg")
         .attr("width", width)
         .attr("height", height)
-        .attr("viewBox", `0 0 ${width} ${height}`);
+        .attr("viewBox", `0 0 ${width} ${height}`)
+        .attr("role", "group")
+        .attr("aria-label", "Mapa interativo de relações entre artigos e tópicos. Círculos são artigos; losangos são tópicos; as ligações não têm direção.");
 
     svg.append("rect")
         .attr("width", width)
@@ -560,37 +588,54 @@ export function renderGraph(opts) {
         .join("line")
         .attr("stroke-width", (l) => (l.count ? 0.6 + Math.min(l.count, 6) * 0.5 : 0.6));
 
+    const symbol = d3.symbol()
+        .type((d) => d.type === "article" ? d3.symbolCircle : d3.symbolDiamond)
+        .size((d) => Math.PI * radiusOf(d, maxScore) ** 2);
+    const activateNode = (event, d) => {
+        event.stopPropagation();
+        if (d.type === "article") {
+            hoverData = null;
+            if (selectedEntities.length > 0) {
+                selectedEntities = [];
+                notifySelection(opts);
+            }
+            if (opts.onArticleClick) opts.onArticleClick(d.id);
+        } else {
+            selectEntity(d, opts);
+        }
+        updateStyles();
+        renderTooltip();
+    };
     nodesSel = zoomLayer.append("g")
-        .selectAll("circle")
+        .selectAll("path.graph-node")
         .data(nodes)
-        .join("circle")
-        .attr("r", (d) => radiusOf(d, maxScore))
+        .join("path")
+        .attr("class", "graph-node")
+        .attr("d", symbol)
+        .attr("transform", (d) => `translate(${d.x ?? width / 2},${d.y ?? height / 2})`)
         .attr("fill", (d) => (d.type === "article" ? ARTICLE_COLOR : ENTITY_COLOR))
-        .on("mouseover", (event, d) => {
+        .attr("tabindex", 0)
+        .attr("role", "button")
+        .attr("aria-label", (d) => d.type === "article"
+            ? `Artigo ${d.label || d.id}, score ${relevancePct(d.score)}. Ative para localizar na linha do tempo.`
+            : `Tópico ${d.label || d.id}, conectado a ${d.degree ?? 0} artigos. Ative para filtrar por este tópico.`)
+        .on("mouseover focus", (event, d) => {
             hoverData = d;
             if (selectedEntities.length === 0) updateStyles();
             renderTooltip();
         })
-        .on("mouseout", () => {
+        .on("mouseout blur", () => {
             hoverData = null;
             if (selectedEntities.length === 0) updateStyles();
             renderTooltip();
         })
-        .on("click", (event, d) => {
-            event.stopPropagation();
-            if (d.type === "article") {
-                hoverData = null;
-                if (selectedEntities.length > 0) {
-                    selectedEntities = [];
-                    notifySelection(opts);
-                }
-                if (opts.onArticleClick) opts.onArticleClick(d.id);
-            } else {
-                selectEntity(d, opts);
-            }
-            updateStyles();
-            renderTooltip();
+        .on("click", activateNode)
+        .on("keydown", (event, d) => {
+            if (event.key === "Enter" || event.key === " ") { event.preventDefault(); activateNode(event, d); }
         })
+        .call((selection) => selection.append("title")
+            .text((d) => `${d.label || d.id} · ${d.type === "article" ? "artigo" : "tópico"} · score ${relevancePct(d.score)}`))
+        .filter(function () { return this.matches("path.graph-node"); })
         .call(
             d3.drag()
                 .on("start", (event, d) => {
@@ -623,8 +668,7 @@ export function renderGraph(opts) {
             .attr("x2", (d) => d.target.x)
             .attr("y2", (d) => d.target.y);
         nodesSel
-            .attr("cx", (d) => d.x)
-            .attr("cy", (d) => d.y);
+            .attr("transform", (d) => `translate(${d.x},${d.y})`);
         if (tooltipEl()?.classList.contains("visible")) renderTooltip();
     });
 

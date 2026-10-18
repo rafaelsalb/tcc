@@ -163,6 +163,57 @@ Inicie a API em um terminal e mantenha-a em execução durante a avaliação:
 uv run python src/api.py
 ```
 
+A mesma interface inclui a aba **Painel de avaliações**. Selecione um ou mais
+temas e snapshots identificados por origem e data semântica (`Atual` ou `Snapshot de …`),
+importados dos arquivos `evals*.json`, além de presets, quorums, rankings e seeds
+para iniciar uma rodada; ela mostra progresso e atualiza gráficos/tabela a cada
+configuração concluída. Temas e versões são armazenados em `evaluation_sets`, com
+consultas e artigos de referência normalizados em `evaluation_set_queries` e
+`evaluation_set_articles`. Cada rodada salva um snapshot imutável do conjunto e
+da configuração; estado, resultados completos, rankings, recuperações, relatórios,
+resumos e diagnósticos são persistidos no PostgreSQL (`evaluation_runs`,
+`evaluation_run_results` e `evaluation_run_artifacts`). **O painel não grava
+rodadas ou resultados no sistema de arquivos.** A API lista conjuntos embutidos em
+`GET /dashboard/evaluation-sets`, inicia rodadas em `POST /dashboard/runs` e
+expõe status, resumo e páginas de resultados em `/dashboard/runs/<id>`.
+O navegador preserva a aba, filtros, ordenação, recorte top-N, tópicos selecionados,
+rodada atual, configurações do painel e seleção de artigos relevantes em
+`localStorage`; os julgamentos da aba Avaliação também continuam salvos no servidor.
+Se a API reiniciar durante uma rodada, os resultados já gravados continuam
+acessíveis e a rodada aparece como interrompida; ela não é retomada
+automaticamente. Mantenha a API em um único processo enquanto uma rodada estiver
+ativa.
+
+### Importar rodadas antigas do painel
+
+Pare a API antes da migração. Importe uma vez os arquivos JSONL de rodadas antigas.
+O importador lê os arquivos sem alterá-los, verifica sequência e conteúdo dos
+registros, e insere resultados e resumos no PostgreSQL de forma idempotente. Se
+houver divergência ou corrupção, informa o erro e mantém a origem:
+
+```bash
+uv run python scripts/import_dashboard_runs.py resultados/dashboard_runs
+```
+
+Reinicie a API e confirme no painel que as rodadas aparecem e que a contagem de
+cada uma confere. Depois da importação, a API carrega rodadas e resultados somente
+do banco; os arquivos antigos permanecem intocados como cópia de recuperação e
+não são lidos pelo painel. Os dados permanecem no volume Docker `postgres_data`;
+**não use `docker compose down -v`**, pois isso remove o banco e as rodadas.
+O volume protege contra recriação do container, mas não contra falha do host ou
+remoção do volume. Faça backups PostgreSQL criptografados em armazenamento
+externo e teste a restauração periodicamente. Exemplo usando `age` no host; defina
+`AGE_RECIPIENT` e `BACKUP_DIR` para sua chave pública e destino externo:
+
+```bash
+docker compose exec -T postgres sh -c \
+  'pg_dump -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Fc' \
+  | age -r "$AGE_RECIPIENT" > "$BACKUP_DIR/tcc-$(date -u +%Y%m%dT%H%M%SZ).dump.age"
+```
+
+Para testar recuperação, descriptografe e restaure em um banco de teste separado;
+não use `--clean` contra o banco ativo.
+
 Em outro terminal, execute:
 
 ```bash

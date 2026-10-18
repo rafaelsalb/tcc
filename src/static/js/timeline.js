@@ -351,8 +351,8 @@ function buildCard(article, maxScore, entities, state, rank, ranks) {
     value.className = "score-value";
     const valueLabel = document.createElement("span");
     valueLabel.className = "score-label";
-    valueLabel.textContent = "Relevância";
-    valueLabel.appendChild(helpDot("Relevância deste artigo: quanto maior, mais ele se conecta aos assuntos mais citados na busca.", "help-dot--inline"));
+    valueLabel.textContent = "Score";
+    valueLabel.appendChild(helpDot("Score de ordenação deste artigo na busca atual. É relativo ao conjunto e ao método selecionado, não uma probabilidade.", "help-dot--inline"));
     value.append(valueLabel, document.createTextNode(article.score.toFixed(3)));
     const bar = document.createElement("div");
     bar.className = "score-bar";

@@ -7,18 +7,27 @@ import {
     clearEntitySelection,
     getEntityArticleUrls,
     setTopicFilter,
+    getGraphUiState,
+    restoreGraphUiState,
 } from "./graph.js";
 import { initEvalTab, setEvalResponse } from "./eval.js";
 import { initHelpDots } from "./help.js";
+import { initDashboard } from "./dashboard.js";
+import { getUiState, setUiState } from "./ui_state.js";
 
+const savedUiState = getUiState();
 const state = {
     response: null,
-    sort: "date_desc",
-    topN: null,
+    sort: ["date_desc", "date_asc", "ppr_desc"].includes(savedUiState.searchView?.sort)
+        ? savedUiState.searchView.sort : "date_desc",
+    topN: Number.isInteger(savedUiState.searchView?.topN) ? savedUiState.searchView.topN : null,
     entityFilters: new Map(),
-    entityMatch: "any",
-    resultQuery: "",
+    entityMatch: ["any", "all"].includes(savedUiState.searchView?.entityMatch)
+        ? savedUiState.searchView.entityMatch : "any",
+    resultQuery: savedUiState.searchView?.resultQuery ?? "",
 };
+const RESTORABLE_TABS = new Set(["panel-timeline", "panel-graph", "panel-eval", "panel-dashboard"]);
+const restoredTab = RESTORABLE_TABS.has(savedUiState.activeTab) ? savedUiState.activeTab : "panel-timeline";
 
 // Search depth presets exposed to the user as "Nível de busca".
 const SEARCH_LEVELS = {
@@ -114,7 +123,7 @@ function readForm() {
         topK: String(SEARCH_LEVELS[level].topK),
         dateFrom: els.dateFrom.value,
         dateTo: els.dateTo.value,
-        seedMethod: ["louvain", "hits", "ppr_top10"].includes(els.seedMethod.value) ? els.seedMethod.value : "hits",
+        seedMethod: ["louvain", "hits", "ppr_top10", "query_entities"].includes(els.seedMethod.value) ? els.seedMethod.value : "hits",
         quorum: String(els.quorum.value),
     };
 }
@@ -122,22 +131,83 @@ function readForm() {
 const QUORUM_VALUES = ["0", "0.1", "0.2", "0.3", "0.4", "0.5", "0.6", "0.7", "0.8", "0.9", "1"];
 const DEFAULT_QUORUM = "0.7";
 
-function fillForm(params) {
-    els.query.value = params.get("query") ?? "";
-    els.searchLevel.value = SEARCH_LEVELS[params.get("level")] ? params.get("level") : DEFAULT_LEVEL;
-    els.dateFrom.value = params.get("date_from") ?? "";
-    els.dateTo.value = params.get("date_to") ?? "";
-    const seedMethodParam = params.get("seed_method");
-    if (["hits", "louvain", "ppr_top10"].includes(seedMethodParam)) {
+function fillForm(params, preferDraft = false) {
+    const saved = getUiState().searchParams || {};
+    const draft = getUiState().formDraft || {};
+    const get = (key, fallback = "") => {
+        if (preferDraft && Object.hasOwn(draft, key)) return draft[key];
+        return params.has(key) ? params.get(key) : (saved[key] ?? fallback);
+    };
+    els.query.value = get("query");
+    const level = get("level", DEFAULT_LEVEL);
+    els.searchLevel.value = SEARCH_LEVELS[level] ? level : DEFAULT_LEVEL;
+    els.dateFrom.value = get("date_from");
+    els.dateTo.value = get("date_to");
+    const seedMethodParam = get("seed_method", "louvain");
+    if (["hits", "louvain", "ppr_top10", "query_entities"].includes(seedMethodParam)) {
         els.seedMethod.value = seedMethodParam;
     }
-    const quorumParam = (params.get("quorum") ?? "").trim();
+    const quorumParam = get("quorum", DEFAULT_QUORUM).trim();
     const quorum = QUORUM_VALUES.includes(quorumParam) ? quorumParam : DEFAULT_QUORUM;
     els.quorum.value = quorum;
     els.quorumValue.textContent = `${Math.round(Number(quorum) * 100)}%`;
-    if (params.get("date_from") || params.get("date_to") || params.get("seed_method") || params.get("quorum")) {
+    if (params.has("date_from") || params.has("date_to") || params.has("seed_method") || params.has("quorum")
+        || saved.date_from || saved.date_to || saved.seed_method || saved.quorum) {
         setAdvancedExpanded(true);
     }
+}
+
+function persistFormDraft() {
+    const params = readForm();
+    setUiState("formDraft", {
+        query: params.query, level: params.level, date_from: params.dateFrom,
+        date_to: params.dateTo, seed_method: params.seedMethod, quorum: params.quorum,
+    });
+}
+
+function persistSearchView() {
+    setUiState("searchView", {
+        sort: state.sort,
+        topN: state.topN,
+        entityMatch: state.entityMatch,
+        resultQuery: state.resultQuery,
+        entityFilters: [...state.entityFilters].map(([id, value]) => ({ id, label: value.label })),
+        onlyArticles: els.onlyArticles.checked,
+        topicSearch: els.topicSearch.value,
+        entityPickerQuery: els.entityPickerInput.value,
+        advancedExpanded: !els.advancedFilters.hidden,
+        graph: getGraphUiState(),
+    });
+}
+
+let scrollPersistTimer = null;
+function persistActiveTabScroll(tabId) {
+    const current = getUiState().scrollPositions || {};
+    setUiState("scrollPositions", { ...current, [tabId]: window.scrollY });
+}
+
+function restoreSearchView(response) {
+    const saved = getUiState().searchView || {};
+    state.sort = ["date_desc", "date_asc", "ppr_desc"].includes(saved.sort) ? saved.sort : "date_desc";
+    state.topN = Number.isInteger(saved.topN) ? saved.topN : 10;
+    state.entityMatch = ["any", "all"].includes(saved.entityMatch) ? saved.entityMatch : "any";
+    state.resultQuery = typeof saved.resultQuery === "string" ? saved.resultQuery : "";
+    state.entityFilters = new Map();
+    for (const savedEntity of (Array.isArray(saved.entityFilters) ? saved.entityFilters : [])) {
+        const node = response.graph?.nodes?.find((entry) => entry.id === savedEntity.id);
+        if (node) state.entityFilters.set(node.id, {
+            label: savedEntity.label || node.label || node.id,
+            urls: new Set(getEntityArticleUrls(response, node.id)),
+        });
+    }
+    els.sortSelect.value = state.sort;
+    els.resultSearch.value = state.resultQuery;
+    els.onlyArticles.checked = Boolean(saved.onlyArticles);
+    els.topicSearch.value = typeof saved.topicSearch === "string" ? saved.topicSearch : "";
+    els.entityPickerInput.value = typeof saved.entityPickerQuery === "string" ? saved.entityPickerQuery : "";
+    restoreGraphUiState(saved.graph || {});
+    setAdvancedExpanded(Boolean(saved.advancedExpanded));
+    setEntitySelection([...state.entityFilters.keys()]);
 }
 
 /* ----------------------------------------------------------------------
@@ -248,7 +318,7 @@ function renderEntityPicker() {
         name.textContent = node.label || node.id;
         const degree = document.createElement("span");
         degree.className = "picker-degree";
-        degree.textContent = `${node.degree ?? 0} citações`;
+        degree.textContent = `${node.degree ?? 0} artigos relacionados`;
 
         li.append(name, degree);
         li.addEventListener("click", () => toggleEntityFilter(node.id, node.label || node.id));
@@ -292,6 +362,7 @@ function setTopN(value) {
     els.topNGraph.value = String(state.topN);
     els.topNGraphValue.textContent = String(state.topN);
     syncTopKButtons();
+    persistSearchView();
     graphDirty = true;
     renderAll();
 }
@@ -332,6 +403,7 @@ function toggleEntityFilter(id, label) {
         state.entityFilters.set(id, { label, urls: new Set(urls) });
     }
     setEntitySelection([...state.entityFilters.keys()]);
+    persistSearchView();
     renderEntityChips();
     renderEntityPicker();
     renderAll();
@@ -345,6 +417,7 @@ function handleEntitySelect(entities) {
             urls: new Set(getEntityArticleUrls(state.response, entity.id)),
         },
     ]));
+    persistSearchView();
     renderEntityChips();
     renderEntityPicker();
     renderAll();
@@ -353,6 +426,7 @@ function handleEntitySelect(entities) {
 function clearEntityFilters() {
     state.entityFilters.clear();
     clearEntitySelection();
+    persistSearchView();
     renderEntityChips();
     renderEntityPicker();
     renderAll();
@@ -397,6 +471,7 @@ function renderGraphNow() {
         onEntitySelect: handleEntitySelect,
         onArticleClick: handleArticleClick,
     });
+    setEntitySelection([...state.entityFilters.keys()]);
     graphDirty = false;
 }
 
@@ -416,6 +491,8 @@ function handleArticleClick(url) {
    ---------------------------------------------------------------------- */
 
 function setActiveTab(tabId) {
+    const previous = els.tabButtons.find((button) => button.classList.contains("active"))?.dataset.tab;
+    if (previous) persistActiveTabScroll(previous);
     for (const button of els.tabButtons) {
         const isActive = button.dataset.tab === tabId;
         button.classList.toggle("active", isActive);
@@ -424,16 +501,27 @@ function setActiveTab(tabId) {
     for (const panel of els.tabPanels) {
         panel.classList.toggle("active", panel.id === tabId);
     }
+    setUiState("activeTab", tabId);
+    const savedScroll = getUiState().scrollPositions?.[tabId];
+    if (Number.isFinite(savedScroll)) requestAnimationFrame(() => window.scrollTo(0, savedScroll));
     if (tabId === "panel-graph" && (graphDirty || !document.getElementById("graph").hasChildNodes())) {
         renderGraphNow();
     }
 }
 
+window.addEventListener("scroll", () => {
+    clearTimeout(scrollPersistTimer);
+    scrollPersistTimer = setTimeout(() => {
+        const activeTab = els.tabButtons.find((button) => button.classList.contains("active"))?.dataset.tab;
+        if (activeTab) persistActiveTabScroll(activeTab);
+    }, 120);
+}, { passive: true });
+
 /* ----------------------------------------------------------------------
    Search flow
    ---------------------------------------------------------------------- */
 
-async function runSearch({ push = true } = {}) {
+async function runSearch({ push = true, restoreView = false } = {}) {
     const params = readForm();
     if (!params.query) {
         showError("Informe um assunto para buscar.");
@@ -445,12 +533,15 @@ async function runSearch({ push = true } = {}) {
     try {
         const data = await searchArticles(params);
         state.response = data;
-        state.entityFilters = new Map();
-        state.resultQuery = "";
-        els.resultSearch.value = "";
-        // every executed search restarts the view at the top-10 of the results
-        // (syncTopNBounds clamps it when fewer articles were retrieved)
-        state.topN = 10;
+        if (restoreView) {
+            restoreSearchView(data);
+        } else {
+            state.entityFilters = new Map();
+            state.resultQuery = "";
+            els.resultSearch.value = "";
+            // A newly submitted query starts at top-10; refresh restores the previous view.
+            state.topN = 10;
+        }
         syncTopNBounds();
         syncTopKButtons();
         renderEntityChips();
@@ -461,6 +552,12 @@ async function runSearch({ push = true } = {}) {
         graphDirty = true;
         if (graphTabActive()) renderGraphNow();
         if (push) pushUrl(params);
+        setUiState("searchParams", {
+            query: params.query, level: params.level, date_from: params.dateFrom,
+            date_to: params.dateTo, seed_method: params.seedMethod, quorum: params.quorum,
+        });
+        persistFormDraft();
+        persistSearchView();
     } catch (error) {
         showError(error.message);
     } finally {
@@ -476,11 +573,14 @@ els.form.addEventListener("submit", (event) => {
     event.preventDefault();
     runSearch();
 });
+els.form.addEventListener("input", persistFormDraft);
+els.form.addEventListener("change", persistFormDraft);
 
 els.errorClose.addEventListener("click", hideError);
 
 els.sortSelect.addEventListener("change", () => {
     state.sort = els.sortSelect.value;
+    persistSearchView();
     renderAll();
 });
 
@@ -529,13 +629,17 @@ for (const container of document.querySelectorAll("#topk-buttons-graph")) {
 
 els.topicSearch.addEventListener("input", () => {
     setTopicFilter(els.topicSearch.value);
+    persistSearchView();
 });
+
+window.addEventListener("g1-graph-ui-state-change", persistSearchView);
 
 let resultSearchTimer = null;
 els.resultSearch.addEventListener("input", () => {
     clearTimeout(resultSearchTimer);
     resultSearchTimer = setTimeout(() => {
         state.resultQuery = els.resultSearch.value.trim();
+        persistSearchView();
         graphDirty = true;
         renderAll();
         if (graphTabActive() || document.getElementById("graph").hasChildNodes()) {
@@ -546,6 +650,7 @@ els.resultSearch.addEventListener("input", () => {
 
 els.advancedToggle.addEventListener("click", () => {
     setAdvancedExpanded(els.advancedFilters.hidden);
+    persistSearchView();
 });
 
 els.quorum.addEventListener("input", () => {
@@ -555,6 +660,7 @@ els.quorum.addEventListener("input", () => {
 for (const button of els.matchButtons) {
     button.addEventListener("click", () => {
         state.entityMatch = button.dataset.match;
+        persistSearchView();
         renderEntityChips();
         renderAll();
     });
@@ -566,7 +672,10 @@ els.timeline.addEventListener("entity-toggle", (event) => {
 
 els.lucky.addEventListener("click", handleLucky);
 
-els.entityPickerInput.addEventListener("input", renderEntityPicker);
+els.entityPickerInput.addEventListener("input", () => {
+    renderEntityPicker();
+    persistSearchView();
+});
 
 els.entityPickerInput.addEventListener("keydown", (event) => {
     if (event.key !== "Enter") return;
@@ -576,6 +685,7 @@ els.entityPickerInput.addEventListener("keydown", (event) => {
 });
 
 els.onlyArticles.addEventListener("change", () => {
+    persistSearchView();
     if (graphTabActive() || document.getElementById("graph").hasChildNodes()) {
         renderGraphNow();
     }
@@ -598,12 +708,14 @@ window.addEventListener("resize", () => {
 window.addEventListener("popstate", () => {
     const params = new URLSearchParams(location.search);
     fillForm(params);
+    persistFormDraft();
     if (params.get("query")) {
-        runSearch({ push: false });
+        runSearch({ push: false, restoreView: false });
     }
 });
 
 initEvalTab();
+initDashboard();
 initHelpDots();
 
 /* ----------------------------------------------------------------------
@@ -612,10 +724,11 @@ initHelpDots();
 
 {
     const params = new URLSearchParams(location.search);
-    fillForm(params);
-    if (params.get("query")) {
-        runSearch({ push: false });
+    fillForm(params, true);
+    if (els.query.value.trim()) {
+        runSearch({ push: false, restoreView: true }).finally(() => setActiveTab(restoredTab));
     } else {
         renderTimelineView();
+        setActiveTab(restoredTab);
     }
 }

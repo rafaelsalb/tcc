@@ -1,17 +1,19 @@
 import { listJudgmentLabels, getJudgments, saveJudgments, searchArticlesByTitle, computeMetrics } from "./api.js";
 import { helpDot } from "./help.js";
+import { getUiState, setUiState } from "./ui_state.js";
 
 const PAGE_SIZE = 20;
 const KS = [1, 3, 5, 10, 20];
 const DEFAULT_LABEL = "avaliacao-1";
+const savedEvalState = getUiState().evaluation || {};
 
 const evalState = {
-    q: "",
-    page: 1,
+    q: typeof savedEvalState.q === "string" ? savedEvalState.q : "",
+    page: Number.isInteger(savedEvalState.page) && savedEvalState.page > 0 ? savedEvalState.page : 1,
     total: 0,
     results: [],
     selected: new Map(), // url -> {title, date_published}
-    label: DEFAULT_LABEL,
+    label: typeof savedEvalState.label === "string" && savedEvalState.label ? savedEvalState.label : DEFAULT_LABEL,
     labels: [],
     rankedUrls: [],
     metrics: null,
@@ -245,6 +247,7 @@ async function sendSelection() {
 
 async function loadLabel(label) {
     evalState.label = label;
+    setUiState("evaluation", { label });
     try {
         const { urls } = await getJudgments(label);
         evalState.selected = new Map();
@@ -269,6 +272,7 @@ async function loadLabel(label) {
 
 async function runEvalSearch(page = 1) {
     evalState.page = Math.max(1, page);
+    setUiState("evaluation", { q: evalState.q, page: evalState.page, label: evalState.label });
     try {
         const data = await searchArticlesByTitle({ q: evalState.q, page: evalState.page, pageSize: PAGE_SIZE });
         evalState.results = data.articles;
@@ -315,6 +319,8 @@ export function initEvalTab() {
         evalPanel: $("panel-eval"),
     };
 
+    els.evalQuery.value = evalState.q;
+
     els.evalSearchButton.addEventListener("click", () => {
         evalState.q = els.evalQuery.value.trim();
         runEvalSearch(1);
@@ -333,6 +339,10 @@ export function initEvalTab() {
         if (label && label !== evalState.label) loadLabel(label);
     });
     els.evalSendButton.addEventListener("click", sendSelection);
+    els.evalQuery.addEventListener("input", () => {
+        evalState.q = els.evalQuery.value;
+        setUiState("evaluation", { q: evalState.q, page: evalState.page, label: evalState.label });
+    });
 
     renderMetrics();
 
@@ -343,7 +353,9 @@ export function initEvalTab() {
             evalState.labels = [];
         }
         renderLabels();
-        await loadLabel(evalState.label);
-        await runEvalSearch(1);
+        const label = evalState.labels.some((entry) => entry.label === evalState.label)
+            ? evalState.label : (evalState.labels[0]?.label || evalState.label);
+        await loadLabel(label);
+        await runEvalSearch(evalState.page);
     })();
 }
