@@ -171,6 +171,42 @@ class RankingService:
         ))
         return set(ordered[:max(1, math.ceil(len(entities) * 0.10))])
 
+    @staticmethod
+    def _serialize_graph(graph, article_set, node_names, node_scores, *, opposite_count=None,
+                         hit_scores=None, seeds=None, personalization=None, meta=None,
+                         edge_weights=None):
+        """Serialize a candidate graph in the format consumed by the graph UI."""
+        opposite_count = opposite_count or {node: graph.degree(node) // 2 for node in graph}
+        hit_scores = hit_scores or {}
+        seeds = seeds or set()
+        personalization = personalization or {}
+        edge_weights = edge_weights or {}
+        return {
+            "nodes": [
+                {
+                    "id": node,
+                    "label": node_names.get(node, node),
+                    "type": "article" if node in article_set else "entity",
+                    "score": float(node_scores.get(node, 0.0)),
+                    "hits": float(hit_scores.get(node, 0.0)),
+                    "degree": int(opposite_count.get(node, 0)),
+                    "ppr_seed": node in seeds,
+                    "personalization": float(personalization.get(node, 0.0)),
+                }
+                for node in graph.nodes()
+            ],
+            "links": [
+                {
+                    "source": source,
+                    "target": target,
+                    **({"weight": float(edge_weights[(source, target)])}
+                       if (source, target) in edge_weights else {}),
+                }
+                for source, target in graph.edges()
+            ],
+            "meta": dict(meta or {}),
+        }
+
     def _prepare_graph(self, results):
         article_set = set(results)
         G = nx.DiGraph()
@@ -566,6 +602,7 @@ class RankingService:
         norm = np.linalg.norm(hubs)
         if norm:
             hubs /= norm
+        authorities = np.zeros(len(query_nodes), dtype=np.float64)
         for _ in range(500):
             authorities = matrix.T @ hubs
             norm = np.linalg.norm(authorities)
@@ -587,15 +624,36 @@ class RankingService:
         ranked = [{"article": url, "score": float(score)}
                   for url, score in sorted(zip(article_urls, scores), key=lambda row: (-row[1], row[0]))]
         elapsed = perf_counter() - tick
-        return ranked, {"meta": {
-            "graph_method": "hits_cross_encoder", "graph_seconds": elapsed,
-            "graph_surviving_articles": sum(url in prepared["G"] for url in article_urls),
-            "graph_entity_count": len(query_nodes), "graph_seed_count": len(connected_entities),
-            "seed_method": "query_entities", "effective_seed_method": "query_entities",
-            "query_entity_count": query_entity_count, "query_entity_matched_count": len(query_nodes),
-            "query_seed_type": "entity", "query_seed_fallback_reason": None,
-            "cross_encoder_probability_count": sum(url in article_probabilities for url in article_urls),
-        }}
+        node_scores = {url: float(score) for url, score in zip(article_urls, scores)}
+        hit_scores = dict(node_scores)
+        hit_scores.update({entity: float(score) for entity, score in zip(query_nodes, authorities)})
+        node_scores.update({entity: float(score) for entity, score in zip(query_nodes, authorities)})
+        edge_weights = {}
+        for article in article_urls:
+            probability = min(1.0, max(0.0, float(article_probabilities.get(article, 0.0))))
+            for entity in query_nodes:
+                if (article, entity) in original_graph.edges or (entity, article) in original_graph.edges:
+                    edge_weights[(article, entity)] = probability
+                    edge_weights[(entity, article)] = probability
+        graph_data = self._serialize_graph(
+            original_graph, article_set, prepared["node_names"], node_scores,
+            hit_scores=hit_scores, seeds=connected_entities,
+            personalization={node: 1.0 / len(connected_entities) for node in connected_entities}
+            if connected_entities else {},
+            edge_weights=edge_weights,
+            meta={
+                "article_count": len(article_urls),
+                "entity_count": sum(node not in article_set for node in original_graph),
+                "graph_method": "hits_cross_encoder", "graph_seconds": elapsed,
+                "graph_surviving_articles": sum(url in prepared["G"] for url in article_urls),
+                "graph_entity_count": len(query_nodes), "graph_seed_count": len(connected_entities),
+                "seed_method": "query_entities", "effective_seed_method": "query_entities",
+                "query_entity_count": query_entity_count, "query_entity_matched_count": len(query_nodes),
+                "query_seed_type": "entity", "query_seed_fallback_reason": None,
+                "cross_encoder_probability_count": sum(url in article_probabilities for url in article_urls),
+            },
+        )
+        return ranked, graph_data
 
     def graph_rank(self, results, method="rwr", seed_method="hits", alpha=0.85, hop_decay=0.5,
                    query=None, query_seed_fallback="hits"):
@@ -634,9 +692,11 @@ class RankingService:
         seed_articles.update(article for seed in (set(seeds) - article_set) if seed in graph
                              for article in graph.predecessors(seed) if article in article_set)
 
+        node_scores = {node: inputs.get("normalized", {}).get(node, 0.0) for node in graph}
+        hit_scores = {}
         if method == "rwr":
-            scores = nx.pagerank(graph, alpha=alpha, personalization=inputs["personalization"])
-            scores = {url: scores.get(url, 0.0) for url in results}
+            node_scores = nx.pagerank(graph, alpha=alpha, personalization=inputs["personalization"])
+            scores = {url: node_scores.get(url, 0.0) for url in results}
         elif method == "hits":
             # Query-conditioned HITS: query seed entities are hubs and connected
             # articles are authorities, matching the retrieval direction.
@@ -645,10 +705,13 @@ class RankingService:
             else:
                 directed = nx.DiGraph((e, a) for e in seeds for a in graph.predecessors(e) if a in article_set)
                 try:
-                    _, authority = nx.hits(directed, max_iter=500, normalized=True) if directed.number_of_edges() else ({}, {})
+                    hubs, authority = nx.hits(directed, max_iter=500, normalized=True) if directed.number_of_edges() else ({}, {})
                 except nx.PowerIterationFailedConvergence:
+                    hubs = {node: 0.0 for node in seeds}
                     authority = {node: 0.0 for node in article_nodes}
                 scores = {url: authority.get(url, 0.0) for url in results}
+                hit_scores = {**hubs, **authority}
+                node_scores.update(hit_scores)
         elif method in ("salsa", "walk"):
             # SALSA-style authority random walk; walk uses the same typed transitions
             # but stops at the configured two-hop horizon rather than taking a full
@@ -662,6 +725,7 @@ class RankingService:
                         frontier[entity] += 1.0 / max(1, len(seed_articles) * len(neighbors))
             else:
                 frontier = {node: (1.0 / len(seeds) if node in seeds else 0.0) for node in entity_nodes}
+            node_scores.update(frontier)
             if method == "salsa":
                 for _ in range(32):
                     # k-core pruning can remove retrieved articles. Keep only
@@ -681,6 +745,7 @@ class RankingService:
                     if total:
                         next_frontier = {node: value / total for node, value in next_frontier.items()}
                     frontier = {node: alpha * next_frontier.get(node, 0.0) + (1 - alpha) * (1 / len(seeds) if node in seeds else 0.0) for node in entity_nodes} if seeds else next_frontier
+                node_scores.update(frontier)
                 for entity, mass in frontier.items():
                     neighbors = [url for url in graph.predecessors(entity) if url in article_set]
                     for url in neighbors:
@@ -711,13 +776,21 @@ class RankingService:
 
         ranked = sorted(((url, scores.get(url, 0.0)) for url in results), key=lambda row: (-row[1], row[0]))
         elapsed = perf_counter() - tick
-        return ([{"article": url, "score": score} for url, score in ranked], {
-            "meta": {"graph_surviving_articles": len(article_nodes), "graph_entity_count": len(entity_nodes),
-                     "graph_seed_count": len(seeds), "graph_method": method,
-                     "graph_seconds": elapsed, "seed_method": seed_method,
-                     "effective_seed_method": inputs["effective_seed_method"],
-                     "query_entity_count": inputs["query_entity_count"],
-                     "query_entity_matched_count": inputs["query_entity_matched_count"],
-                     "query_seed_fallback_reason": inputs["query_seed_fallback_reason"],
-                     "query_seed_type": inputs["query_seed_type"]}
-        })
+        node_scores.update(scores)
+        graph_data = self._serialize_graph(
+            graph, article_set, prepared.get("node_names", {}), node_scores,
+            opposite_count=inputs.get("opposite_count"), hit_scores=hit_scores,
+            seeds=seeds, personalization=inputs["personalization"],
+            meta={
+                "article_count": len(article_nodes), "entity_count": len(entity_nodes),
+                "graph_surviving_articles": len(article_nodes), "graph_entity_count": len(entity_nodes),
+                "graph_seed_count": len(seeds), "graph_method": method,
+                "graph_seconds": elapsed, "seed_method": seed_method,
+                "effective_seed_method": inputs["effective_seed_method"],
+                "query_entity_count": inputs["query_entity_count"],
+                "query_entity_matched_count": inputs["query_entity_matched_count"],
+                "query_seed_fallback_reason": inputs["query_seed_fallback_reason"],
+                "query_seed_type": inputs["query_seed_type"],
+            },
+        )
+        return ([{"article": url, "score": score} for url, score in ranked], graph_data)

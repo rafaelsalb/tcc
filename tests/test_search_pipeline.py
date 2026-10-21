@@ -27,12 +27,24 @@ class Ranker:
     def ppr(self, urls, seed_method):
         self.calls.append((list(urls), seed_method))
         ranked = [{"article": u, "score": 1 / (i + 1)} for i, u in enumerate(reversed(urls))]
-        return {}, ranked, {"meta": {"graph_surviving_articles": 2, "ppr_seed_count": 1}}
+        graph = {
+            "nodes": [{"id": url, "label": url, "type": "article", "score": 0.5}
+                      for url in urls],
+            "links": [],
+            "meta": {"graph_surviving_articles": 2, "ppr_seed_count": 1,
+                     "seed_method": seed_method},
+        }
+        return {}, ranked, graph
 
     def graph_rank(self, urls, method, seed_method, alpha, hop_decay):
         self.graph_call = (method, seed_method, alpha, hop_decay)
         ranked = [{"article": u, "score": float(i + 1)} for i, u in enumerate(urls)]
-        return ranked, {"meta": {"graph_method": method}}
+        graph = {
+            "nodes": [{"id": url, "label": url, "type": "article", "score": float(i + 1)}
+                      for i, url in enumerate(urls)],
+            "links": [], "meta": {"graph_method": method},
+        }
+        return ranked, graph
 
 
 class Cache:
@@ -59,6 +71,10 @@ def test_compare_has_two_baselines_and_two_rows_per_seed_shared_pool_and_no_inpu
     for row in result["rankings"][1:]:
         assert row["retrieval_id"] == "pool-123"
         assert {e["article"] for e in row["ranked"]} == {"a", "b"}
+    assert result["graph"]["nodes"]
+    assert set(result["graphs_by_seed"]) == set(SEED_METHODS)
+    assert all(row["graph"]["nodes"] for row in result["rankings"]
+               if row["stage"] in ("ppr", "fused"))
     assert result["rankings"][0]["retrieval_id"] != "pool-123"
     assert "lexical_candidate_article_urls" in result["diagnostics"]
     assert all("lexical_candidate_article_urls" not in row["diagnostics"] for row in result["rankings"])
@@ -78,6 +94,7 @@ def test_ranking_options_are_selectable_and_part_of_the_response(ranking):
     result = run_pipeline(retrieval(), ranker, "ppr", ranking=ranking, query="short")
     assert result["ranking"] == ranking
     assert {entry["article"] for entry in result["ranked"]} == {"a", "b"}
+    assert ("graph" in result) == (ranking in ("fused", "mmr"))
 
 
 def test_lexical_and_vector_rankings_are_selectable_within_hybrid_pool():
@@ -109,6 +126,16 @@ def test_ensemble_rrf_combines_selected_rankings_and_limits_to_hybrid_pool(monke
     assert result["diagnostics"]["ensemble_component_count"] == 3
 
 
+def test_ensemble_rrf_preserves_graph_component_payload():
+    result = run_pipeline(retrieval(), Ranker(), ranking="ensemble_rrf", query="short",
+                          ensemble_rankings=("rrf", "ppr"))
+
+    assert result["graph"]["nodes"]
+    assert result["graph_source"] == "ppr"
+    assert result["diagnostics"]["graph_source_component"] == "ppr"
+    assert "ppr" in result["component_graphs"]
+
+
 @pytest.mark.parametrize("methods", [(), ("ensemble_rrf",), ("unknown",)])
 def test_ensemble_rrf_rejects_empty_nested_or_unknown_methods(methods):
     with pytest.raises(ValueError, match="ensemble_rankings"):
@@ -125,6 +152,50 @@ def test_lexical_and_vector_ranking_options_align_channels_to_hybrid_pool():
     vector = run_pipeline(source, Ranker(), "ppr", ranking="vector")["ranked"]
     assert [row["article"] for row in lexical] == ["b", "a"]
     assert [row["article"] for row in vector] == ["b", "a"]
+
+
+def test_graph_independent_ranking_can_opt_in_to_auxiliary_graph_without_changing_ranking():
+    source = retrieval()
+    ranker = Ranker()
+    result = run_pipeline(source, ranker, ranking="lexical", include_graph=True)
+
+    assert [row["article"] for row in result["ranked"]] == ["a"]
+    assert result["graph"]["nodes"]
+    assert result["graph"]["meta"]["graph_purpose"] == "auxiliary_visualization"
+    assert result["graph_source"] == "auxiliary_ppr"
+    assert ranker.calls == [(["a"], "hits")]
+
+
+def test_graph_independent_ranking_does_not_build_graph_by_default():
+    ranker = Ranker()
+    result = run_pipeline(retrieval(), ranker, ranking="lexical")
+
+    assert "graph" not in result
+    assert not ranker.calls
+
+
+def test_search_request_include_graph_option_is_cacheable_and_configurable():
+    cache, ranker = Cache(), Ranker()
+    searcher = SimpleNamespace(search=lambda **_: retrieval())
+    params = {"query": "short", "ranking": "lexical"}
+
+    with_graph = search_request(searcher, ranker, cache, {**params, "include_graph": "true"})
+    without_graph = search_request(searcher, ranker, cache, params)
+
+    assert with_graph["graph"]["meta"]["graph_purpose"] == "auxiliary_visualization"
+    assert "graph" not in without_graph
+    assert len(ranker.calls) == 1
+    assert len([key for _, key in cache.values if ":response:" in key]) == 2
+
+
+def test_search_request_accepts_include_graph_function_argument():
+    ranker = Ranker()
+    response = search_request(
+        SimpleNamespace(search=lambda **_: retrieval()), ranker, Cache(),
+        {"query": "short", "ranking": "lexical"}, include_graph=True,
+    )
+
+    assert response["graph"]["meta"]["graph_purpose"] == "auxiliary_visualization"
 
 
 def test_ensemble_rrf_combines_selected_methods_and_reports_components(monkeypatch):
@@ -169,6 +240,8 @@ def test_graph_rankings_are_selectable(ranking, method):
     assert result["ranking"] == ranking
     assert ranker.graph_call == (method, "hits", 0.8, 0.4)
     assert {row["article"] for row in result["ranked"]} == {"a", "b"}
+    assert result["graph"]["nodes"]
+    assert result["graph"]["meta"]["graph_method"] == method
     if ranking == "graph_fusion":
         assert result["diagnostics"]["graph_fusion_method"] == "rrf"
         assert result["diagnostics"]["graph_fusion_rrf_k"] == 60
@@ -592,6 +665,7 @@ def test_search_version_is_part_of_cache_namespace(monkeypatch):
     {"top_k": 0}, {"candidate_cap": 0},
     {"bypass_cache": "maybe"},
     {"graph_alpha": "1"}, {"graph_hop_decay": "-0.1"}, {"graph_mix": "1.1"},
+    {"include_graph": "maybe"},
 ])
 def test_api_rejects_invalid_options_before_work(extra):
     with pytest.raises(ValueError):

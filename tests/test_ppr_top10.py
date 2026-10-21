@@ -161,6 +161,8 @@ def test_weighted_query_entity_hits_orders_articles_by_cross_encoder_probability
     assert graph["meta"]["query_entity_count"] == graph["meta"]["query_entity_matched_count"] == 1
     assert graph["meta"]["cross_encoder_probability_count"] == 3
     assert graph["meta"]["query_seed_fallback_reason"] is None
+    assert graph["nodes"] and graph["links"]
+    assert all("score" in node and "degree" in node for node in graph["nodes"])
 
 
 def test_weighted_query_entity_hits_reports_legacy_fallback_when_no_match():
@@ -189,6 +191,8 @@ def test_cross_encoder_probability_weights_query_entity_hits():
     assert graph["meta"]["graph_method"] == "hits_cross_encoder"
     assert graph["meta"]["query_entity_matched_count"] == 1
     assert graph["meta"]["cross_encoder_probability_count"] == 3
+    assert graph["nodes"] and graph["links"]
+    assert any("weight" in link for link in graph["links"])
 
 
 def test_cross_encoder_graph_falls_back_when_query_has_no_graph_entity():
@@ -225,3 +229,4 @@ def test_graph_rank_methods_return_finite_scores_for_candidate_pool(method):
     assert all(math.isfinite(row["score"]) and row["score"] >= 0 for row in ranked)
     assert next(row["score"] for row in ranked if row["article"] == "pruned") == 0.0
     assert diagnostics["meta"]["graph_method"] == method
+    assert diagnostics["nodes"] and diagnostics["links"]

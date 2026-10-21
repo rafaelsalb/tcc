@@ -10,6 +10,7 @@ export async function searchArticles(params) {
     if (params.ranking) qs.set("ranking", params.ranking);
     if (params.resultUnit) qs.set("result_unit", params.resultUnit);
     if (params.querySeedFallback) qs.set("query_seed_fallback", params.querySeedFallback);
+    if (params.includeGraph != null) qs.set("include_graph", String(params.includeGraph));
 
     let response;
     try {

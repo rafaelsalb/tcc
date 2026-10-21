@@ -110,7 +110,8 @@ export function renderScorePlot(containerEl, tooltipEl, state, { onDotClick } = 
     const axisFormat = maxDate - minDate > 330 * 24 * 60 * 60 * 1000
         ? new Intl.DateTimeFormat("pt-BR", { month: "short", year: "numeric", timeZone: "UTC" })
         : X_TICK_FORMAT;
-    const xAxis = d3.axisBottom(x).ticks(Math.min(6, n)).tickFormat(axisFormat);
+    const xAxis = d3.axisBottom(x).ticks(Math.min(6, n))
+        .tickFormat((date) => axisFormat.format(date));
     const yAxis = d3.axisLeft(y).ticks(4).tickSize(-innerWidth).tickFormat((value) => Number(value).toFixed(3));
     g.append("g").attr("transform", `translate(0,${MARGIN.top + innerHeight})`).call(xAxis);
     g.append("g").attr("transform", `translate(${MARGIN.left},0)`).call(yAxis);

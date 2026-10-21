@@ -520,7 +520,7 @@ inputs antigos continuam válidos, com `unspecified` nessa coluna.
 **Reinicie a API com o código atualizado e use um novo caminho de saída.**
 Os checkpoints anteriores usam outra configuração/contrato de API e não devem
 ser retomados com este experimento. Seus arquivos antigos permanecem intactos.
-O contrato de busca agora é `stages_v9`, com namespace de cache `v19`; a versão
+O contrato de busca agora é `stages_v10`, com namespace de cache `v19`; a versão
 do contrato também faz parte da chave. Entradas anteriores não são apagadas nem
 reutilizadas. A correção lexical preserva os lexemas normalizados em filtros e
 scores, sem aplicar o stemmer português duas vezes (por exemplo, `beníci` não
@@ -783,6 +783,22 @@ Exemplo direto do novo endpoint:
 `result_unit=chunks|articles` e `candidate_cap` (padrão 20.000 chunks candidatos).
 Os defaults continuam `stage=ppr`, `result_unit=chunks`, `seed_method=hits`.
 
+Rankings que calculam ou usam o grafo retornam `graph` com `nodes`, `links` e
+`meta`. `ensemble_rrf` expõe os grafos dos componentes em `component_graphs` e
+usa como `graph` principal o primeiro componente com grafo na configuração. Em
+`stage=compare`, os grafos PPR/fused ficam associados a cada linha e em
+`graphs_by_seed`; `graph` no nível superior corresponde ao `seed_method` ativo.
+Rankings sem grafo não o constroem por padrão. Para pedir um grafo PPR auxiliar
+apenas para visualização, use `include_graph=true`; isso não altera o ranking:
+
+```text
+/search?query=Banco%20Master&ranking=lexical&include_graph=true
+```
+
+O mesmo controle está disponível como `include_graph` em `search_request` e
+`run_pipeline` (`includeGraph` na função JavaScript `searchArticles`). Rankings
+baseados em grafo sempre retornam seu grafo, sem depender desse parâmetro.
+
 Além das etapas, `ranking=` seleciona diretamente uma ordenação sobre o mesmo
 pool. Inclui as listas individuais `lexical` e `vector`, `rrf`, `cross_encoder`,
 `hybrid_max`, PPR, `fused`, `mmr`, rankings `graph_*` e `ensemble_rrf`. O ranking
@@ -792,7 +808,7 @@ parte da chave de resposta Redis.
 `rrf` agrega, por artigo, o melhor rank de chunk em cada canal dentro do pool
 lexical com embedding elegível; rank 1 é o melhor. Só então funde as listas
 lexical e vetorial, restringindo o resultado ao pool híbrido retornado. Mudanças
-nesse cálculo usam `search_version=stages_v9`/namespace `v19`; reinicie a API
+nesse cálculo usam `search_version=stages_v10`/namespace `v19`; reinicie a API
 para evitar comparar resultados servidos por um processo antigo.
 
 `ranking=ensemble_rrf` combina por soma RRF de peso igual os rankings-fonte

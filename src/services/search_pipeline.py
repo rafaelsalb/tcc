@@ -8,7 +8,7 @@ import math
 from time import perf_counter
 
 
-SEARCH_VERSION = "stages_v9"
+SEARCH_VERSION = "stages_v10"
 CACHE_NAMESPACE = "v19"
 SEED_METHODS = ("louvain", "hits", "ppr_top10", "query_entities")
 QUERY_SEED_FALLBACKS = ("hits", "louvain", "ppr_top10")
@@ -19,10 +19,55 @@ RANKINGS = ("ppr", "hybrid_max", "rrf", "cross_encoder", "fused", "mmr",
             "lexical", "vector", "ensemble_rrf")
 ENSEMBLE_RANKINGS = ("rrf", "cross_encoder", "ppr")
 ENSEMBLE_COMPONENT_RANKINGS = tuple(ranking for ranking in RANKINGS if ranking != "ensemble_rrf")
+GRAPH_RANKINGS = frozenset({
+    "ppr", "fused", "mmr", "graph_rwr", "graph_hits", "graph_salsa",
+    "graph_path", "graph_walk", "graph_fusion", "graph_hits_cross_encoder",
+})
 CROSS_ENCODER_RERANK_LIMIT = 250
 
 
-def search_request(searcher, ranker, cache, params):
+def _parse_bool(value, name):
+    if isinstance(value, bool):
+        return value
+    normalized = str(value).strip().lower()
+    if normalized in ("true", "1"):
+        return True
+    if normalized in ("false", "0", ""):
+        return False
+    raise ValueError(f"{name} must be true/false or 1/0")
+
+
+def _normalize_graph(graph, *, meta=None):
+    """Keep graph responses compatible with the frontend's nodes/links contract."""
+    graph = graph if isinstance(graph, dict) else {}
+    return {
+        **graph,
+        "nodes": graph.get("nodes") if isinstance(graph.get("nodes"), list) else [],
+        "links": graph.get("links") if isinstance(graph.get("links"), list) else [],
+        "meta": {**(graph.get("meta") if isinstance(graph.get("meta"), dict) else {}), **(meta or {})},
+    }
+
+
+def _attach_auxiliary_graph(response, ranker, article_urls, *, seed_method, query,
+                            query_seed_fallback):
+    """Add a visualization-only PPR graph without changing the selected ranking."""
+    if not article_urls:
+        graph = {"nodes": [], "links": [], "meta": {"seed_fallback": "no_candidates"}}
+    else:
+        seed_kwargs = {"seed_method": seed_method}
+        if seed_method == "query_entities":
+            seed_kwargs.update(query=query, query_seed_fallback=query_seed_fallback)
+        try:
+            _, _, graph = ranker.ppr(article_urls, **seed_kwargs)
+        except TypeError as exc:
+            if seed_method != "query_entities" or "unexpected keyword argument" not in str(exc):
+                raise
+            graph = ranker.ppr(article_urls, seed_method=seed_method)[2]
+    response["graph"] = _normalize_graph(graph, meta={"graph_purpose": "auxiliary_visualization"})
+    response["graph_source"] = "auxiliary_ppr"
+
+
+def search_request(searcher, ranker, cache, params, *, include_graph=None):
     """Cache retrieval independently so every graph seed sees the same pool."""
     query = (params.get("query") or "").strip()
     if not query:
@@ -43,6 +88,10 @@ def search_request(searcher, ranker, cache, params):
         graph_mix = float(params.get("graph_mix", 0.3))
     except (TypeError, ValueError) as exc:
         raise ValueError("invalid numeric search parameter") from exc
+    if include_graph is None:
+        include_graph = _parse_bool(params.get("include_graph", False), "include_graph")
+    elif not isinstance(include_graph, bool):
+        raise ValueError("include_graph must be a boolean")
     if top_k < 1 or limit < 1 or offset < 0 or cap < 1 or not 0 <= quorum <= 1:
         raise ValueError("positive top_k/limit/candidate_cap, nonnegative offset and quorum in [0,1] required")
     if not 0 < graph_alpha < 1 or not 0 <= graph_hop_decay <= 1 or not 0 <= graph_mix <= 1:
@@ -90,9 +139,10 @@ def search_request(searcher, ranker, cache, params):
 
     graph_settings = {"graph_alpha": graph_alpha, "graph_hop_decay": graph_hop_decay, "graph_mix": graph_mix}
     response_key = key("response", {**settings, **graph_settings, "stage": stage, "ranking": ranking,
-                                    "seed_method": method, "seed_methods": methods,
-                                    "query_seed_fallback": query_seed_fallback,
-                                    "ensemble_rankings": ensemble_rankings})
+                                     "seed_method": method, "seed_methods": methods,
+                                     "query_seed_fallback": query_seed_fallback,
+                                     "ensemble_rankings": ensemble_rankings,
+                                     "include_graph": include_graph})
     cached = cache.hget("search_cache", response_key) if not bypass_cache else None
     if cached:
         return json.loads(cached)
@@ -111,7 +161,8 @@ def search_request(searcher, ranker, cache, params):
     ranking_started = perf_counter()
     response = run_pipeline(retrieval, active_ranker, stage, method, methods, ranking=ranking, query=query,
                             graph_alpha=graph_alpha, graph_hop_decay=graph_hop_decay, graph_mix=graph_mix,
-                            query_seed_fallback=query_seed_fallback, ensemble_rankings=ensemble_rankings)
+                            query_seed_fallback=query_seed_fallback, ensemble_rankings=ensemble_rankings,
+                            include_graph=include_graph)
     ranking_seconds = perf_counter() - ranking_started
     response["timings"] = {
         **retrieval.get("timings", {}),
@@ -151,9 +202,11 @@ def reciprocal_rank_fusion(rankings, rrf_k=60, candidate_urls=None):
 
 def run_pipeline(retrieval, ranker, stage="ppr", seed_method="hits", seed_methods=SEED_METHODS, ranking=None, query=None,
                  graph_alpha=0.85, graph_hop_decay=0.5, graph_mix=0.3, query_seed_fallback="hits",
-                 ensemble_rankings=ENSEMBLE_RANKINGS):
+                 ensemble_rankings=ENSEMBLE_RANKINGS, include_graph=False):
     if stage not in STAGES or seed_method not in SEED_METHODS:
         raise ValueError("invalid search stage or seeding method")
+    if not isinstance(include_graph, bool):
+        raise ValueError("include_graph must be a boolean")
     if not seed_methods or any(method not in SEED_METHODS for method in seed_methods):
         raise ValueError("invalid comparison seed_methods")
     if query_seed_fallback not in QUERY_SEED_FALLBACKS:
@@ -176,30 +229,58 @@ def run_pipeline(retrieval, ranker, stage="ppr", seed_method="hits", seed_method
     response.update(search_version=SEARCH_VERSION, stage=stage, ranking=ranking or stage)
     if ranking == "hybrid_max":
         response["ranked"] = hybrid
+        if include_graph:
+            _attach_auxiliary_graph(response, ranker, [row["article"] for row in hybrid],
+                                   seed_method=seed_method, query=query,
+                                   query_seed_fallback=query_seed_fallback)
         return response
     candidate_urls = {entry["article"] for entry in hybrid}
     if ranking == "lexical":
         response["ranked"] = [entry for entry in (lexical_only or lexical) if entry["article"] in candidate_urls]
+        if include_graph:
+            _attach_auxiliary_graph(response, ranker, [row["article"] for row in response["ranked"]],
+                                   seed_method=seed_method, query=query,
+                                   query_seed_fallback=query_seed_fallback)
         return response
     if ranking == "vector":
         response["ranked"] = [entry for entry in vector if entry["article"] in candidate_urls]
+        if include_graph:
+            _attach_auxiliary_graph(response, ranker, [row["article"] for row in response["ranked"]],
+                                   seed_method=seed_method, query=query,
+                                   query_seed_fallback=query_seed_fallback)
         return response
     if ranking == "ensemble_rrf":
         component_rankings = []
+        component_graphs = {}
         cross_encoder_seconds = 0.0
         for component in ensemble_rankings:
             component_response = run_pipeline(
                 retrieval, ranker, "ppr", seed_method, seed_methods, ranking=component, query=query,
                 graph_alpha=graph_alpha, graph_hop_decay=graph_hop_decay, graph_mix=graph_mix,
                 query_seed_fallback=query_seed_fallback, ensemble_rankings=ensemble_rankings,
+                include_graph=False,
             )
             component_rankings.append(component_response.get("ranked", []))
             cross_encoder_seconds += component_response.get("diagnostics", {}).get("cross_encoder_seconds", 0.0)
+            if component in GRAPH_RANKINGS and component_response.get("graph") is not None:
+                component_graphs[component] = _normalize_graph(component_response["graph"])
         response["ranked"] = reciprocal_rank_fusion(component_rankings, candidate_urls=candidate_urls)
         response["diagnostics"] = {**counts, "ensemble_rankings": list(ensemble_rankings),
                                    "ensemble_component_count": len(ensemble_rankings),
                                    "ensemble_candidate_count": len(response["ranked"]),
                                    "cross_encoder_seconds": cross_encoder_seconds}
+        if component_graphs:
+            source = next(name for name in ensemble_rankings if name in component_graphs)
+            response["component_graphs"] = component_graphs
+            response["graph"] = _normalize_graph(
+                component_graphs[source], meta={"graph_source_component": source},
+            )
+            response["graph_source"] = source
+            response["diagnostics"]["graph_source_component"] = source
+        elif include_graph:
+            _attach_auxiliary_graph(response, ranker, [row["article"] for row in hybrid],
+                                   seed_method=seed_method, query=query,
+                                   query_seed_fallback=query_seed_fallback)
         return response
     if ranking == "rrf":
         candidate_urls = {entry["article"] for entry in hybrid}
@@ -209,6 +290,10 @@ def run_pipeline(retrieval, ranker, stage="ppr", seed_method="hits", seed_method
             entry for entry in fuse_rankings(lexical_for_rrf, vector_for_rrf)
             if entry["article"] in candidate_urls
         ]
+        if include_graph:
+            _attach_auxiliary_graph(response, ranker, [row["article"] for row in response["ranked"]],
+                                   seed_method=seed_method, query=query,
+                                   query_seed_fallback=query_seed_fallback)
         return response
     if ranking == "cross_encoder":
         hybrid_urls = [entry["article"] for entry in hybrid]
@@ -238,6 +323,9 @@ def run_pipeline(retrieval, ranker, stage="ppr", seed_method="hits", seed_method
         ] = len(rerank_results)
         response["diagnostics"]["cross_encoder_missing_document_count"] = len(rerank_url_set - set(first_chunk_by_url))
         response["diagnostics"]["cross_encoder_seconds"] = cross_encoder_seconds
+        if include_graph:
+            _attach_auxiliary_graph(response, ranker, hybrid_urls, seed_method=seed_method,
+                                   query=query, query_seed_fallback=query_seed_fallback)
         return response
     if ranking == "graph_hits_cross_encoder":
         hybrid_urls = [entry["article"] for entry in hybrid]
@@ -271,6 +359,7 @@ def run_pipeline(retrieval, ranker, stage="ppr", seed_method="hits", seed_method
             "cross_encoder_candidate_cutoff": CROSS_ENCODER_RERANK_LIMIT,
             "cross_encoder_seconds": cross_encoder_seconds,
         }
+        response["graph"] = _normalize_graph(graph)
         return response
     if ranking in ("graph_rwr", "graph_hits", "graph_salsa", "graph_path", "graph_walk", "graph_fusion"):
         urls = [entry["article"] for entry in hybrid]
@@ -294,6 +383,7 @@ def run_pipeline(retrieval, ranker, stage="ppr", seed_method="hits", seed_method
         if ranking == "graph_fusion":
             graph_ranked = reciprocal_rank_fusion([hybrid, graph_ranked], candidate_urls=set(urls))
         response["ranked"] = graph_ranked
+        response["graph"] = _normalize_graph(graph)
         response["diagnostics"] = {**counts, **graph.get("meta", {}), "graph_alpha": graph_alpha,
                                    "graph_hop_decay": graph_hop_decay}
         if ranking == "graph_fusion":
@@ -304,9 +394,14 @@ def run_pipeline(retrieval, ranker, stage="ppr", seed_method="hits", seed_method
     if stage in ("lexical", "hybrid"):
         response["ranked"] = lexical if stage == "lexical" else hybrid
         response["diagnostics"] = counts
+        if include_graph:
+            _attach_auxiliary_graph(response, ranker, [row["article"] for row in response["ranked"]],
+                                   seed_method=seed_method, query=query,
+                                   query_seed_fallback=query_seed_fallback)
         return response
     urls = [entry["article"] for entry in hybrid]
     rankings = []
+    graphs_by_seed = {}
     if stage == "compare":
         rankings.extend([
             {**common, "retrieval_id": common["retrieval_id"] + ":lexical",
@@ -341,15 +436,28 @@ def run_pipeline(retrieval, ranker, stage="ppr", seed_method="hits", seed_method
         graph_diagnostics = {**counts, **graph.get("meta", {})}
         fused = fuse_rankings(hybrid, ranked)
         if stage == "compare":
+            graph = _normalize_graph(graph)
+            graphs_by_seed[method] = graph
             rankings.extend([
-                {**common, "stage": "ppr", "seed_method": method, "ranked": ranked, "diagnostics": graph_diagnostics},
-                {**common, "stage": "fused", "seed_method": method, "ranked": fused, "diagnostics": graph_diagnostics},
+                {**common, "stage": "ppr", "seed_method": method, "ranked": ranked,
+                 "graph": graph, "diagnostics": graph_diagnostics},
+                {**common, "stage": "fused", "seed_method": method, "ranked": fused,
+                 "graph": graph, "diagnostics": graph_diagnostics},
             ])
         else:
             response.update(page_rank=page_rank, graph=graph, diagnostics=graph_diagnostics)
             response["ranked"] = fused if stage == "fused" or ranking == "fused" else ranked
     if stage == "compare":
         response["rankings"] = rankings
+        response["graphs_by_seed"] = graphs_by_seed
+        selected_graph = graphs_by_seed.get(seed_method)
+        if selected_graph is not None:
+            response["graph"] = _normalize_graph(selected_graph,
+                                                  meta={"graph_source_seed_method": seed_method})
+            response["graph_source"] = f"ppr:{seed_method}"
+        elif include_graph:
+            _attach_auxiliary_graph(response, ranker, urls, seed_method=seed_method,
+                                   query=query, query_seed_fallback=query_seed_fallback)
     scores = {entry["article"]: entry["score"] for entry in response["ranked"]}
     total = sum(scores.values())
     response["articles_scores"] = {url: score / total if total else 0.0 for url, score in scores.items()}
