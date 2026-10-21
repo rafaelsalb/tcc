@@ -1,8 +1,10 @@
 from __future__ import annotations
 
 import argparse
+import concurrent.futures
 import gzip
 import http.client
+import threading
 import json
 import logging
 import os
@@ -81,11 +83,114 @@ def xml_local_name(tag: str) -> str:
 	return tag
 
 
-def randomized_sleep(base_seconds: float, jitter_seconds: float) -> None:
-	delay = max(1.0, base_seconds + np.random.normal(0.0, 1.0))
-	if delay > 0:
-		logging.info("Cooldown %.2fs", delay)
-		time.sleep(delay)
+def sleep_with_jitter(base_seconds: float, jitter_sigma: float) -> None:
+	"""Fixed backoff base with gaussian jitter. (Replaces randomized_sleep,
+	which ignored its jitter argument entirely and always used sigma=1.)"""
+	time.sleep(max(0.1, base_seconds + np.random.normal(0.0, jitter_sigma)))
+
+
+class RateGovernor:
+	"""Token-bucket pacing with adaptive (AIMD) probing toward g1.globo.com's
+	unknown rate ceiling.
+
+	Every request is admitted at `rps` tokens/second via acquire(). While a
+	run is clean, the rate rises by `ramp_factor` after each `ramp_requests`
+	successes. Throttling signals — HTTP 429/403/503 are hard; timeouts,
+	resets and IncompleteRead are soft — cut the rate, and hard signals also
+	pause all admissions for a penalty window and permanently ratchet
+	`safe_ceiling` below the rate that produced them, so the band that got
+	flagged is never re-entered during this session. The final state() is the
+	measured comfort ceiling; production backlog runs should sit ~25% under
+	it (the rate the edge tolerates varies by IP, time of day and load).
+	"""
+
+	HARD_SIGNALS = {429, 403, 503}
+
+	def __init__(
+		self,
+		start_rps: float,
+		min_rps: float,
+		max_rps: float,
+		*,
+		fixed: bool = False,
+		ramp_requests: int = 120,
+		ramp_factor: float = 1.12,
+		cut_factor: float = 0.5,
+		ceiling_cut: float = 0.8,
+		hard_penalty_seconds: float = 90.0,
+	) -> None:
+		self.rps = min(max(float(start_rps), float(min_rps)), float(max_rps))
+		self.min_rps = float(min_rps)
+		self.safe_ceiling = float(max_rps)
+		self.fixed = fixed
+		self.ramp_requests = int(ramp_requests)
+		self.ramp_factor = float(ramp_factor)
+		self.cut_factor = float(cut_factor)
+		self.ceiling_cut = float(ceiling_cut)
+		self.hard_penalty_seconds = float(hard_penalty_seconds)
+		self._lock = threading.Lock()
+		self._condition = threading.Condition(self._lock)
+		self._next_slot = time.monotonic()
+		self.oks = 0
+		self.signals = 0
+
+	def acquire(self) -> None:
+		"""Block until it is this caller's turn to start a request."""
+		with self._condition:
+			while True:
+				now = time.monotonic()
+				if now >= self._next_slot:
+					self._next_slot += 1.0 / self.rps
+					return
+				self._condition.wait(timeout=max(0.02, self._next_slot - now))
+
+	def on_success(self) -> None:
+		with self._lock:
+			self.oks += 1
+			if self.fixed or self.oks < self.ramp_requests or self.rps >= self.safe_ceiling:
+				return
+			self.oks = 0
+			self.rps = min(self.safe_ceiling, self.rps * self.ramp_factor)
+			logging.info(
+				"Clean window — rate raised to %.2f req/s (ceiling %.2f)", self.rps, self.safe_ceiling
+			)
+
+	def on_signal(self, status: int | None = None, detail: str = "") -> float:
+		"""Report a throttling signal. Returns the penalty pause in seconds
+		the *signalling* request already accounted for; future admissions
+		wait it out inside acquire()."""
+		with self._condition:
+			hard = status in self.HARD_SIGNALS
+			previous = self.rps
+			self.signals += 1
+			self.oks = 0
+			self.rps = max(self.min_rps, min(previous * self.cut_factor, self.safe_ceiling))
+			if hard:
+				self.safe_ceiling = max(self.min_rps, previous * self.ceiling_cut)
+				self.rps = max(self.min_rps, min(self.rps, self.safe_ceiling))
+				logging.warning(
+					"Throttled (HTTP %s; %s) — rate cut to %.2f req/s, ceiling ratcheted to %.2f, admissions paused %.0fs",
+					status,
+					detail or "unspecified",
+					self.rps,
+					self.safe_ceiling,
+					self.hard_penalty_seconds,
+				)
+				self._next_slot = max(self._next_slot, time.monotonic() + self.hard_penalty_seconds)
+				self._condition.notify_all()
+				return self.hard_penalty_seconds
+			logging.warning(
+				"Soft trouble (%s) — rate cut to %.2f req/s", detail or "unspecified", self.rps
+			)
+			self._condition.notify_all()
+			return 0.0
+
+	def state(self) -> str:
+		with self._lock:
+			return (
+				f"rps={self.rps:.2f} safe_ceiling={self.safe_ceiling:.2f} "
+				f"clean={self.oks}/{self.ramp_requests} signals={self.signals}"
+			)
 
 
 def fetch_bytes(
@@ -157,7 +262,7 @@ def fetch_bytes(
 				attempt,
 				max_attempts,
 			)
-			randomized_sleep(backoff, jitter_seconds)
+			sleep_with_jitter(backoff, jitter_seconds)
 		except urllib.error.HTTPError as exc:
 			last_error = f"HTTP {exc.code}"
 			last_status = exc.code
@@ -174,7 +279,7 @@ def fetch_bytes(
 				attempt,
 				max_attempts,
 			)
-			randomized_sleep(backoff, jitter_seconds)
+			sleep_with_jitter(backoff, jitter_seconds)
 		except (urllib.error.URLError, TimeoutError) as exc:
 			last_error = str(exc)
 			if attempt >= max_attempts:
@@ -188,7 +293,7 @@ def fetch_bytes(
 				attempt,
 				max_attempts,
 			)
-			randomized_sleep(backoff, jitter_seconds)
+			sleep_with_jitter(backoff, jitter_seconds)
 
 	raise RuntimeError(f"Failed to fetch {url}: {last_error or 'unknown error'} (status={last_status})")
 
@@ -661,15 +766,19 @@ def update_article_extraction(
 	)
 
 
-def fetch_and_extract_article(
-	conn,
+def extract_article_from_network(
 	article_url: str,
 	timeout_seconds: int,
 	max_attempts: int,
 	base_cooldown_seconds: float,
 	jitter_seconds: float,
-) -> str:
+	governor: RateGovernor,
+) -> dict:
+	"""Fetch and extract one article WITHOUT touching the database — network
+	work dispatches to worker threads and the (not thread-safe) psycopg
+	connection is used only by the main thread afterwards."""
 	try:
+		governor.acquire()
 		html_bytes, final_url, status = fetch_bytes(
 			url=article_url,
 			timeout_seconds=timeout_seconds,
@@ -678,39 +787,40 @@ def fetch_and_extract_article(
 			jitter_seconds=jitter_seconds,
 			accept_header="text/html,application/xhtml+xml;q=0.9,*/*;q=0.8",
 		)
-		content = html_bytes.decode("utf-8", errors="replace")
-		extraction_status, meta, extraction_error = extract_article_metadata(content, final_url)
-		update_article_extraction(
-			conn=conn,
-			url=article_url,
-			http_status=status,
-			final_url=final_url,
-			extraction_status=extraction_status,
-			extraction_error=extraction_error,
-			meta=meta,
-		)
-		return extraction_status
 	except urllib.error.HTTPError as exc:
-		status = "forbidden" if exc.code == 403 else "not_found" if exc.code == 404 else f"http_{exc.code}"
-		update_article_fetch_error(
-			conn,
-			url=article_url,
-			status=status,
-			error_message=f"HTTP {exc.code}",
-			http_status=exc.code,
-			final_url=None,
-		)
-		return status
+		code = exc.code
+		if code in governor.HARD_SIGNALS or code >= 500:
+			governor.on_signal(code, detail="article fetch")
+		else:
+			# URL-specific outcomes (404, other 4xx) say nothing about pacing
+			governor.on_success()
+		return {
+			"status": "forbidden" if code == 403 else "not_found" if code == 404 else f"http_{code}",
+			"http_status": code,
+			"final_url": None,
+			"meta": None,
+			"error": f"HTTP {code}",
+		}
 	except Exception as exc:
-		update_article_fetch_error(
-			conn,
-			url=article_url,
-			status="download_failed",
-			error_message=str(exc),
-			http_status=None,
-			final_url=None,
-		)
-		return "download_failed"
+		governor.on_signal(None, detail=f"article transport ({type(exc).__name__})")
+		return {
+			"status": "download_failed",
+			"http_status": None,
+			"final_url": None,
+			"meta": None,
+			"error": str(exc),
+		}
+
+	governor.on_success()
+	content = html_bytes.decode("utf-8", errors="replace")
+	extraction_status, meta, extraction_error = extract_article_metadata(content, final_url)
+	return {
+		"status": extraction_status,
+		"http_status": status,
+		"final_url": final_url,
+		"meta": meta,
+		"error": extraction_error,
+	}
 
 
 def resolve_sitemap_files(
@@ -795,9 +905,21 @@ def run(
 	dry_run: bool,
 	reprocess: bool,
 	backward_from: date | None = None,
+	start_rps: float = 0.3,
+	min_rps: float = 0.15,
+	max_rps: float = 3.0,
+	fixed_rate: bool = False,
+	concurrency: int = 4,
 ) -> None:
 	with psycopg.connect(db_dsn) as conn:
 		ensure_tracking_tables(conn)
+
+		governor = RateGovernor(
+			start_rps=start_rps,
+			min_rps=min_rps,
+			max_rps=max_rps,
+			fixed=fixed_rate,
+		)
 
 		sitemap_files = resolve_sitemap_files(
 			index_url=index_url,
@@ -837,13 +959,22 @@ def run(
 		total_failed = 0
 
 		for i, sitemap in enumerate(daily_sitemaps, start=1):
-			xml_payload = fetch_xml(
-				sitemap.loc,
-				timeout_seconds=timeout_seconds,
-				max_attempts=max_attempts,
-				base_cooldown_seconds=sitemap_base_cooldown_seconds,
-				jitter_seconds=sitemap_jitter_seconds,
-			)
+			governor.acquire()
+			try:
+				xml_payload = fetch_xml(
+					sitemap.loc,
+					timeout_seconds=timeout_seconds,
+					max_attempts=max_attempts,
+					base_cooldown_seconds=sitemap_base_cooldown_seconds,
+					jitter_seconds=sitemap_jitter_seconds,
+				)
+			except urllib.error.HTTPError as exc:
+				governor.on_signal(exc.code, detail="sitemap fetch")
+				raise
+			except (urllib.error.URLError, TimeoutError) as exc:
+				governor.on_signal(None, detail="sitemap fetch")
+				raise
+			governor.on_success()
 			articles = parse_sitemap_urlset(xml_payload)
 
 			if not dry_run:
@@ -884,11 +1015,10 @@ def run(
 						extracted_ok=len(articles),
 						extracted_failed=0,
 					)
-				randomized_sleep(sitemap_base_cooldown_seconds, sitemap_jitter_seconds)
 				continue
 
-			for article_idx, article in enumerate(pending_articles, start=1):
-				if dry_run:
+			if dry_run:
+				for article_idx, article in enumerate(pending_articles, start=1):
 					logging.info(
 						"[%d/%d][%d/%d] dry-run url=%s",
 						i,
@@ -897,36 +1027,71 @@ def run(
 						len(pending_articles),
 						article.loc,
 					)
-					continue
+			else:
+				with concurrent.futures.ThreadPoolExecutor(
+					max_workers=concurrency, thread_name_prefix="g1-fetch"
+				) as pool:
+					futures_map = {
+						pool.submit(
+							extract_article_from_network,
+							article.loc,
+							timeout_seconds,
+							max_attempts,
+							article_base_cooldown_seconds,
+							article_jitter_seconds,
+							governor,
+						): article.loc
+						for article in pending_articles
+					}
+					for article_idx, future in enumerate(
+						concurrent.futures.as_completed(futures_map), start=1
+					):
+						url = futures_map[future]
+						try:
+							outcome = future.result()
+						except Exception as exc:  # defensive; the worker returns dicts itself
+							outcome = {
+								"status": "download_failed",
+								"http_status": None,
+								"final_url": None,
+								"meta": None,
+								"error": str(exc),
+							}
 
-				result = fetch_and_extract_article(
-					conn=conn,
-					article_url=article.loc,
-					timeout_seconds=timeout_seconds,
-					max_attempts=max_attempts,
-					base_cooldown_seconds=article_base_cooldown_seconds,
-					jitter_seconds=article_jitter_seconds,
-				)
-				conn.commit()
+						if outcome["status"] == "ok":
+							update_article_extraction(
+								conn=conn,
+								url=url,
+								http_status=outcome["http_status"],
+								final_url=outcome["final_url"],
+								extraction_status="ok",
+								extraction_error=None,
+								meta=outcome["meta"],
+							)
+							sitemap_ok += 1
+							total_ok += 1
+						else:
+							update_article_fetch_error(
+								conn=conn,
+								url=url,
+								status=outcome["status"],
+								error_message=outcome["error"] or outcome["status"],
+								http_status=outcome["http_status"],
+								final_url=outcome["final_url"],
+							)
+							sitemap_failed += 1
+							total_failed += 1
+						conn.commit()
 
-				if result == "ok":
-					sitemap_ok += 1
-					total_ok += 1
-				else:
-					sitemap_failed += 1
-					total_failed += 1
-
-				logging.info(
-					"[%d/%d][%d/%d] status=%s url=%s",
-					i,
-					len(daily_sitemaps),
-					article_idx,
-					len(pending_articles),
-					result,
-					article.loc,
-				)
-
-				randomized_sleep(article_base_cooldown_seconds, article_jitter_seconds)
+						logging.info(
+							"[%d/%d][%d/%d] status=%s url=%s",
+							i,
+							len(daily_sitemaps),
+							article_idx,
+							len(pending_articles),
+							outcome["status"],
+							url,
+						)
 
 			if not dry_run:
 				mark_sitemap_processed(
@@ -951,7 +1116,7 @@ def run(
 				dry_run,
 			)
 
-			randomized_sleep(sitemap_base_cooldown_seconds, sitemap_jitter_seconds)
+		logging.info("Rate governor final state: %s", governor.state())
 
 		logging.info(
 			"Done. sitemaps=%d urls_seen=%d ok=%d failed=%d dry_run=%s",
@@ -1018,25 +1183,54 @@ def parse_args() -> argparse.Namespace:
 		"--sitemap-base-cooldown-seconds",
 		type=float,
 		default=1.2,
-		help="Base cooldown after each sitemap request.",
+		help="Retry backoff base for failed sitemap requests (steady pacing is adaptive now).",
 	)
 	parser.add_argument(
 		"--sitemap-jitter-seconds",
 		type=float,
 		default=2.8,
-		help="Random jitter added to sitemap cooldown.",
+		help="Jitter added to sitemap retry backoff.",
 	)
 	parser.add_argument(
 		"--article-base-cooldown-seconds",
 		type=float,
 		default=2.0,
-		help="Base cooldown after each article request.",
+		help="Retry backoff base for failed article requests (steady pacing is adaptive now).",
 	)
 	parser.add_argument(
 		"--article-jitter-seconds",
 		type=float,
 		default=1.0,
-		help="Random jitter added to article cooldown.",
+		help="Jitter added to article retry backoff.",
+	)
+	parser.add_argument(
+		"--concurrency",
+		type=int,
+		default=4,
+		help="Worker threads fetching articles in parallel; aggregate pace is still governed by --rps (1 = serial).",
+	)
+	parser.add_argument(
+		"--rps",
+		type=float,
+		default=0.3,
+		help="Starting aggregate request rate (req/s; ~0.3 reproduces the legacy serial pacing). The governor ramps up while the edge stays clean.",
+	)
+	parser.add_argument(
+		"--min-rps",
+		type=float,
+		default=0.15,
+		help="Floor the governor never goes below when throttled (req/s).",
+	)
+	parser.add_argument(
+		"--max-rps",
+		type=float,
+		default=3.0,
+		help="Absolute rate ceiling of the probe (req/s). Raise it on clean probes once you have a baseline.",
+	)
+	parser.add_argument(
+		"--fixed-rate",
+		action="store_true",
+		help="Hold --rps constant (disables the ramp; penalty pauses on throttle signals still apply).",
 	)
 	parser.add_argument(
 		"--dry-run",
@@ -1085,6 +1279,11 @@ def main() -> None:
 		dry_run=args.dry_run,
 		reprocess=args.reprocess,
 		backward_from=args.backward_from,
+		start_rps=max(0.01, args.rps),
+		min_rps=max(0.01, args.min_rps),
+		max_rps=max(max(0.01, args.min_rps), args.max_rps),
+		fixed_rate=args.fixed_rate,
+		concurrency=max(1, args.concurrency),
 	)
 
 
