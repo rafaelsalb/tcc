@@ -386,8 +386,16 @@ class ChunkRepository:
             session.commit()
 
     def batch_update_embeddings(self, chunk_ids: list[int], embeddings: list[np.ndarray]):
+        if len(chunk_ids) != len(embeddings):
+            raise ValueError("chunk_ids and embeddings must have the same length")
+        if not chunk_ids:
+            return
+        mappings = [
+            {"id": chunk_id, "embedding": embedding}
+            for chunk_id, embedding in zip(chunk_ids, embeddings)
+        ]
         with Session(self.engine) as session:
-            for chunk_id, embedding in zip(chunk_ids, embeddings):
-                stmt = update(G1Chunks).where(G1Chunks.id == chunk_id).values(embedding=embedding)
-                session.execute(stmt)
+            # SQLAlchemy's ORM bulk UPDATE-by-primary-key uses executemany,
+            # replacing one client/server round trip per chunk with one batch.
+            session.execute(update(G1Chunks), mappings)
             session.commit()

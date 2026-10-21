@@ -1,5 +1,5 @@
 {
-  "schema_version": 1,
+  "schema_version": 2,
   "evaluations": [
     {
       "id": "banco_master__keyword",
@@ -2161,5 +2161,48 @@
         "https://g1.globo.com/economia/noticia/2025/10/16/tarifa-de-trump-trava-exportacoes-e-forca-brasil-a-buscar-novos-mercados.ghtml"
       ]
     }
-  ]
+  ],
+  "themes": {
+    "banco_master": [
+      "Banco Master",
+      "Daniel Vorcaro"
+    ],
+    "cao_orelha": [
+      "Cão Orelha",
+      "Polícia Civil de Santa Catarina"
+    ],
+    "caso_benicio": [
+      "Benício Xavier",
+      "Hospital Santa Júlia"
+    ],
+    "cop30_negociacoes": [
+      "COP30",
+      "Belém"
+    ],
+    "descontos_inss": [
+      "INSS",
+      "Polícia Federal"
+    ],
+    "julgamento_nucleo_golpe": [
+      "Jair Bolsonaro",
+      "Supremo Tribunal Federal"
+    ],
+    "juliana_marins": [
+      "Juliana Marins",
+      "Monte Rinjani"
+    ],
+    "metanol_bebidas": [
+      "Metanol",
+      "Ministério da Saúde"
+    ],
+    "operacao_contencao": [
+      "Operação Contenção",
+      "Comando Vermelho"
+    ],
+    "tarifaco_eua_brasil": [
+      "Donald Trump",
+      "Brasil",
+      "Estados Unidos"
+    ]
+  }
 }

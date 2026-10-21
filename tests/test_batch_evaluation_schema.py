@@ -6,7 +6,7 @@ from urllib.parse import parse_qs, urlsplit
 import pytest
 
 import services.batch_evaluation as batch_evaluation
-from services.batch_evaluation import validate_document
+from services.batch_evaluation import validate_document, validate_evaluation_document
 
 
 def valid_document():
@@ -77,6 +77,48 @@ def test_validate_document_rejects_unknown_fields():
 
     with pytest.raises(ValueError, match="keys must be exactly"):
         validate_document(document)
+
+
+def test_schema_v2_requires_one_to_five_main_entities_for_each_theme():
+    document = {
+        "schema_version": 2,
+        "themes": {"eval-1": ["Banco Master", "Daniel Vorcaro"]},
+        "evaluations": [{
+            "id": "eval-1__query", "query": "Banco Master",
+            "relevant_urls": ["https://g1.globo.com/artigo/1"],
+        }],
+    }
+    assert validate_evaluation_document(document)["themes"] == {
+        "eval-1": ["Banco Master", "Daniel Vorcaro"],
+    }
+
+    for entities in ([], [""], ["same", "same"], ["1", "2", "3", "4", "5", "6"]):
+        invalid = {**document, "themes": {"eval-1": entities}}
+        with pytest.raises(ValueError):
+            validate_evaluation_document(invalid)
+
+
+def test_schema_v2_rejects_missing_and_unknown_theme_ids():
+    document = {
+        "schema_version": 2,
+        "themes": {"other": ["A"]},
+        "evaluations": [{
+            "id": "eval-1__query", "query": "consulta",
+            "relevant_urls": ["https://g1.globo.com/artigo/1"],
+        }],
+    }
+    with pytest.raises(ValueError, match="theme entity IDs"):
+        validate_evaluation_document(document)
+
+
+def test_schema_v1_remains_backward_compatible_with_partial_theme_metadata():
+    document = {
+        **valid_document(),
+        "themes": {"eval-1": ["Entidade principal"]},
+    }
+    assert validate_evaluation_document(document)["themes"] == {
+        "eval-1": ["Entidade principal"],
+    }
 
 
 def test_search_endpoint_url_uses_preset_date_range_and_seed_method():

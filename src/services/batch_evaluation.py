@@ -52,24 +52,24 @@ SEARCH_PRESETS = {
     "profundo": {"limit": 1000, "top_k": 1000},
 }
 
-DOCUMENT_KEYS = {"schema_version", "evaluations"}
+DOCUMENT_KEYS_V1 = {"schema_version", "evaluations"}
+DOCUMENT_KEYS_V2 = {"schema_version", "themes", "evaluations"}
 EVALUATION_KEYS = {"id", "query", "relevant_urls"}
 OPTIONAL_EVALUATION_KEYS = {"query_formulation"}
 
 
-def validate_document(document: object) -> list[dict[str, object]]:
-    """Validate the rigid JSON schema and return its evaluation entries."""
+def validate_evaluation_document(document: object) -> dict[str, object]:
+    """Validate a v1 evaluation file or v2 file with per-theme main entities."""
     if not isinstance(document, dict):
         raise ValueError("input must be a JSON object")
-    if set(document) != DOCUMENT_KEYS:
-        raise ValueError(
-            "top-level keys must be exactly: schema_version, evaluations"
-        )
-    if (
-        type(document["schema_version"]) is not int
-        or document["schema_version"] != SCHEMA_VERSION
-    ):
-        raise ValueError(f"schema_version must be {SCHEMA_VERSION}")
+    version = document.get("schema_version")
+    if type(version) is not int or version not in (1, 2):
+        raise ValueError("schema_version must be 1 or 2")
+    allowed_keys = ({frozenset(DOCUMENT_KEYS_V1), frozenset(DOCUMENT_KEYS_V1 | {"themes"})}
+                    if version == 1 else {frozenset(DOCUMENT_KEYS_V2)})
+    if frozenset(document) not in allowed_keys:
+        expected = " or ".join(", ".join(sorted(keys)) for keys in allowed_keys)
+        raise ValueError(f"top-level keys must be exactly: {expected}")
 
     evaluations = document["evaluations"]
     if not isinstance(evaluations, list) or not evaluations:
@@ -113,15 +113,47 @@ def validate_document(document: object) -> list[dict[str, object]]:
                 raise ValueError(f"{location} contains an invalid absolute URL: {url!r}")
 
     # The frontend trims the search text before sending it; mirror that here.
-    return [
+    normalized_evaluations = [
         {**item, "id": item["id"].strip(), "query": item["query"].strip(),
          "query_formulation": item.get("query_formulation", "unspecified").strip()}
         for item in evaluations
     ]
+    result = {"schema_version": version, "evaluations": normalized_evaluations}
+    if "themes" in document:
+        themes = document["themes"]
+        if not isinstance(themes, dict) or not themes:
+            raise ValueError("themes must be a non-empty object mapping theme IDs to entity arrays")
+        theme_ids = {item["id"].split("__", 1)[0] for item in normalized_evaluations}
+        normalized_themes = {}
+        for theme, entities in themes.items():
+            if not isinstance(theme, str) or not theme.strip():
+                raise ValueError("theme IDs must be non-empty strings")
+            theme = theme.strip()
+            if not isinstance(entities, list) or not 1 <= len(entities) <= 5:
+                raise ValueError(f"themes[{theme!r}] must contain between one and five main entities")
+            if any(not isinstance(entity, str) or not entity.strip() for entity in entities):
+                raise ValueError(f"themes[{theme!r}] must contain non-empty entity strings")
+            values = [entity.strip() for entity in entities]
+            if len(set(values)) != len(values):
+                raise ValueError(f"themes[{theme!r}] contains duplicate entities")
+            normalized_themes[theme] = values
+        missing = sorted(theme_ids - set(normalized_themes))
+        unknown = sorted(set(normalized_themes) - theme_ids)
+        if unknown or (version == 2 and missing):
+            raise ValueError(f"theme entity IDs must match evaluation IDs (missing={missing}, unknown={unknown})")
+        result["themes"] = normalized_themes
+    elif version == 2:
+        raise ValueError("schema_version 2 requires main entities for every theme")
+    return result
 
 
-def load_evaluation_file(path: str | Path) -> list[dict[str, object]]:
-    """Read and validate a UTF-8 JSON evaluation file."""
+def validate_document(document: object) -> list[dict[str, object]]:
+    """Validate an evaluation document and return its query entries."""
+    return validate_evaluation_document(document)["evaluations"]
+
+
+def load_evaluation_document(path: str | Path) -> dict[str, object]:
+    """Read a UTF-8 evaluation document, preserving optional theme metadata."""
     path = Path(path)
     try:
         with path.open(encoding="utf-8") as input_file:
@@ -130,7 +162,12 @@ def load_evaluation_file(path: str | Path) -> list[dict[str, object]]:
         raise ValueError(f"invalid JSON in {path}: {exc}") from exc
     except OSError as exc:
         raise ValueError(f"cannot read evaluation file {path}: {exc}") from exc
-    return validate_document(document)
+    return validate_evaluation_document(document)
+
+
+def load_evaluation_file(path: str | Path) -> list[dict[str, object]]:
+    """Read and validate a UTF-8 JSON evaluation file."""
+    return load_evaluation_document(path)["evaluations"]
 
 
 def output_paths(input_path: str | Path, output_path: str | Path | None) -> tuple[Path, Path]:

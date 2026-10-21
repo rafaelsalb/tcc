@@ -17,7 +17,7 @@ from services.batch_evaluation import (
     BATCH_KS, QUERY_SEED_FALLBACKS, RANKINGS, SEARCH_PRESETS, SEED_METHODS,
     SEARCH_WINDOW, SHARED_SEARCH_SETTINGS, _coverage, _metrics_at_ks,
     _ranking_metrics, _select_methods, _validate_relevant_urls_exist,
-    load_evaluation_file, validate_document,
+    load_evaluation_document, load_evaluation_file, validate_document,
 )
 from services.batch_summary import LiveSummary
 from services.search_pipeline import ENSEMBLE_COMPONENT_RANKINGS, ENSEMBLE_RANKINGS
@@ -32,23 +32,30 @@ def available_evaluation_sets(directory):
     available = []
     for path in sorted(root.glob("evals*.json")):
         try:
-            evaluations = load_evaluation_file(path)
+            document = load_evaluation_document(path)
         except (OSError, ValueError, json.JSONDecodeError):
             continue
         grouped = {}
-        for item in evaluations:
+        for item in document["evaluations"]:
             theme = item["id"].split("__", 1)[0]
             grouped.setdefault(theme, []).append(item)
         for theme, items in grouped.items():
             set_id = f"{path.name}::{theme}"
-            available.append({"id": set_id, "label": theme, "source": path.name,
-                              "count": len(items), "articles": len(items[0]["relevant_urls"])})
+            info = {"id": set_id, "label": theme, "source": path.name,
+                    "count": len(items), "articles": len(items[0]["relevant_urls"])}
+            if document.get("themes", {}).get(theme):
+                info["main_entities"] = document["themes"][theme]
+            available.append(info)
     return available
 
 
 def _snapshot_version(snapshot):
     encoded = json.dumps(snapshot, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
     return hashlib.sha256(encoded.encode("utf-8")).hexdigest()[:16]
+
+
+class _PauseRequested(Exception):
+    """Internal signal used to stop cleanly between completed configurations."""
 
 
 class DashboardRunManager:
@@ -105,6 +112,12 @@ class DashboardRunManager:
                 seq INTEGER NOT NULL, evaluation_id TEXT NOT NULL,
                 payload JSONB NOT NULL, created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
                 PRIMARY KEY (run_id, seq))""",
+            """CREATE TABLE IF NOT EXISTS evaluation_run_group_counts (
+                run_id TEXT NOT NULL REFERENCES evaluation_runs(run_id) ON DELETE CASCADE,
+                evaluation_id TEXT NOT NULL, preset TEXT NOT NULL, quorum TEXT NOT NULL,
+                result_unit TEXT NOT NULL, ranking TEXT NOT NULL, seed TEXT NOT NULL,
+                formulation TEXT NOT NULL, row_count BIGINT NOT NULL DEFAULT 0,
+                PRIMARY KEY (run_id, evaluation_id, preset, quorum, result_unit, ranking, seed))""",
             """CREATE TABLE IF NOT EXISTS evaluation_run_artifacts (
                 run_id TEXT NOT NULL REFERENCES evaluation_runs(run_id) ON DELETE CASCADE,
                 artifact_key TEXT NOT NULL, payload JSONB NOT NULL,
@@ -114,17 +127,23 @@ class DashboardRunManager:
         with self.engine.begin() as connection:
             for statement in statements:
                 connection.execute(text(statement))
+        from services.theme_counts import ensure_theme_metric_tables
+
+        ensure_theme_metric_tables(self.engine)
 
     @staticmethod
-    def _theme_snapshot(items):
+    def _theme_snapshot(items, themes=None):
+        if themes:
+            return {"schema_version": 2, "themes": themes, "evaluations": items}
         return {"schema_version": 1, "evaluations": items}
 
     def _sync_evaluation_sets(self):
         for info in available_evaluation_sets(self.evaluations_directory):
             filename, theme = info["id"].split("::", 1)
-            evaluations = load_evaluation_file(self.evaluations_directory / filename)
-            subset = [item for item in evaluations if item["id"].split("__", 1)[0] == theme]
-            snapshot = self._theme_snapshot(subset)
+            document = load_evaluation_document(self.evaluations_directory / filename)
+            subset = [item for item in document["evaluations"] if item["id"].split("__", 1)[0] == theme]
+            main_entities = document.get("themes", {}).get(theme)
+            snapshot = self._theme_snapshot(subset, {theme: main_entities} if main_entities else None)
             encoded = json.dumps(snapshot, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
             version = _snapshot_version(snapshot)
             with self.engine.begin() as connection:
@@ -143,13 +162,16 @@ class DashboardRunManager:
                          "query": item["query"], "formulation": item.get("query_formulation", "unspecified")}
                         for item in subset
                     ])
-                if subset:
+                article_urls = list(dict.fromkeys(
+                    url for evaluation in subset for url in evaluation["relevant_urls"]
+                ))
+                if article_urls:
                     connection.execute(text("""INSERT INTO evaluation_set_articles
                         (set_id, version, position, article_url)
                         VALUES (:set_id, :version, :position, :url)
                         ON CONFLICT (set_id, version, position) DO NOTHING"""), [
                             {"set_id": info["id"], "version": version, "position": position, "url": url}
-                            for position, url in enumerate(subset[0]["relevant_urls"])
+                            for position, url in enumerate(article_urls)
                         ])
 
     def available_sets(self):
@@ -157,18 +179,20 @@ class DashboardRunManager:
         current_versions = {}
         for info in sets:
             filename, theme = info["id"].split("::", 1)
-            evaluations = load_evaluation_file(self.evaluations_directory / filename)
-            snapshot = self._theme_snapshot([
-                item for item in evaluations if item["id"].split("__", 1)[0] == theme
-            ])
+            document = load_evaluation_document(self.evaluations_directory / filename)
+            snapshot = self._theme_snapshot(
+                [item for item in document["evaluations"] if item["id"].split("__", 1)[0] == theme],
+                {theme: document["themes"][theme]} if theme in document.get("themes", {}) else None,
+            )
             current_versions[(info["id"], _snapshot_version(snapshot))] = True
         if not self._db_enabled:
             for info in sets:
                 filename, theme = info["id"].split("::", 1)
-                evaluations = load_evaluation_file(self.evaluations_directory / filename)
-                snapshot = self._theme_snapshot([
-                    item for item in evaluations if item["id"].split("__", 1)[0] == theme
-                ])
+                document = load_evaluation_document(self.evaluations_directory / filename)
+                snapshot = self._theme_snapshot(
+                    [item for item in document["evaluations"] if item["id"].split("__", 1)[0] == theme],
+                    {theme: document["themes"][theme]} if theme in document.get("themes", {}) else None,
+                )
                 version = _snapshot_version(snapshot)
                 info["version"] = version
                 info["id"] = f"{info['id']}::{version}"
@@ -212,14 +236,14 @@ class DashboardRunManager:
                 return self._memory_sets[(set_id, version)], set_id
             if Path(filename).name != filename:
                 raise ValueError("unknown evaluation set")
-            evaluations = load_evaluation_file(self.evaluations_directory / filename)
-            subset = [item for item in evaluations if item["id"].split("__", 1)[0] == theme]
+            document = load_evaluation_document(self.evaluations_directory / filename)
+            subset = [item for item in document["evaluations"] if item["id"].split("__", 1)[0] == theme]
             if not subset:
                 raise ValueError("unknown evaluation theme")
-            return self._theme_snapshot(subset), set_id
+            main_entities = document.get("themes", {}).get(theme)
+            return self._theme_snapshot(subset, {theme: main_entities} if main_entities else None), set_id
         # Legacy clients may still submit a whole file identifier.
-        evaluations = load_evaluation_file(self.evaluations_directory / dataset_id)
-        return {"schema_version": 1, "evaluations": evaluations}, dataset_id
+        return load_evaluation_document(self.evaluations_directory / dataset_id), dataset_id
 
     def _persist_run(self, run_id):
         record = self._record(run_id)
@@ -267,11 +291,12 @@ class DashboardRunManager:
                 "state": state, "dataset_snapshot": row["dataset_snapshot"],
                 "set_id": row["set_id"], "set_version": row["set_version"], "future": None,
             }
-            if self.recover_interrupted and state.get("status") in ("queued", "running"):
+            if self.recover_interrupted and state.get("status") in ("queued", "running", "pause_requested"):
                 state["status"] = "interrupted"
                 state["error"] = "API process restarted while this run was active"
                 state["updated_at"] = datetime.now(timezone.utc).isoformat()
                 state.setdefault("completed_at", state["updated_at"])
+                state["pause_requested"] = False
                 legacy_path_fields = True
             if legacy_path_fields:
                 self._persist_run(row["run_id"])
@@ -454,6 +479,7 @@ class DashboardRunManager:
         selected_evaluations = []
         selected_labels = []
         seen_evaluation_ids = {}
+        selected_themes = {}
         for selection_id in selections:
             if selection_id in catalogue:
                 snapshot, _ = self._dataset_snapshot(selection_id)
@@ -469,6 +495,11 @@ class DashboardRunManager:
                 selected_labels.append(f"{selection_id} · todos os temas")
             else:
                 raise ValueError(f"unknown theme snapshot: {selection_id}")
+            for theme, entities in snapshot.get("themes", {}).items():
+                previous_entities = selected_themes.get(theme)
+                if previous_entities is not None and previous_entities != entities:
+                    raise ValueError(f"selected snapshots define conflicting main entities for theme {theme!r}")
+                selected_themes[theme] = entities
             for evaluation in evaluations:
                 previous = seen_evaluation_ids.get(evaluation["id"])
                 if previous is not None:
@@ -481,7 +512,16 @@ class DashboardRunManager:
                 seen_evaluation_ids[evaluation["id"]] = evaluation
                 selected_evaluations.append(evaluation)
 
-        dataset_snapshot = {"schema_version": 1, "evaluations": selected_evaluations}
+        selected_theme_ids = {
+            item["id"].split("__", 1)[0] for item in selected_evaluations
+        }
+        if selected_themes and set(selected_themes) == selected_theme_ids:
+            dataset_snapshot = {"schema_version": 2, "themes": selected_themes,
+                                "evaluations": selected_evaluations}
+        else:
+            dataset_snapshot = {"schema_version": 1, "evaluations": selected_evaluations}
+            if selected_themes:
+                dataset_snapshot["themes"] = selected_themes
         encoded_snapshot = json.dumps(dataset_snapshot, ensure_ascii=False, sort_keys=True,
                                       separators=(",", ":"))
         snapshot_version = hashlib.sha256(encoded_snapshot.encode("utf-8")).hexdigest()[:16]
@@ -553,33 +593,160 @@ class DashboardRunManager:
             "settings": settings,
             "progress": {"completed": 0, "total": total, "phase": "queued", "current": None},
             "groups_completed": 0, "group_count": len(evaluations) * len(preset_names) * len(quorums),
-            "group_timings": [],
             "error": None,
+            "pause_requested": False,
         }
         record = {"state": state, "dataset_snapshot": dataset_snapshot,
                   "set_id": set_id, "set_version": set_version, "future": None}
         with self._lock:
             self._runs[run_id] = record
         self._persist_run(run_id)
+        self._schedule_run(run_id, evaluations, settings)
+        return self.get(run_id)
+
+    def _schedule_run(self, run_id, evaluations, settings):
         future = self._executor.submit(self._run, run_id, evaluations, settings)
         with self._lock:
-            record["future"] = future
+            record = self._runs.get(run_id)
+            if record is not None:
+                record["future"] = future
+
+    def pause(self, run_id):
+        with self._lock:
+            record = self._runs.get(run_id)
+            if record is None:
+                return None
+            state = record["state"]
+            status = state.get("status")
+            if status in ("pause_requested", "paused"):
+                return self._public_state(record)
+            if status not in ("queued", "running"):
+                raise ValueError(f"run cannot be paused while {status}")
+            state["status"] = "pause_requested"
+            state["pause_requested"] = True
+            state["updated_at"] = datetime.now(timezone.utc).isoformat()
+            self._persist_state_locked(record)
+            return self._public_state(record)
+
+    def resume(self, run_id):
+        with self._lock:
+            record = self._runs.get(run_id)
+            if record is None:
+                return None
+            state = record["state"]
+            status = state.get("status")
+            if status == "pause_requested":
+                raise ValueError("pause is still being requested; wait for the run to reach a safe checkpoint")
+            if status in ("queued", "running"):
+                return self._public_state(record)
+            if status not in ("paused", "interrupted", "failed"):
+                raise ValueError(f"run cannot be resumed while {status}")
+            evaluations = record["dataset_snapshot"].get("evaluations", [])
+            if not evaluations:
+                raise ValueError("the immutable evaluation snapshot is unavailable; this run cannot be resumed")
+            state["status"] = "queued"
+            state["pause_requested"] = False
+            state["error"] = None
+            state.pop("completed_at", None)
+            state["updated_at"] = datetime.now(timezone.utc).isoformat()
+            state["progress"] = {**state["progress"], "phase": "queued", "current": None}
+            self._persist_state_locked(record)
+            settings = state["settings"]
+        self._schedule_run(run_id, evaluations, settings)
         return self.get(run_id)
+
+    def _pause_checkpoint(self, run_id):
+        with self._lock:
+            record = self._runs.get(run_id)
+            if record is None or not record["state"].get("pause_requested"):
+                return
+            state = record["state"]
+            state["status"] = "paused"
+            state["pause_requested"] = False
+            state["error"] = None
+            state["updated_at"] = datetime.now(timezone.utc).isoformat()
+            state["progress"] = {**state["progress"], "phase": "paused", "current": None}
+            self._persist_state_locked(record)
+        raise _PauseRequested()
+
+    @staticmethod
+    def _completed_configuration_key(evaluation_id, preset, quorum, ranking, seed_method):
+        return (evaluation_id, preset, str(float(quorum)), ranking, seed_method)
+
+    def _completed_configurations(self, run_id):
+        if self._db_enabled:
+            with self.engine.connect() as connection:
+                rows = connection.execute(text("""SELECT evaluation_id,
+                    payload->'result'->>'preset' AS preset,
+                    payload->'result'->>'quorum' AS quorum,
+                    payload->'result'->>'ranking' AS ranking,
+                    payload->'result'->>'seed_method' AS seed_method
+                    FROM evaluation_run_results WHERE run_id=:run_id"""),
+                    {"run_id": run_id}).mappings().all()
+        else:
+            rows = [
+                {"evaluation_id": event["evaluation_id"], **event["result"]}
+                for event in self._memory_results.get(run_id, [])
+            ]
+        return {
+            self._completed_configuration_key(row["evaluation_id"], row["preset"], row["quorum"],
+                                              row["ranking"], row["seed_method"])
+            for row in rows
+        }
+
+    def _restore_live_summary(self, run_id, evaluations):
+        items_by_id = {item["id"]: item for item in evaluations}
+        if self._db_enabled:
+            with self.engine.connect() as connection:
+                payloads = connection.execute(text("""SELECT jsonb_build_object(
+                    'evaluation_id', evaluation_id,
+                    'result', jsonb_build_object(
+                        'stage', payload->'result'->'stage',
+                        'mode', payload->'result'->'mode',
+                        'ranking', payload->'result'->'ranking',
+                        'seed_method', payload->'result'->'seed_method',
+                        'preset', payload->'result'->'preset',
+                        'quorum', payload->'result'->'quorum',
+                        'result_unit', payload->'result'->'result_unit',
+                        'metrics', payload->'result'->'metrics',
+                        'coverage', payload->'result'->'coverage',
+                        'ranking_metrics', payload->'result'->'ranking_metrics',
+                        'computation_seconds', payload->'result'->'computation_seconds'))
+                    FROM evaluation_run_results WHERE run_id=:run_id ORDER BY seq"""),
+                    {"run_id": run_id}).scalars().all()
+        else:
+            payloads = self._memory_results.get(run_id, [])
+        summary = LiveSummary(BATCH_KS)
+        for event in payloads:
+            if isinstance(event, str):
+                event = json.loads(event)
+            item = items_by_id.get(event.get("evaluation_id"))
+            if item is not None:
+                summary.add(item, event["result"])
+        return summary
 
     def _run(self, run_id, evaluations, settings):
         total = self._state(run_id)["progress"]["total"]
         live_summary = LiveSummary(BATCH_KS)
         try:
+            live_summary = self._restore_live_summary(run_id, evaluations)
+            completed_configurations = self._completed_configurations(run_id)
             _validate_relevant_urls_exist(self.engine, evaluations)
             for item in evaluations:
                 for preset_name, preset in settings["presets"].items():
                     for quorum in settings["quorums"]:
+                        self._pause_checkpoint(run_id)
                         configurations = [
                             {"mode": "ranking", "stage": "ppr", "ranking": ranking,
                              "seed_method": seed}
                             for seed in settings["seed_methods"]
                             for ranking in settings["rankings"]
+                            if self._completed_configuration_key(
+                                item["id"], preset_name, quorum, ranking, seed
+                            ) not in completed_configurations
                         ]
+                        if not configurations:
+                            continue
                         search = {
                             "query": item["query"], "limit": preset["limit"], "top_k": preset["top_k"],
                             "quorum": quorum, "result_unit": settings["result_unit"],
@@ -596,8 +763,12 @@ class DashboardRunManager:
                             },
                         })
 
+                        group_retrieval_snapshot = None
+
                         def on_progress(event):
+                            nonlocal group_retrieval_snapshot
                             if event.get("activity") != "ranking" or not event.get("entry"):
+                                self._pause_checkpoint(run_id)
                                 self._update(run_id, progress={
                                     "completed": self._state(run_id)["progress"]["completed"],
                                     "total": total, "phase": event.get("activity", "ranking"),
@@ -605,6 +776,12 @@ class DashboardRunManager:
                                                 "quorum": quorum, **(event.get("configuration") or {})},
                                 })
                                 return
+                            if group_retrieval_snapshot is None and event.get("retrieval_snapshot") is not None:
+                                group_retrieval_snapshot = event["retrieval_snapshot"]
+                                self._persist_artifact(run_id, {
+                                    "evaluation_id": item["id"], "preset": preset_name,
+                                    "quorum": quorum,
+                                }, "retrieval", group_retrieval_snapshot)
                             entry = event["entry"]
                             configuration = event["configuration"]
                             ranked_urls = list(dict.fromkeys(
@@ -631,24 +808,27 @@ class DashboardRunManager:
                                 "group_elapsed_seconds": event.get("group_elapsed_seconds"),
                                 "completed_at": datetime.now(timezone.utc).isoformat(),
                             }
-                            if event.get("retrieval_snapshot") is not None:
-                                self._persist_artifact(run_id, {
-                                    "evaluation_id": item["id"], "preset": preset_name,
-                                    "quorum": quorum,
-                                }, "retrieval", event["retrieval_snapshot"])
                             self._append_result(run_id, item, result, live_summary, total)
+                            completed_configurations.add(self._completed_configuration_key(
+                                item["id"], preset_name, quorum,
+                                configuration["ranking"], configuration["seed_method"],
+                            ))
                             current = {"evaluation_id": item["id"], "preset": preset_name,
                                        "quorum": quorum, **configuration}
                             self._update(run_id, progress={
                                 "completed": self._state(run_id)["progress"]["completed"],
                                 "total": total, "phase": "ranking", "current": current,
                             })
+                            self._pause_checkpoint(run_id)
 
                         report = evaluate_request(self.searcher, self.ranker, {
                             "search": search, "configurations": configurations, "benchmark": False,
                         }, progress_callback=on_progress, include_completed_entries=True)
+                        self._pause_checkpoint(run_id)
                         artifact_context = {"evaluation_id": item["id"], "preset": preset_name,
                                             "quorum": quorum}
+                        # Every configuration in this group shares one retrieval;
+                        # the callback persists its large snapshot only once.
                         # Ranked result rows are stored once in evaluation_run_results;
                         # keep only group-level report metadata here to avoid duplicating
                         # every ranked URL in an artifact as well.
@@ -665,11 +845,17 @@ class DashboardRunManager:
                         completed = self._state(run_id)["progress"]["completed"]
                         self._persist_artifact(run_id, {"scope": "run"}, "summary",
                                                live_summary.snapshot(completed, total, "running"))
-            self._update(run_id, status="completed", progress={
+            self._pause_checkpoint(run_id)
+            self._update(run_id, status="completed", pause_requested=False, progress={
                 "completed": total, "total": total, "phase": "completed", "current": None,
             })
             self._persist_artifact(run_id, {"scope": "run"}, "summary",
                                    live_summary.snapshot(total, total, "completed"))
+        except _PauseRequested:
+            completed = self._state(run_id)["progress"]["completed"]
+            self._persist_artifact(run_id, {"scope": "run"}, "summary",
+                                   live_summary.snapshot(completed, total, "paused"))
+            return
         except Exception as exc:
             self._update(run_id, status="failed", error=str(exc))
             completed = self._state(run_id)["progress"]["completed"]
@@ -698,7 +884,6 @@ class DashboardRunManager:
             state.update(changes)
             if group_completed is not None:
                 state["groups_completed"] += 1
-                state["group_timings"].append(group_completed)
             state["updated_at"] = datetime.now(timezone.utc).isoformat()
             if state.get("status") in ("completed", "failed", "interrupted"):
                 state.setdefault("completed_at", state["updated_at"])
@@ -743,12 +928,29 @@ class DashboardRunManager:
             next_state["updated_at"] = datetime.now(timezone.utc).isoformat()
             if self._db_enabled:
                 with self.engine.begin() as connection:
-                    connection.execute(text("""INSERT INTO evaluation_run_results
-                        (run_id, seq, evaluation_id, payload)
+                    connection.execute(text("""WITH inserted AS (
+                        INSERT INTO evaluation_run_results
+                            (run_id, seq, evaluation_id, payload)
                         VALUES (:run_id, :seq, :evaluation_id, CAST(:payload AS jsonb))
-                        ON CONFLICT (run_id, seq) DO NOTHING"""), {
+                        ON CONFLICT (run_id, seq) DO NOTHING
+                        RETURNING run_id, evaluation_id
+                    )
+                    INSERT INTO evaluation_run_group_counts
+                        (run_id, evaluation_id, preset, quorum, result_unit, ranking, seed,
+                         formulation, row_count)
+                    SELECT inserted.run_id, inserted.evaluation_id, :preset, :quorum,
+                        :result_unit, :ranking, :seed, :formulation, 1
+                    FROM inserted
+                    ON CONFLICT (run_id, evaluation_id, preset, quorum, result_unit, ranking, seed)
+                    DO UPDATE SET row_count=evaluation_run_group_counts.row_count + 1"""), {
                              "run_id": run_id, "seq": seq, "evaluation_id": item["id"],
                              "payload": json.dumps(event, ensure_ascii=False, default=str),
+                             "preset": str(result.get("preset") or ""),
+                             "quorum": str(result.get("quorum") if result.get("quorum") is not None else ""),
+                             "result_unit": str(result.get("result_unit") or ""),
+                             "ranking": str(result.get("ranking") or ""),
+                             "seed": str(result.get("seed_method") or "none"),
+                             "formulation": str(item.get("query_formulation") or "unspecified"),
                          })
                     connection.execute(text("""UPDATE evaluation_runs
                         SET state=CAST(:state AS jsonb), updated_at=now() WHERE run_id=:run_id"""), {
@@ -767,6 +969,12 @@ class DashboardRunManager:
             # Avoid resending growing group timing history on every poll.
             state = {key: deepcopy(value) for key, value in record["state"].items()
                      if key != "group_timings"}
+            evaluations = record.get("dataset_snapshot", {}).get("evaluations", [])
+            state["theme_ids"] = sorted({
+                item["id"].split("__", 1)[0]
+                for item in evaluations if isinstance(item, dict) and item.get("id")
+            })
+            state["theme_main_entities"] = deepcopy(record.get("dataset_snapshot", {}).get("themes", {}))
         return state
 
     def get(self, run_id):
@@ -784,6 +992,115 @@ class DashboardRunManager:
         return sorted(states,
                       key=lambda state: state.get("created_at", ""), reverse=True)
 
+    def figure_filter_options(self, run_ids):
+        """Return figure filter facets from each run's immutable metadata snapshot.
+
+        Result rows can be numerous and contain large JSONB payloads. Filter
+        choices describe the evaluations/settings of a run, so read them from
+        the run records already held in memory instead of scanning results.
+        """
+        if not isinstance(run_ids, list) or not run_ids or len(run_ids) > 12:
+            raise ValueError("Select between one and 12 saved runs to load filter options.")
+        if any(not isinstance(run_id, str) or not run_id for run_id in run_ids):
+            raise ValueError("One or more run IDs are invalid.")
+        if len(set(run_ids)) != len(run_ids):
+            raise ValueError("A run may only be selected once.")
+        records = {run_id: self._record(run_id) for run_id in run_ids}
+        missing = [run_id for run_id, record in records.items() if record is None]
+        if missing:
+            raise ValueError(f"Unknown saved run(s): {', '.join(missing)}")
+
+        queries = {}
+        themes = set()
+        formulations = set()
+        presets = set()
+        quorums = set()
+        for record in records.values():
+            state = record["state"]
+            settings = state.get("settings") or {}
+            for preset in (settings.get("presets") or {}):
+                presets.add(str(preset))
+            for quorum in settings.get("quorums") or ():
+                try:
+                    quorums.add(float(quorum))
+                except (TypeError, ValueError):
+                    continue
+
+            evaluations = record.get("dataset_snapshot", {}).get("evaluations", [])
+            for evaluation in evaluations:
+                evaluation_id = evaluation.get("id")
+                if not evaluation_id:
+                    continue
+                theme = str(evaluation_id).split("__", 1)[0]
+                themes.add(theme)
+                queries[evaluation_id] = {
+                    "id": evaluation_id,
+                    "theme": theme,
+                    "query": evaluation.get("query") or "",
+                }
+                formulations.add(str(evaluation.get("query_formulation") or "unspecified"))
+
+            # Compatibility for in-memory/legacy records without a dataset
+            # snapshot. Production runs always have one.
+            if not evaluations and not self._db_enabled:
+                for event in self._memory_results.get(state.get("run_id"), []):
+                    result = event.get("result") or {}
+                    evaluation_id = event.get("evaluation_id")
+                    if not evaluation_id:
+                        continue
+                    theme = str(evaluation_id).split("__", 1)[0]
+                    themes.add(theme)
+                    queries.setdefault(evaluation_id, {
+                        "id": evaluation_id, "theme": theme, "query": event.get("query") or "",
+                    })
+                    formulations.add(str(event.get("query_formulation") or "unspecified"))
+                    if result.get("preset"):
+                        presets.add(str(result["preset"]))
+                    if result.get("quorum") is not None:
+                        try:
+                            quorums.add(float(result["quorum"]))
+                        except (TypeError, ValueError):
+                            pass
+        return {
+            "themes": sorted(themes),
+            "formulations": sorted(formulations),
+            "presets": sorted(presets),
+            "quorums": sorted(quorums),
+            "queries": sorted(queries.values(), key=lambda item: (item["theme"], item["id"])),
+        }
+
+    @staticmethod
+    def _dashboard_event(event, include_query_metadata=True):
+        """Return only fields needed for dashboard filtering, charts, and tables."""
+        result = event.get("result") or {}
+        coverage = result.get("coverage") or {}
+        diagnostics = result.get("diagnostics") or {}
+        compact_result = {
+            key: result.get(key) for key in (
+                "ranking", "seed_method", "preset", "quorum", "result_unit",
+                "metrics", "ranking_metrics", "computation_seconds", "computation_reused",
+                "step_timings", "retrieval_steps",
+            ) if key in result
+        }
+        compact_result["coverage"] = {
+            key: coverage[key] for key in ("reference_pool_recall", "oracle_metrics")
+            if key in coverage
+        }
+        if "ensemble_rankings" in diagnostics:
+            compact_result["diagnostics"] = {"ensemble_rankings": diagnostics["ensemble_rankings"]}
+        compact = {
+            "seq": event.get("seq"),
+            "evaluation_id": event.get("evaluation_id"),
+            "result": compact_result,
+        }
+        if include_query_metadata:
+            compact.update(
+                query=event.get("query"),
+                query_formulation=event.get("query_formulation", "unspecified"),
+                theme=str(event.get("evaluation_id", "")).split("__", 1)[0],
+            )
+        return compact
+
     def results(self, run_id, after=0, limit=100):
         record = self._record(run_id)
         if record is None:
@@ -791,32 +1108,57 @@ class DashboardRunManager:
         after = max(0, int(after))
         limit = min(500, max(1, int(limit)))
         events = []
+        metadata_sent = set()
         if self._db_enabled:
             with self.engine.connect() as connection:
-                payloads = connection.execute(text("""SELECT payload FROM evaluation_run_results
+                payloads = connection.execute(text("""SELECT jsonb_build_object(
+                    'seq', payload->'seq',
+                    'evaluation_id', payload->'evaluation_id',
+                    'query', payload->'query',
+                    'query_formulation', payload->'query_formulation',
+                    'result', jsonb_strip_nulls(jsonb_build_object(
+                        'ranking', payload->'result'->'ranking',
+                        'seed_method', payload->'result'->'seed_method',
+                        'preset', payload->'result'->'preset',
+                        'quorum', payload->'result'->'quorum',
+                        'result_unit', payload->'result'->'result_unit',
+                        'metrics', payload->'result'->'metrics',
+                        'ranking_metrics', payload->'result'->'ranking_metrics',
+                        'coverage', jsonb_strip_nulls(jsonb_build_object(
+                            'reference_pool_recall', payload->'result'->'coverage'->'reference_pool_recall',
+                            'oracle_metrics', payload->'result'->'coverage'->'oracle_metrics')),
+                        'computation_seconds', payload->'result'->'computation_seconds',
+                        'computation_reused', payload->'result'->'computation_reused',
+                        'step_timings', payload->'result'->'step_timings',
+                        'retrieval_steps', payload->'result'->'retrieval_steps',
+                        'diagnostics', CASE WHEN payload->'result'->'diagnostics'->'ensemble_rankings' IS NOT NULL
+                            THEN jsonb_build_object('ensemble_rankings', payload->'result'->'diagnostics'->'ensemble_rankings')
+                            ELSE '{}'::jsonb END))) AS payload
+                    FROM evaluation_run_results
                     WHERE run_id=:run_id AND seq>:after ORDER BY seq LIMIT :limit"""),
                     {"run_id": run_id, "after": after, "limit": limit + 1}).scalars().all()
             has_more = len(payloads) > limit
             for event in payloads[:limit]:
                 if isinstance(event, str):
                     event = json.loads(event)
-                public = {key: value for key, value in event.items() if key != "result"}
-                public["result"] = {key: value for key, value in event["result"].items()
-                                     if key not in ("ranked_urls", "ranked_results")}
-                events.append(public)
+                evaluation_id = event.get("evaluation_id")
+                include_metadata = evaluation_id not in metadata_sent
+                metadata_sent.add(evaluation_id)
+                events.append(self._dashboard_event(event, include_metadata))
             state = self.get(run_id)
             return {"events": events, "cursor": events[-1]["seq"] if events else after,
                     "has_more": has_more, "progress": deepcopy(state["progress"])}
         events = []
+        metadata_sent = set()
         for event in self._memory_results.get(run_id, []):
             if event["seq"] <= after:
                 continue
             if len(events) >= limit:
                 break
-            public = {key: value for key, value in event.items() if key != "result"}
-            public["result"] = {key: value for key, value in event["result"].items()
-                                if key not in ("ranked_urls", "ranked_results")}
-            events.append(public)
+            evaluation_id = event.get("evaluation_id")
+            include_metadata = evaluation_id not in metadata_sent
+            metadata_sent.add(evaluation_id)
+            events.append(self._dashboard_event(event, include_metadata))
         total_after = sum(event["seq"] > after for event in self._memory_results.get(run_id, []))
         state = self.get(run_id)
         return {"events": events, "cursor": events[-1]["seq"] if events else after,

@@ -1,5 +1,5 @@
 {
-  "schema_version": 1,
+  "schema_version": 2,
   "evaluations": [
     {
       "id": "juliana_marins",
@@ -79,5 +79,19 @@
         "https://g1.globo.com/pa/para/noticia/2025/08/13/cop30-na-amazonia-reforca-desafio-antigo-e-urgente-mobilizar-trilhoes-para-financiamento-climatico-global.ghtml"
       ]
     }
-  ]
+  ],
+  "themes": {
+    "cao_orelha": [
+      "Cão Orelha",
+      "Polícia Civil de Santa Catarina"
+    ],
+    "cop30_negociacoes": [
+      "COP30",
+      "Belém"
+    ],
+    "juliana_marins": [
+      "Juliana Marins",
+      "Monte Rinjani"
+    ]
+  }
 }

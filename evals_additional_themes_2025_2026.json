@@ -1,5 +1,5 @@
 {
-  "schema_version": 1,
+  "schema_version": 2,
   "evaluations": [
     {
       "id": "mundial_clubes_2025__keyword",
@@ -1081,5 +1081,28 @@
         "https://g1.globo.com/sp/sao-paulo/noticia/2025/07/05/estado-de-sao-paulo-registra-novos-caso-de-gripe-aviaria-em-tres-aves-no-parque-do-ibirapuera-na-zona-sul-da-capital.ghtml"
       ]
     }
-  ]
+  ],
+  "themes": {
+    "acordo_mercosul_uniao_europeia": [
+      "Mercosul",
+      "União Europeia"
+    ],
+    "eleicoes_brasil_2026": [
+      "TSE",
+      "Lula",
+      "Tarcísio de Freitas"
+    ],
+    "gripe_aviaria_brasil": [
+      "Influenza Aviária",
+      "Ministério da Agricultura"
+    ],
+    "guerra_israel_ira_2025": [
+      "Israel",
+      "Irã",
+      "Estados Unidos"
+    ],
+    "mundial_clubes_2025": [
+      "Copa do Mundo de Clubes"
+    ]
+  }
 }

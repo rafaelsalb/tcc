@@ -7,6 +7,9 @@ export async function searchArticles(params) {
     if (params.dateTo) qs.set("date_to", params.dateTo);
     if (params.seedMethod) qs.set("seed_method", params.seedMethod);
     if (params.quorum) qs.set("quorum", params.quorum);
+    if (params.ranking) qs.set("ranking", params.ranking);
+    if (params.resultUnit) qs.set("result_unit", params.resultUnit);
+    if (params.querySeedFallback) qs.set("query_seed_fallback", params.querySeedFallback);
 
     let response;
     try {

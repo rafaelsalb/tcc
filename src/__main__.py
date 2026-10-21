@@ -1,5 +1,7 @@
 import argparse
+import json
 import sys
+from datetime import date
 from pathlib import Path
 
 from services.batch_evaluation import (
@@ -20,6 +22,49 @@ def main(args):
     if args.populate_chunks and args.populate_embeddings:
         print("Please choose either --populate-chunks or --populate-embeddings, not both.")
         sys.exit(1)
+    if args.generate_themes:
+        from db import engine
+        from services.theme_generation import ThemeSelectionPolicy, generate_themes
+
+        policy = ThemeSelectionPolicy(
+            min_articles=args.theme_min_articles,
+            max_articles=args.theme_max_articles,
+            band_edges=tuple(args.theme_band_edges),
+            per_band=args.theme_per_band,
+            max_entities=args.theme_max_entities,
+        )
+        try:
+            document = generate_themes(engine, args.theme_date_from, args.theme_date_to, policy)
+        except ValueError as exc:
+            print(f"Invalid theme generation options: {exc}", file=sys.stderr)
+            sys.exit(2)
+        args.generate_themes.write_text(json.dumps(document, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+        print(f"Wrote {len(document['themes'])} generated themes to {args.generate_themes}")
+        return
+    if args.attach_theme_counts_file:
+        from db import engine
+        from services.theme_counts import attach_theme_counts_file
+
+        try:
+            results = attach_theme_counts_file(engine, args.attach_theme_counts_file)
+        except (ValueError, LookupError, RuntimeError) as exc:
+            print(f"Could not attach theme article counts: {exc}", file=sys.stderr)
+            sys.exit(2)
+        print(f"Attached theme article counts for {len(results)} completed run(s):")
+        for result in results:
+            print(f"  {result['run_id']}: {len(result['themes'])} theme(s)")
+        return
+    if args.backfill_theme_difficulty:
+        from db import engine
+        from services.theme_counts import backfill_theme_difficulty_metrics
+
+        try:
+            result = backfill_theme_difficulty_metrics(engine)
+        except Exception as exc:
+            print(f"Could not backfill theme difficulty metrics: {exc}", file=sys.stderr)
+            sys.exit(2)
+        print(f"Updated {result['metrics_upgraded']} metric(s) across {len(result['runs_updated'])} run(s).")
+        return
     if args.evaluate_file:
         try:
             evaluations = load_evaluation_file(args.evaluate_file)
@@ -82,6 +127,17 @@ if __name__ == "__main__":
     parser.add_argument("--limit", type=int, default=None, help="Limit entities processed by --canonicalize-entities (for trial runs).")
     parser.add_argument("--search", type=str, help="Search for a query in the chunks.")
     parser.add_argument("--evaluate-file", type=Path, help="Run batch search evaluations from a strict JSON input file.")
+    parser.add_argument("--generate-themes", type=Path, help="Generate entity-co-occurrence themes and write a JSON artifact.")
+    parser.add_argument("--attach-theme-counts-file", type=Path, help="Attach post-hoc theme article counts to completed runs using a JSON mapping file.")
+    parser.add_argument("--backfill-theme-difficulty", action="store_true",
+                        help="Append the current difficulty metric revision using already stored article counts; does not rerun searches or counts.")
+    parser.add_argument("--theme-date-from", type=date.fromisoformat, default=date(2025, 6, 1), help="Inclusive article publication date lower bound (default: 2025-06-01).")
+    parser.add_argument("--theme-date-to", type=date.fromisoformat, default=date(2026, 6, 30), help="Inclusive article publication date upper bound (default: 2026-06-30).")
+    parser.add_argument("--theme-min-articles", type=int, default=10, help="Minimum matching article count (default: 10).")
+    parser.add_argument("--theme-max-articles", type=int, default=1000, help="Maximum matching article count (default: 1000).")
+    parser.add_argument("--theme-band-edges", nargs="+", type=int, default=(50, 200), help="Exclusive upper bounds separating prevalence bands (default: 50 200).")
+    parser.add_argument("--theme-per-band", type=int, default=5, help="Maximum number of selected themes per prevalence band (default: 5).")
+    parser.add_argument("--theme-max-entities", type=int, choices=(1, 2), default=2, help="Largest entity set considered (default: 2).")
     parser.add_argument("--output", type=Path, help="JSON report path (live CSV and JSONL checkpoint are written beside it). Defaults to <input>.results.json.")
     parser.add_argument("--api-url", type=str, default="http://localhost:5000", help="Base URL of the running Flask API (default: http://localhost:5000).")
     parser.add_argument("--compare-stages", action="store_true", help="Include lexical/hybrid/PPR/fused stage comparisons; combine with --rankings for one batch.")

@@ -148,10 +148,10 @@ não vazia de avaliações. Cada avaliação deve conter os campos obrigatórios
 
 Substitua as URLs de exemplo por URLs reais e distintas que existam em
 `g1_articles`. **Cada avaliação aceita qualquer quantidade positiva de URLs
-relevantes e únicas, ordenadas da mais relevante para a menos relevante.** A
-ordem fornecida é preservada e define a referência de cada corte k: somente as
-primeiras k URLs contam como relevantes nesse corte. Se houver menos de k URLs,
-toda a lista é usada. Os `id`s também devem ser únicos. Campos extras, listas
+relevantes e únicas.** A lista é um conjunto de julgamentos binários: a ordem
+fornecida é preservada no snapshot, mas não altera quais artigos são relevantes
+em P@k, R@k, F1@k, MAP ou NDCG. A precisão usa sempre `k` como denominador e a
+revocação usa o total de URLs relevantes julgadas. Os `id`s também devem ser únicos. Campos extras, listas
 vazias, URLs inválidas, duplicadas ou ausentes do banco fazem a validação falhar
 antes das buscas. O script não determina nem reordena a relevância editorial.
 `query_formulation` é uma string não vazia que também aparece no CSV e JSON.
@@ -176,6 +176,11 @@ resumos e diagnósticos são persistidos no PostgreSQL (`evaluation_runs`,
 rodadas ou resultados no sistema de arquivos.** A API lista conjuntos embutidos em
 `GET /dashboard/evaluation-sets`, inicia rodadas em `POST /dashboard/runs` e
 expõe status, resumo e páginas de resultados em `/dashboard/runs/<id>`.
+Use `POST /dashboard/runs/<id>/pause` para pausar no próximo limite entre
+configurações e `POST /dashboard/runs/<id>/resume` para continuar de onde parou.
+Resultados já confirmados são preservados; configurações concluídas não são
+executadas novamente. Uma solicitação de pausa pode levar até o término da
+configuração que já estiver em andamento.
 
 Na visualização, escolha **Valor original** ou **Fração do teto do pool**. A segunda
 opção calcula métrica observada ÷ oracle da mesma métrica e `k`; está disponível
@@ -186,9 +191,9 @@ O navegador preserva a aba, filtros, ordenação, recorte top-N, tópicos seleci
 rodada atual, configurações do painel e seleção de artigos relevantes em
 `localStorage`; os julgamentos da aba Avaliação também continuam salvos no servidor.
 Se a API reiniciar durante uma rodada, os resultados já gravados continuam
-acessíveis e a rodada aparece como interrompida; ela não é retomada
-automaticamente. Mantenha a API em um único processo enquanto uma rodada estiver
-ativa.
+acessíveis e a rodada aparece como interrompida; use **Retomar** no painel ou o
+endpoint de resume para continuar. A API usa um processo de trabalho sequencial;
+não inicie múltiplas instâncias da API para executar rodadas simultaneamente.
 
 O painel também mostra a distribuição da métrica/corte selecionados em um
 histograma por configuração (ranking, seed, preset e quorum), com média, desvio
@@ -199,6 +204,41 @@ mantém resultados até um desvio padrão abaixo da média. Esse filtro é descr
 não um teste de significância. Configurações com menos de duas observações ou
 desvio padrão zero não são filtradas por z-score e aparecem como não avaliáveis;
 valores ausentes continuam identificados na auditoria de exclusões.
+
+### Gerar figuras para análise e tese
+
+O gerador lê diretamente rodadas persistidas no PostgreSQL, sem fazer buscas,
+iniciar/parar a API ou modificar resultados. Liste rodadas e passe um ou mais IDs;
+cada rodada recebe sua própria pasta, sem combinar datasets ou protocolos
+implicitamente. O padrão usa apenas grupos completos nas figuras principais.
+O mesmo fluxo está disponível no painel em **Gerar figuras para análise/tese**:
+selecione rodadas, formatos e referências, acompanhe o job e baixe o ZIP ao final.
+O estado do job web é mantido em memória por até 24 horas; os arquivos ficam em
+`resultados/figuras/<job-id>/`. Uma geração é executada por vez e pode competir
+por recursos de banco com uma rodada de avaliação ativa. Uma instância da API já
+iniciada precisa carregar a nova versão antes de expor os endpoints e o controle;
+os controles permanecem ocultos se o backend não anunciar suporte.
+
+```bash
+uv run python scripts/generate_evaluation_figures.py --list-runs
+uv run python scripts/generate_evaluation_figures.py \
+  --run-id ID_DA_RODADA [--run-id OUTRO_ID] \
+  --output-dir resultados/figuras
+```
+
+São gerados PDF, SVG e PNG (300 DPI), tabelas CSV normalizadas/auditadas e um
+`manifest.json` com configuração, snapshot do conjunto, contagens e política de
+agregação. `--baseline-ranking hybrid_max` pode ser repetido para gerar diferenças
+pareadas contra outras referências; `--include-partial` inclui grupos incompletos
+em análise exploratória, e `--include-ranking-overlap` habilita a figura adicional
+de sobreposição top-20 (lê os rankings completos e pode demorar mais). Use uma
+rodada por vez até confirmar compatibilidade de versão e protocolo; não compare
+diretamente métricas de protocolos diferentes.
+Os títulos, eixos e demais textos explicativos das figuras são apresentados em
+português brasileiro. Os rótulos conhecidos de tema e formulação também são
+traduzidos para leitura; seus identificadores originais permanecem nas colunas
+`theme` e `formulation` dos CSVs. Identificadores de tema sem tradução cadastrada
+são exibidos como recebidos.
 
 ### Importar rodadas antigas do painel
 

@@ -1,0 +1,30 @@
+{
+  "themes": {
+    "acordo_mercosul_uniao_europeia": ["Mercosul", "União Europeia"],
+    "brics_rio_2025": ["BRICS", "Brasil"],
+    "cao_orelha": ["Cão Orelha", "Polícia Civil de Santa Catarina"],
+    "banco_master": ["Banco Master", "Daniel Vorcaro"],
+    "caso_benicio": ["Benício Xavier", "Hospital Santa Júlia"],
+    "cop30_negociacoes": ["COP30", "Belém"],
+    "concurso_nacional_unificado_2025": ["Concurso Nacional Unificado", "Ministério da Gestão"],
+    "descontos_inss": ["INSS", "Polícia Federal"],
+    "dengue_brasil_2025_2026": ["Dengue", "Instituto Butantan"],
+    "eleicoes_brasil_2026": ["TSE", "Lula", "Tarcísio de Freitas"],
+    "enem_2025": ["Enem", "Inep"],
+    "gaza_2025_2026": ["Faixa de Gaza", "Israel", "Hamas"],
+    "guerra_israel_ira_2025": ["Israel", "Irã", "Estados Unidos"],
+    "imposto_renda_2026": ["Imposto de Renda", "Receita Federal"],
+    "julgamento_nucleo_golpe": ["Jair Bolsonaro", "Supremo Tribunal Federal"],
+    "juliana_marins": ["Juliana Marins", "Monte Rinjani"],
+    "libertadores_2025": ["Copa Libertadores"],
+    "metanol_bebidas": ["Metanol", "Ministério da Saúde"],
+    "mundial_clubes_2025": ["Copa do Mundo de Clubes"],
+    "operacao_contencao": ["Operação Contenção", "Comando Vermelho"],
+    "pix_brasil": ["Pix"],
+    "queda_aviao_air_india_2025": ["Air India", "Boeing 787"],
+    "rio_security_operation": ["Comando Vermelho", "Complexo do Alemão", "Complexo da Penha"],
+    "crise_venezuela_2026": ["Venezuela", "Nicolás Maduro", "Donald Trump"],
+    "tarifaco_eua_brasil": ["Donald Trump", "Brasil", "Estados Unidos"],
+    "gripe_aviaria_brasil": ["Influenza Aviária", "Ministério da Agricultura"]
+  }
+}

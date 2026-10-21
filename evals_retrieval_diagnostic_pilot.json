@@ -1,5 +1,5 @@
 {
-  "schema_version": 1,
+  "schema_version": 2,
   "evaluations": [
     {
       "id": "banco_master__broad_theme",
@@ -433,5 +433,24 @@
         "https://g1.globo.com/economia/noticia/2025/10/16/tarifa-de-trump-trava-exportacoes-e-forca-brasil-a-buscar-novos-mercados.ghtml"
       ]
     }
-  ]
+  ],
+  "themes": {
+    "banco_master": [
+      "Banco Master",
+      "Daniel Vorcaro"
+    ],
+    "julgamento_nucleo_golpe": [
+      "Jair Bolsonaro",
+      "Supremo Tribunal Federal"
+    ],
+    "metanol_bebidas": [
+      "Metanol",
+      "Ministério da Saúde"
+    ],
+    "tarifaco_eua_brasil": [
+      "Donald Trump",
+      "Brasil",
+      "Estados Unidos"
+    ]
+  }
 }

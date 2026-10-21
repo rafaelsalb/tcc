@@ -1,5 +1,5 @@
 {
-  "schema_version": 1,
+  "schema_version": 2,
   "evaluations": [
     {
       "id": "banco_master__keyword",
@@ -1041,5 +1041,28 @@
         "https://g1.globo.com/am/amazonas/noticia/2025/12/14/caso-benicio-medica-usava-carimbo-de-pediatria-sem-ter-especialidade-e-pode-responder-por-falsidade-ideologica-diz-delegado.ghtml"
       ]
     }
-  ]
+  ],
+  "themes": {
+    "banco_master": [
+      "Banco Master",
+      "Daniel Vorcaro"
+    ],
+    "caso_benicio": [
+      "Benício Xavier",
+      "Hospital Santa Júlia"
+    ],
+    "descontos_inss": [
+      "INSS",
+      "Polícia Federal"
+    ],
+    "metanol_bebidas": [
+      "Metanol",
+      "Ministério da Saúde"
+    ],
+    "tarifaco_eua_brasil": [
+      "Donald Trump",
+      "Brasil",
+      "Estados Unidos"
+    ]
+  }
 }

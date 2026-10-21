@@ -1,5 +1,94 @@
 # Guia para criar avaliações temáticas
 
+## Etapa separada: gerar candidatos de temas
+
+Antes da curadoria descrita abaixo, é possível gerar candidatos de forma
+reproduzível a partir das entidades já armazenadas em `article_entities`. Esta
+etapa não escolhe os 20 artigos relevantes: ela sugere temas e calcula uma medida
+de prevalência para ajudar a selecionar temas de dificuldades diferentes.
+
+Execute:
+
+```bash
+uv run python -m src \
+  --generate-themes resultados/temas_2025_2026.json
+```
+
+O algoritmo considera entidades não marcadas como lixo em artigos com data de
+publicação dentro do intervalo inclusivo (padrão `2025-06-01` a `2026-06-30`).
+Identidades canônicas são usadas quando disponíveis; caso contrário, usa-se o
+texto da entidade. Para cada entidade isolada e cada par de entidades que aparece
+no mesmo artigo, conta-se o número de URLs distintas que contêm todas as
+entidades do conjunto. Os candidatos são ordenados por contagem decrescente e,
+em empates, pela identidade das entidades. O resultado seleciona até cinco
+candidatos por faixa:
+
+| Faixa | Artigos correspondentes |
+|---|---:|
+| rara | 10–49 |
+| média | 50–199 |
+| comum | 200–1000 |
+
+Os valores são parâmetros de entrada e podem ser alterados. Por exemplo:
+
+```bash
+uv run python -m src \
+  --generate-themes resultados/temas.json \
+  --theme-date-from 2025-01-01 --theme-date-to 2025-12-31 \
+  --theme-min-articles 5 --theme-max-articles 500 \
+  --theme-band-edges 25 100 --theme-per-band 8 \
+  --theme-max-entities 2
+```
+
+`--theme-band-edges` define limites superiores exclusivos das faixas internas;
+com os padrões, as faixas são `[10, 50)`, `[50, 200)` e `[200, 1001)`. O máximo
+de entidades considerado é um ou dois. A seleção é determinística para o mesmo
+conteúdo do banco e os mesmos parâmetros. Como os temas dependem das entidades
+armazenadas, alterações posteriores nessas anotações podem alterar a saída.
+
+Revise a coerência dos candidatos antes de usá-los como temas de avaliação: a
+presença conjunta de entidades é uma regra objetiva de contagem, mas não garante
+que o conjunto represente uma necessidade de informação coerente. A contagem é
+uma estatística de prevalência, não substitui a curadoria dos artigos relevantes.
+
+## Contar entidades em avaliações já concluídas
+
+O total de artigos para entidades pode ser calculado depois que uma rodada do
+Painel de avaliações termina. O cálculo usa o período salvo na rodada; para uma
+rodada antiga sem período salvo, informe `date_range`. Informe URIs canônicas
+quando disponíveis; valores sem URI são comparados ao texto armazenado da entidade
+exatamente. Cada artigo conta uma vez e precisa corresponder a todas as entidades.
+
+Para várias rodadas, crie um arquivo JSON:
+
+```json
+{
+  "schema_version": 1,
+  "runs": [
+    {
+      "run_id": "ID_DA_RODADA",
+      "themes": {
+        "banco_master": ["Banco Master"],
+        "banco_master_fgc": ["Banco Master", "http://pt.dbpedia.org/resource/Fundo_Garantidor_de_Créditos"]
+      }
+    }
+  ]
+}
+```
+
+Execute `uv run python -m src --attach-theme-counts-file mapeamento.json`. Opcionalmente,
+adicione `"date_range": {"from": "2025-06-01", "to": "2026-06-30"}` dentro de
+um item de `runs` para substituir o período salvo. A rodada precisa estar concluída.
+O arquivo pode conter vários itens `runs`.
+
+No painel, abra uma rodada concluída e expanda **Contar artigos por entidades do
+tema**. O painel mostra uma linha por tema (não por consulta); informe as entidades
+separadas por vírgulas. A lista será aplicada uma vez ao tema, compartilhada por
+todas as formulações de consulta. Também é possível carregar um arquivo de
+mapeamento; o painel usa a entrada referente à rodada aberta. Revise as datas e
+clique em **Calcular contagens**. O resultado é salvo como artefato da rodada e
+pode ser consultado novamente ao reabri-la.
+
 Este processo serve para montar uma avaliação de busca cujo objetivo é verificar
 se o sistema encontra as **20 notícias do G1 mais úteis para informar uma pessoa
 que pesquisou sobre um tema**. Faça a curadoria dos artigos antes de comparar os

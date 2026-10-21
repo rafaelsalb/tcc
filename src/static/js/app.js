@@ -43,6 +43,8 @@ const els = {
     form: document.getElementById("search-form"),
     query: document.getElementById("query"),
     searchLevel: document.getElementById("search-level"),
+    ranking: document.getElementById("search-ranking"),
+    resultUnit: document.getElementById("result-unit"),
     advancedToggle: document.getElementById("advanced-toggle"),
     advancedFilters: document.getElementById("advanced-filters"),
     dateFrom: document.getElementById("date_from"),
@@ -125,6 +127,8 @@ function readForm() {
         dateTo: els.dateTo.value,
         seedMethod: ["louvain", "hits", "ppr_top10", "query_entities"].includes(els.seedMethod.value) ? els.seedMethod.value : "hits",
         quorum: String(els.quorum.value),
+        ranking: els.ranking.value,
+        resultUnit: els.resultUnit.value,
     };
 }
 
@@ -139,6 +143,8 @@ function fillForm(params, preferDraft = false) {
         return params.has(key) ? params.get(key) : (saved[key] ?? fallback);
     };
     els.query.value = get("query");
+    els.ranking.value = ["ppr", "hybrid_max", "rrf", "cross_encoder", "fused", "mmr", "graph_rwr", "graph_hits", "graph_salsa", "graph_path", "graph_walk", "graph_fusion", "graph_hits_cross_encoder", "lexical", "vector", "ensemble_rrf"].includes(get("ranking", "ppr")) ? get("ranking", "ppr") : "ppr";
+    els.resultUnit.value = ["chunks", "articles"].includes(get("result_unit", "chunks")) ? get("result_unit", "chunks") : "chunks";
     const level = get("level", DEFAULT_LEVEL);
     els.searchLevel.value = SEARCH_LEVELS[level] ? level : DEFAULT_LEVEL;
     els.dateFrom.value = get("date_from");
@@ -152,6 +158,7 @@ function fillForm(params, preferDraft = false) {
     els.quorum.value = quorum;
     els.quorumValue.textContent = `${Math.round(Number(quorum) * 100)}%`;
     if (params.has("date_from") || params.has("date_to") || params.has("seed_method") || params.has("quorum")
+        || params.has("ranking") || params.has("result_unit")
         || saved.date_from || saved.date_to || saved.seed_method || saved.quorum) {
         setAdvancedExpanded(true);
     }
@@ -162,6 +169,7 @@ function persistFormDraft() {
     setUiState("formDraft", {
         query: params.query, level: params.level, date_from: params.dateFrom,
         date_to: params.dateTo, seed_method: params.seedMethod, quorum: params.quorum,
+        ranking: params.ranking, result_unit: params.resultUnit,
     });
 }
 
@@ -226,6 +234,8 @@ function pushUrl(params) {
     qs.set("level", params.level);
     qs.set("seed_method", params.seedMethod);
     qs.set("quorum", params.quorum);
+    qs.set("ranking", params.ranking);
+    qs.set("result_unit", params.resultUnit);
     if (params.dateFrom) qs.set("date_from", params.dateFrom);
     if (params.dateTo) qs.set("date_to", params.dateTo);
     history.pushState(null, "", `/?${qs.toString()}`);
@@ -556,6 +566,7 @@ async function runSearch({ push = true, restoreView = false } = {}) {
         setUiState("searchParams", {
             query: params.query, level: params.level, date_from: params.dateFrom,
             date_to: params.dateTo, seed_method: params.seedMethod, quorum: params.quorum,
+            ranking: params.ranking, result_unit: params.resultUnit,
         });
         persistFormDraft();
         persistSearchView();
@@ -726,10 +737,6 @@ initHelpDots();
 {
     const params = new URLSearchParams(location.search);
     fillForm(params, true);
-    if (els.query.value.trim()) {
-        runSearch({ push: false, restoreView: true }).finally(() => setActiveTab(restoredTab));
-    } else {
-        renderTimelineView();
-        setActiveTab(restoredTab);
-    }
+    renderTimelineView();
+    setActiveTab(restoredTab);
 }

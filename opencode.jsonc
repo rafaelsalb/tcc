@@ -1,0 +1,17 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  // Global safety net: allow reads everywhere, but block any agent from modifying raw experimental results
+  "permissions": [
+    { "action": "read", "resource": "*", "effect": "allow" },
+    { "action": "read", "resource": ".env", "effect": "deny"},
+    { "action": "edit", "resource": "resultados/*", "effect": "deny" }, // dados
+    { "action": "edit", "resource": "saidas/*", "effect": "deny" }  // graficos
+  ],
+  "agents": {
+    "build": {
+      "permissions": [
+        { "action": "subagent", "resource": "thesis-viz", "effect": "allow" }
+      ]
+    }
+  }
+}

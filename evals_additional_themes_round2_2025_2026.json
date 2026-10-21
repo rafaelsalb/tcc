@@ -1,5 +1,5 @@
 {
-  "schema_version": 1,
+  "schema_version": 2,
   "evaluations": [
     {
       "id": "enem_2025__keyword",
@@ -2161,5 +2161,47 @@
         "https://g1.globo.com/guia/guia-rj/noticia/2025/11/27/final-da-libertadores-no-rio-veja-bares-restaurantes-e-festas-com-transmissao-de-flamengo-x-palmeiras.ghtml"
       ]
     }
-  ]
+  ],
+  "themes": {
+    "brics_rio_2025": [
+      "BRICS",
+      "Brasil"
+    ],
+    "concurso_nacional_unificado_2025": [
+      "Concurso Nacional Unificado",
+      "Ministério da Gestão"
+    ],
+    "crise_venezuela_2026": [
+      "Venezuela",
+      "Nicolás Maduro",
+      "Donald Trump"
+    ],
+    "dengue_brasil_2025_2026": [
+      "Dengue",
+      "Instituto Butantan"
+    ],
+    "enem_2025": [
+      "Enem",
+      "Inep"
+    ],
+    "gaza_2025_2026": [
+      "Faixa de Gaza",
+      "Israel",
+      "Hamas"
+    ],
+    "imposto_renda_2026": [
+      "Imposto de Renda",
+      "Receita Federal"
+    ],
+    "libertadores_2025": [
+      "Copa Libertadores"
+    ],
+    "pix_brasil": [
+      "Pix"
+    ],
+    "queda_aviao_air_india_2025": [
+      "Air India",
+      "Boeing 787"
+    ]
+  }
 }

@@ -1,5 +1,5 @@
 {
-  "schema_version": 1,
+  "schema_version": 2,
   "evaluations": [
     {
       "id": "operacao_contencao",
@@ -53,5 +53,15 @@
         "https://g1.globo.com/politica/noticia/2026/04/30/com-derrubada-de-veto-saiba-o-que-acontece-com-bolsonaro-agora.ghtml"
       ]
     }
-  ]
+  ],
+  "themes": {
+    "julgamento_nucleo_golpe": [
+      "Jair Bolsonaro",
+      "Supremo Tribunal Federal"
+    ],
+    "operacao_contencao": [
+      "Operação Contenção",
+      "Comando Vermelho"
+    ]
+  }
 }

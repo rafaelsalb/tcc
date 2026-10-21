@@ -31,12 +31,25 @@ export function topKTierFor(rank) {
  * the current view filters or sort mode.
  */
 export function globalRelevanceRanks(response) {
-    const scores = response?.articles_scores ?? {};
+    const scores = scoreMap(response);
     const articles = [...(response?.articles ?? [])]
         .sort((a, b) => (scores[b.url] ?? 0) - (scores[a.url] ?? 0) || (a.url || "").localeCompare(b.url || ""));
     const ranks = new Map();
     articles.forEach((article, index) => ranks.set(article.url, index + 1));
     return ranks;
+}
+
+// Some API rankings return ordered candidates without articles_scores. Use
+// their returned ordering as a display-only fallback rather than assigning
+// every result a zero score.
+function scoreMap(response) {
+    if (response?.articles_scores && Object.keys(response.articles_scores).length) return response.articles_scores;
+    const rows = response?.ranked;
+    if (!Array.isArray(rows)) return {};
+    const count = rows.length;
+    return Object.fromEntries(rows.map((entry, index) => [
+        entry.article, count ? (count - index) / count : 0,
+    ]));
 }
 
 export function parseDate(value) {
@@ -149,7 +162,7 @@ function viewArticles(state) {
     if (!response || !Array.isArray(response.articles)) return [];
 
     const chunksByUrl = groupChunksByArticle(response);
-    const scores = response.articles_scores ?? {};
+    const scores = scoreMap(response);
     const flagged = mmrFlaggedUrls(response);
     const matchedUrls = filterArticlesByText(response, state.resultQuery ?? "");
     const articles = response.articles.map((article) => ({
@@ -179,7 +192,7 @@ function viewArticles(state) {
  * `filterUrls` (the real-time text search) narrows the candidate pool first.
  */
 export function topArticleUrls(response, topN, filterUrls = null) {
-    const scores = response?.articles_scores ?? {};
+    const scores = scoreMap(response);
     let candidates = [...(response?.articles ?? [])];
     if (filterUrls) {
         candidates = candidates.filter((article) => filterUrls.has(article.url));

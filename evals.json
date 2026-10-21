@@ -113,5 +113,16 @@
         "https://g1.globo.com/economia/noticia/2026/05/04/mercado-eleva-estimativa-de-inflacao-para-489percent-em-2026-na-8a-alta-seguida.ghtml"
       ]
     }
-  ]
+  ],
+  "themes": {
+    "banco_master": [
+      "Banco Master",
+      "Daniel Vorcaro"
+    ],
+    "rio_security_operation": [
+      "Comando Vermelho",
+      "Complexo do Alemão",
+      "Complexo da Penha"
+    ]
+  }
 }

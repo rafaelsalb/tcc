@@ -35,6 +35,31 @@
                             <option value="profundo">Profundo</option>
                         </select>
                     </div>
+                    <div class="field">
+                        <label for="search-ranking">Ordenação do servidor</label>
+                        <select id="search-ranking">
+                            <option value="ppr">PPR (tópicos)</option>
+                            <option value="hybrid_max">Híbrido</option>
+                            <option value="rrf">Fusão lexical + vetorial</option>
+                            <option value="cross_encoder">Cross-encoder</option>
+                            <option value="fused">Híbrido + PPR</option>
+                            <option value="mmr">Diversidade (MMR)</option>
+                            <option value="graph_rwr">Grafo · RWR</option>
+                            <option value="graph_hits">Grafo · HITS</option>
+                            <option value="graph_salsa">Grafo · SALSA</option>
+                            <option value="graph_path">Grafo · caminhos</option>
+                            <option value="graph_walk">Grafo · caminhada</option>
+                            <option value="graph_fusion">Grafo · fusão</option>
+                            <option value="graph_hits_cross_encoder">Grafo · HITS + cross-encoder</option>
+                            <option value="lexical">Lexical</option>
+                            <option value="vector">Vetorial</option>
+                            <option value="ensemble_rrf">Ensemble RRF</option>
+                        </select>
+                    </div>
+                    <div class="field">
+                        <label for="result-unit">Unidade dos resultados</label>
+                        <select id="result-unit"><option value="chunks" selected>Trechos</option><option value="articles">Artigos</option></select>
+                    </div>
                     <button type="button" class="advanced-toggle" id="advanced-toggle" aria-expanded="false">+ Filtros avançados</button>
                     <div id="advanced-filters" hidden>
                         <div class="field-row field-row-dates">
@@ -251,7 +276,10 @@
                             </div>
                             <div class="dashboard-history-control">
                                 <select id="dashboard-existing-run" aria-label="Rodadas existentes"><option value="">Rodadas salvas…</option></select>
+                                <button type="button" class="btn-ghost" id="dashboard-refresh-run-list">Atualizar lista</button>
                                 <button type="button" class="btn-ghost" id="dashboard-load-run">Abrir</button>
+                                <button type="button" class="btn-ghost" id="dashboard-pause-run" hidden>Pausar</button>
+                                <button type="button" class="btn-ghost" id="dashboard-resume-run" hidden>Retomar</button>
                                 <span class="dashboard-status-badge" id="dashboard-status">Pronto</span>
                             </div>
                         </div>
@@ -306,9 +334,164 @@
                             <span id="dashboard-progress-label">0 / 0</span>
                             <span id="dashboard-progress-current"></span>
                             </div>
-                            <progress id="dashboard-progress" max="1" value="0"></progress>
+                        <progress id="dashboard-progress" max="1" value="0"></progress>
                         </div>
+                        <details class="dashboard-figure-generator" id="dashboard-theme-count-panel">
+                            <summary>Contar artigos por entidades do tema</summary>
+                            <p class="dashboard-muted">Pós-processamento de uma rodada concluída. Informe, para cada tema, as entidades que todos os artigos devem conter, separadas por vírgulas. Você também pode carregar um JSON para preencher os campos e ajustá-los aqui. A lista é por tema e vale para todas as variações de consulta desse tema. Antes de contar, a busca tentará identificar as entidades e obter suas URIs canônicas; confira e confirme a prévia. Sem correspondência canônica, será usado o texto exato. O período salvo na rodada é usado por padrão.</p>
+                            <div class="dashboard-theme-count-controls">
+                                <label>Preencher campos de um JSON
+                                    <input type="file" id="dashboard-theme-count-file" accept="application/json,.json">
+                                </label>
+                                <label>De <input type="date" id="dashboard-theme-count-from"></label>
+                                <label>Até <input type="date" id="dashboard-theme-count-to"></label>
+                                <div id="dashboard-theme-count-inputs" class="dashboard-theme-count-inputs"></div>
+                                <button type="button" class="btn-primary" id="dashboard-theme-count-preview">Identificar entidades</button>
+                            </div>
+                            <p id="dashboard-theme-count-message" class="dashboard-muted" role="status"></p>
+                            <div id="dashboard-theme-count-preview-results" class="dashboard-theme-count-preview-results" hidden></div>
+                            <button type="button" class="btn-primary" id="dashboard-theme-count-submit" hidden>Confirmar e calcular contagens</button>
+                            <div id="dashboard-theme-count-results" class="dashboard-theme-count-results"></div>
+                        </details>
                     </div>
+                    <div id="dashboard-history-sync" class="dashboard-history-sync" hidden aria-live="off">
+                        <span id="dashboard-history-sync-label"></span>
+                        <progress id="dashboard-history-sync-progress" max="1" value="0"></progress>
+                        <button type="button" class="btn-ghost" id="dashboard-history-sync-retry" hidden>Tentar novamente</button>
+                    </div>
+
+                    <details class="dashboard-figure-generator" id="dashboard-figure-generator" hidden>
+                        <summary>Gerar figuras para análise/tese</summary>
+                        <p class="dashboard-muted">Selecione uma ou mais rodadas salvas. Cada rodada gera seu próprio conjunto de figuras; os dados não são combinados automaticamente. O processamento consulta o banco e pode competir por recursos com uma avaliação ativa.</p>
+                        <div class="dashboard-figure-controls">
+                            <label class="dashboard-figure-run-choice">Rodadas
+                                <select id="dashboard-figure-runs" multiple size="5" aria-describedby="dashboard-figure-runs-hint"></select>
+                            </label>
+                            <span id="dashboard-figure-runs-hint" class="dashboard-muted">Use Ctrl/Cmd para selecionar várias rodadas.</span>
+                            <fieldset id="dashboard-figure-formats" class="dashboard-figure-options">
+                                <legend>Formatos</legend>
+                                <label><input type="checkbox" value="pdf" checked> PDF</label>
+                                <label><input type="checkbox" value="svg" checked> SVG</label>
+                                <label><input type="checkbox" value="png" checked> PNG</label>
+                            </fieldset>
+                            <fieldset class="dashboard-figure-options dashboard-figure-methods">
+                                <legend>Rankings incluídos</legend>
+                                <div class="dashboard-figure-select-actions">
+                                    <button type="button" class="btn-ghost" data-figure-select-all="rankings">Todos</button>
+                                    <button type="button" class="btn-ghost" data-figure-select-none="rankings">Limpar</button>
+                                </div>
+                                <div class="dashboard-figure-check-grid" id="dashboard-figure-rankings">
+                                    <label><input type="checkbox" value="ppr" checked> PPR</label>
+                                    <label><input type="checkbox" value="hybrid_max" checked> Híbrido (máximo por artigo)</label>
+                                    <label><input type="checkbox" value="rrf" checked> Fusão RRF</label>
+                                    <label><input type="checkbox" value="cross_encoder" checked> Cross-encoder</label>
+                                    <label><input type="checkbox" value="fused" checked> Híbrido + PPR</label>
+                                    <label><input type="checkbox" value="mmr" checked> Diversidade MMR</label>
+                                    <label><input type="checkbox" value="graph_rwr" checked> Caminhada com reinício (RWR)</label>
+                                    <label><input type="checkbox" value="graph_hits" checked> HITS no grafo</label>
+                                    <label><input type="checkbox" value="graph_salsa" checked> SALSA</label>
+                                    <label><input type="checkbox" value="graph_path" checked> Caminhos no grafo</label>
+                                    <label><input type="checkbox" value="graph_walk" checked> Caminhada no grafo</label>
+                                    <label><input type="checkbox" value="graph_fusion" checked> Híbrido + HITS (RRF)</label>
+                                    <label><input type="checkbox" value="graph_hits_cross_encoder" checked> HITS + cross-encoder</label>
+                                    <label><input type="checkbox" value="lexical" checked> Lexical</label>
+                                    <label><input type="checkbox" value="vector" checked> Vetorial</label>
+                                    <label><input type="checkbox" value="ensemble_rrf" checked> Ensemble RRF</label>
+                                </div>
+                            </fieldset>
+                            <fieldset class="dashboard-figure-options dashboard-figure-methods">
+                                <legend>Sementes dos métodos de grafo</legend>
+                                <div class="dashboard-figure-select-actions">
+                                    <button type="button" class="btn-ghost" data-figure-select-all="seeds">Todas</button>
+                                    <button type="button" class="btn-ghost" data-figure-select-none="seeds">Limpar</button>
+                                </div>
+                                <div class="dashboard-figure-check-grid" id="dashboard-figure-seeds">
+                                    <label><input type="checkbox" value="louvain" checked> Louvain</label>
+                                    <label><input type="checkbox" value="hits" checked> HITS</label>
+                                    <label><input type="checkbox" value="ppr_top10" checked> PPR top 10%</label>
+                                    <label><input type="checkbox" value="query_entities" checked> Entidades da consulta</label>
+                                </div>
+                                <span class="dashboard-muted">Rankings independentes de semente não são afetados por esta seleção.</span>
+                            </fieldset>
+                            <fieldset id="dashboard-figure-baselines" class="dashboard-figure-options dashboard-figure-baselines">
+                                <legend>Referências para diferenças pareadas</legend>
+                                <label><input type="checkbox" value="hybrid_max" checked> hybrid_max</label>
+                                <label><input type="checkbox" value="rrf" checked> rrf</label>
+                                <label><input type="checkbox" value="cross_encoder" checked> cross_encoder</label>
+                            </fieldset>
+                            <fieldset class="dashboard-figure-options dashboard-figure-family-options">
+                                <legend>Figuras geradas</legend>
+                                <label><input type="checkbox" value="overview" checked> Visão geral e qualidade</label>
+                                <label><input type="checkbox" value="comparisons" checked> Comparações pareadas</label>
+                                <label><input type="checkbox" value="graph" checked> Métodos e diagnósticos de grafo</label>
+                                <label><input type="checkbox" value="cutoff" checked> Perfis por corte</label>
+                                <label><input type="checkbox" value="tail" checked> Cauda de desempenho</label>
+                                <label><input type="checkbox" value="theme" checked> Variação por tema</label>
+                                <label><input type="checkbox" value="runtime" checked> Custo computacional</label>
+                                <label><input type="checkbox" value="overlap"> Sobreposição top-20 (pode demorar)</label>
+                            </fieldset>
+                            <fieldset class="dashboard-figure-options dashboard-figure-filters">
+                                <legend>Filtros opcionais</legend>
+                                <span id="dashboard-figure-filter-options-hint" class="dashboard-muted">Selecione rodadas para carregar as opções. Sem caixas marcadas, todos os valores são incluídos.</span>
+                                <fieldset class="dashboard-figure-filter-group">
+                                    <legend>Temas</legend>
+                                    <div class="dashboard-figure-select-actions">
+                                        <button type="button" class="btn-ghost" data-filter-select-all="themes">Selecionar todos</button>
+                                        <button type="button" class="btn-ghost" data-filter-clear="themes">Limpar</button>
+                                        <span id="dashboard-figure-filter-count-themes" class="dashboard-muted"></span>
+                                    </div>
+                                    <div id="dashboard-figure-filter-themes" class="dashboard-figure-check-grid"></div>
+                                </fieldset>
+                                <fieldset class="dashboard-figure-filter-group">
+                                    <legend>Formulações</legend>
+                                    <div class="dashboard-figure-select-actions">
+                                        <button type="button" class="btn-ghost" data-filter-select-all="formulations">Selecionar todas</button>
+                                        <button type="button" class="btn-ghost" data-filter-clear="formulations">Limpar</button>
+                                        <span id="dashboard-figure-filter-count-formulations" class="dashboard-muted"></span>
+                                    </div>
+                                    <div id="dashboard-figure-filter-formulations" class="dashboard-figure-check-grid"></div>
+                                </fieldset>
+                                <fieldset class="dashboard-figure-filter-group">
+                                    <legend>Presets</legend>
+                                    <div class="dashboard-figure-select-actions">
+                                        <button type="button" class="btn-ghost" data-filter-select-all="presets">Selecionar todos</button>
+                                        <button type="button" class="btn-ghost" data-filter-clear="presets">Limpar</button>
+                                        <span id="dashboard-figure-filter-count-presets" class="dashboard-muted"></span>
+                                    </div>
+                                    <div id="dashboard-figure-filter-presets" class="dashboard-figure-check-grid"></div>
+                                </fieldset>
+                                <fieldset class="dashboard-figure-filter-group">
+                                    <legend>Quorums</legend>
+                                    <div class="dashboard-figure-select-actions">
+                                        <button type="button" class="btn-ghost" data-filter-select-all="quorums">Selecionar todos</button>
+                                        <button type="button" class="btn-ghost" data-filter-clear="quorums">Limpar</button>
+                                        <span id="dashboard-figure-filter-count-quorums" class="dashboard-muted"></span>
+                                    </div>
+                                    <div id="dashboard-figure-filter-quorums" class="dashboard-figure-check-grid"></div>
+                                </fieldset>
+                                <fieldset class="dashboard-figure-filter-group dashboard-figure-filter-queries">
+                                    <legend>Consultas</legend>
+                                    <div class="dashboard-figure-select-actions">
+                                        <button type="button" class="btn-ghost" data-filter-select-all="evaluation-ids">Selecionar todas</button>
+                                        <button type="button" class="btn-ghost" data-filter-clear="evaluation-ids">Limpar</button>
+                                        <span id="dashboard-figure-filter-count-evaluation-ids" class="dashboard-muted"></span>
+                                    </div>
+                                    <div id="dashboard-figure-filter-evaluation-ids" class="dashboard-figure-query-groups"></div>
+                                </fieldset>
+                                <span class="dashboard-muted">Filtros combinam-se entre grupos; cada rodada continua em uma pasta separada.</span>
+                            </fieldset>
+                            <label class="dashboard-figure-option"><input type="checkbox" id="dashboard-figure-partial"> Incluir grupos parciais (figuras marcadas como provisórias)</label>
+                            <p id="dashboard-figure-preview" class="dashboard-figure-preview" aria-live="polite"></p>
+                            <button type="button" class="btn-primary" id="dashboard-figure-start">Gerar figuras</button>
+                        </div>
+                        <div id="dashboard-figure-job" class="dashboard-figure-job" hidden>
+                            <strong id="dashboard-figure-job-status" role="status" aria-live="polite">Na fila…</strong>
+                            <span id="dashboard-figure-job-progress" class="dashboard-muted" aria-live="off"></span>
+                            <progress id="dashboard-figure-job-bar" max="100" value="0" aria-label="Progresso da etapa"></progress>
+                            <a id="dashboard-figure-download" class="btn-ghost" hidden>Baixar ZIP de figuras</a>
+                        </div>
+                        <p id="dashboard-figure-message" class="dashboard-muted" aria-live="polite"></p>
+                    </details>
 
                     <div class="dashboard-filterbar" id="dashboard-filterbar">
                         <label>Ranking<select id="dashboard-filter-ranking"><option value="">Todos</option></select></label>
@@ -325,13 +508,12 @@
                         <label>Consulta<select id="dashboard-filter-query"><option value="">Todas</option></select></label>
                         <details class="dashboard-multi-filter">
                             <summary id="dashboard-filter-formulation-summary">Formulações · todas</summary>
-                            <label for="dashboard-filter-formulation-mode">Filtro de formulação</label>
-                            <select id="dashboard-filter-formulation-mode"><option value="include">Incluir selecionadas</option><option value="exclude">Excluir selecionadas</option></select>
-                            <div class="dashboard-multi-filter-actions"><button type="button" class="btn-ghost" id="dashboard-filter-formulation-all">Selecionar todas</button><button type="button" class="btn-ghost" id="dashboard-filter-formulation-clear">Limpar</button></div>
+                            <p class="dashboard-filter-hint">Sem seleção, todas as formulações são exibidas. Marque para mostrar somente as escolhidas.</p>
+                            <div class="dashboard-multi-filter-actions"><button type="button" class="btn-ghost" id="dashboard-filter-formulation-clear">Limpar seleção</button></div>
                             <div id="dashboard-filter-formulation-options" class="dashboard-multi-filter-options"></div>
                         </details>
                         <label>Ranking de referência<select id="dashboard-baseline-ranking"><option value="hybrid_max">hybrid_max</option></select></label>
-                        <label>Métrica<select id="dashboard-metric"><option value="f1">F1</option><option value="precision">Precisão</option><option value="recall">Revocação</option><option value="ndcg">NDCG</option><option value="map">MAP</option></select></label>
+                        <label>Métrica<select id="dashboard-metric"><option value="f1">F1</option><option value="precision">Precisão</option><option value="recall">Revocação</option><option value="mrr">MRR@20</option><option value="ndcg">NDCG</option><option value="map">MAP</option></select></label>
                         <label>Escala<select id="dashboard-metric-view"><option value="raw">Valor original</option><option value="oracle">Fração do teto do pool</option></select></label>
                         <label>k<select id="dashboard-k"><option>1</option><option>3</option><option>5</option><option>10</option><option selected>20</option></select></label>
                         <button type="button" class="btn-ghost" id="dashboard-clear-filters">Limpar filtros</button>
@@ -406,13 +588,16 @@
                     </article>
 
                     <div class="dashboard-chart-grid">
-                        <article class="dashboard-card dashboard-chart-card dashboard-timeline-card">
+                        <article class="dashboard-card dashboard-chart-card dashboard-timeline-card dashboard-distribution-card">
                             <h3>Distribuição da métrica</h3>
-                            <p class="dashboard-muted" id="dashboard-distribution-caption">Distribuição antes do filtro de métrica. Média, desvio padrão amostral e corte são calculados dentro de cada configuração.</p>
-                            <label class="dashboard-distribution-choice" for="dashboard-distribution-config">Configuração exibida
-                                <select id="dashboard-distribution-config"></select>
-                            </label>
-                            <div id="dashboard-metric-distribution" class="dashboard-chart"></div>
+                            <p class="dashboard-muted" id="dashboard-distribution-caption">Cada painel mostra uma configuração, usando os mesmos intervalos e escala. Distribuições calculadas antes do filtro de métrica.</p>
+                            <div class="dashboard-distribution-controls">
+                                <span id="dashboard-distribution-count" class="dashboard-muted" aria-live="polite"></span>
+                                <button type="button" class="btn-ghost" id="dashboard-distribution-show-all">Mostrar todas</button>
+                                <button type="button" class="btn-ghost" id="dashboard-distribution-hide-all">Ocultar todas</button>
+                            </div>
+                            <div id="dashboard-distribution-options" class="dashboard-distribution-options" aria-label="Configurações exibidas"></div>
+                            <div id="dashboard-metric-distribution" class="dashboard-distribution-grid"></div>
                         </article>
                         <article class="dashboard-card dashboard-chart-card">
                             <h3>Desempenho por configuração</h3>
@@ -424,6 +609,19 @@
                             <h3>Diferença pareada contra referência</h3>
                             <p class="dashboard-muted">Diferença da métrica para o ranking de referência, pareada nas mesmas consultas e configurações. Ignora apenas o filtro Ranking; os demais filtros permanecem. Um par só aparece se os dois resultados passarem o filtro de métrica. Zero significa empate.</p>
                             <div id="dashboard-paired-delta" class="dashboard-chart"></div>
+                        </article>
+                        <article class="dashboard-card dashboard-chart-card dashboard-graph-cohort-card">
+                            <h3>Graph + query_entities vs. sem grafo</h3>
+                            <p class="dashboard-muted">Escolha métodos e uma métrica separadamente para cada grupo. Compara consulta/pool pareados, ignora os filtros globais Ranking/Seed e mantém tema, consulta, formulação, preset e quorum. Δ e vitórias só são calculados quando as métricas selecionadas nos dois lados são iguais.</p>
+                            <p id="dashboard-graph-cohort-summary" class="dashboard-cohort-summary" aria-live="polite">Aguardando resultados pareáveis.</p>
+                            <p id="dashboard-graph-cohort-distribution-caption" class="dashboard-muted">Faixas mostram a distribuição da média por consulta/configuração nos dois grupos; grupos parcialmente completos são identificados no resumo.</p>
+                            <div id="dashboard-graph-cohort-distribution" class="dashboard-graph-cohort-distribution"></div>
+                            <div class="dashboard-cohort-table-scroll">
+                                <table class="dashboard-cohort-table">
+                                    <thead><tr><th>Formulação</th><th>Preset</th><th>Quorum</th><th id="dashboard-cohort-graph-metric-heading">Graph · F1@20</th><th id="dashboard-cohort-baseline-metric-heading">Sem grafo · F1@20</th><th id="dashboard-cohort-delta-heading">Δ F1@20</th><th>Graph / baseline / empate</th><th>Pares completos / parciais</th><th>Sem par</th></tr></thead>
+                                    <tbody id="dashboard-graph-cohort-breakdown"><tr><td colspan="9" class="dashboard-empty">Aguardando resultados.</td></tr></tbody>
+                                </table>
+                            </div>
                         </article>
                         <article class="dashboard-card dashboard-chart-card">
                             <h3>Ranking × seed × parâmetros</h3>
@@ -444,6 +642,11 @@
                             <h3>Desempenho por tema e ranking</h3>
                             <p class="dashboard-muted">Mapa de calor por categoria, sem ligar temas como se fossem uma sequência. Valores agregam as demais dimensões selecionadas.</p>
                             <div id="dashboard-run-timeline" class="dashboard-chart"></div>
+                        </article>
+                        <article class="dashboard-card dashboard-chart-card dashboard-timeline-card">
+                            <h3>Desempenho por tema ordenado pela dificuldade</h3>
+                            <p class="dashboard-muted">Cada linha é um tema, ordenado do mais fácil ao mais difícil. Os três painéis mostram F1@20, MRR@20 e NDCG@20; cada consulta tem peso igual dentro do tema. Dificuldade e contagem de artigos aparecem ao lado do tema. Os valores agregam as dimensões selecionadas nos filtros atuais.</p>
+                            <div id="dashboard-theme-difficulty-performance" class="dashboard-chart"></div>
                         </article>
                         <article class="dashboard-card dashboard-chart-card dashboard-timeline-card">
                             <h3>Métrica por estratégia de formulação</h3>

@@ -1,0 +1,11 @@
+{
+  "version": 1,
+  "skills": {
+    "Data Visualization": {
+      "source": "aj-geddes/useful-ai-prompts",
+      "sourceType": "github",
+      "skillPath": "skills/data-visualization/SKILL.md",
+      "computedHash": "ff084410c912588c859f4803d2c499ddc928149d796cd6657ed0061419e9e679"
+    }
+  }
+}

@@ -316,6 +316,14 @@ def test_dashboard_run_persists_results_and_summary_in_store_without_run_files(m
         assert "ranked_results" not in page["events"][0]["result"]
         next_page = manager.results(run["run_id"], after=page["cursor"], limit=1)
         assert len(next_page["events"]) == 1 and next_page["has_more"] is False
+        assert next_page["events"][0]["theme"] == "tema"
+        assert next_page["events"][0]["result"]["coverage"]["reference_pool_recall"] == 0.0
+        assert "diagnostics" not in next_page["events"][0]["result"]
+        assert "retrieval_id" not in next_page["events"][0]["result"]
+        grouped_page = manager.results(run["run_id"], after=0, limit=10)
+        assert grouped_page["events"][0]["query"] == "teste"
+        assert "query" not in grouped_page["events"][1]
+        assert "query_formulation" not in grouped_page["events"][1]
         detail = manager.result(run["run_id"], 1)
         assert detail["result"]["ranked_urls"] == ["a", "b", "c"]
         assert detail["result"]["ranked_results"] == [
@@ -324,6 +332,11 @@ def test_dashboard_run_persists_results_and_summary_in_store_without_run_files(m
             {"article": "c", "score": 1 / 3},
         ]
         summary = manager._memory_artifacts[(run["run_id"], '[null,null,null,"summary"]')]
+        retrieval_artifacts = [
+            key for (artifact_run_id, key) in manager._memory_artifacts
+            if artifact_run_id == run["run_id"] and key.endswith(',"retrieval"]')
+        ]
+        assert len(retrieval_artifacts) == 1  # one shared retrieval per evaluation group
         assert {entry["parameters"]["ranking"] for entry in summary["groups"]["rankings"]} == {
             "hybrid_max", "vector",
         }
@@ -376,6 +389,44 @@ def test_dashboard_resolves_multiple_theme_snapshots_and_deduplicates_identical_
         assert [item["id"] for item in evaluations] == ["tema__q1", "outro__q2"]
         assert snapshot["evaluations"] == evaluations
         assert "Atual" in label
+    finally:
+        manager.shutdown()
+
+
+def test_figure_filter_options_return_distinct_facets_without_result_hydration(tmp_path):
+    manager = DashboardRunManager(None, None, None, tmp_path)
+    try:
+        manager._runs["run-a"] = {
+            "state": {
+                "run_id": "run-a", "status": "completed",
+                "settings": {"presets": {"rapido": {}, "profundo": {}}, "quorums": [.3, .5]},
+            },
+            "dataset_snapshot": {"evaluations": [
+                {"id": "tema_a__q1", "query": "consulta um", "query_formulation": "keyword"},
+                {"id": "tema_b__q2", "query": "consulta dois", "query_formulation": "short_question"},
+            ]},
+        }
+        manager._memory_results["run-a"] = [
+            {"evaluation_id": "tema_a__q1", "query": "consulta um", "query_formulation": "keyword",
+             "result": {"preset": "rapido", "quorum": .3}},
+            {"evaluation_id": "tema_a__q1", "query": "consulta um", "query_formulation": "keyword",
+             "result": {"preset": "rapido", "quorum": .5}},
+            {"evaluation_id": "tema_b__q2", "query": "consulta dois", "query_formulation": "short_question",
+             "result": {"preset": "profundo", "quorum": .3}},
+        ]
+        options = manager.figure_filter_options(["run-a"])
+        assert options["themes"] == ["tema_a", "tema_b"]
+        assert options["formulations"] == ["keyword", "short_question"]
+        assert options["presets"] == ["profundo", "rapido"]
+        assert options["quorums"] == [.3, .5]
+        assert options["queries"] == [
+            {"id": "tema_a__q1", "theme": "tema_a", "query": "consulta um"},
+            {"id": "tema_b__q2", "theme": "tema_b", "query": "consulta dois"},
+        ]
+        # Options come from run metadata, including evaluations with no result
+        # rows yet; loading them must not depend on scanning result payloads.
+        manager._memory_results["run-a"].clear()
+        assert manager.figure_filter_options(["run-a"]) == options
     finally:
         manager.shutdown()
 
@@ -433,6 +484,75 @@ def test_dashboard_exposes_a_row_before_the_evaluation_group_finishes(monkeypatc
         assert state["progress"]["completed"] == 2
     finally:
         allow_group_to_finish.set()
+        manager.shutdown()
+
+
+def test_dashboard_run_can_pause_then_resume_from_saved_configuration_boundary(monkeypatch, tmp_path):
+    from threading import Event
+    from services import dashboard_runs as dashboard_module
+
+    searcher, ranker, _, _ = setup_services()
+    data_dir = tmp_path / "datasets"
+    data_dir.mkdir()
+    (data_dir / "evals_pause.json").write_text(json.dumps({
+        "schema_version": 1,
+        "evaluations": [{"id": "tema__query", "query": "teste",
+                         "relevant_urls": ["https://g1.globo.com/a.ghtml"]}],
+    }), encoding="utf-8")
+    monkeypatch.setattr(dashboard_module, "_validate_relevant_urls_exist", lambda *args: None)
+    first_saved = Event()
+    continue_first_attempt = Event()
+    invocation_configs = []
+
+    def controlled_group(_searcher, _ranker, body, progress_callback, include_completed_entries):
+        configs = body["configurations"]
+        invocation_configs.append([config["ranking"] for config in configs])
+        for index, config in enumerate(configs):
+            if len(invocation_configs) == 1 and index == 1:
+                first_saved.set()
+                assert continue_first_attempt.wait(5)
+            entry = {**config, "ranked": [{"article": "a", "score": 1.0}],
+                     "diagnostics": {}, "retrieval_id": "pool", "computation_seconds": 0.01,
+                     "step_timings": {}}
+            progress_callback({"activity": "ranking", "completed": index + 1,
+                               "total": len(configs), "configuration": config,
+                               "entry": entry, "retrieval_steps": {},
+                               "retrieval_seconds": 0.1, "group_elapsed_seconds": 0.1})
+        return {"performance": {"optimized": {"wall_seconds": 0.2}}}
+
+    monkeypatch.setattr(dashboard_module, "evaluate_request", controlled_group)
+    manager = DashboardRunManager(searcher, ranker, None, data_dir)
+    try:
+        run = manager.start("evals_pause.json", {
+            "presets": ["rapido"], "quorums": [0.3], "seed_methods": ["hits"],
+            "rankings": ["hybrid_max", "ppr", "fused"], "result_unit": "articles",
+        })
+        assert first_saved.wait(5)
+        pause_state = manager.pause(run["run_id"])
+        assert pause_state["status"] == "pause_requested"
+        continue_first_attempt.set()
+
+        deadline = time.monotonic() + 5
+        state = manager.get(run["run_id"])
+        while state["status"] != "paused" and time.monotonic() < deadline:
+            time.sleep(0.01)
+            state = manager.get(run["run_id"])
+        assert state["status"] == "paused"
+        assert state["progress"]["completed"] == 2
+
+        resumed = manager.resume(run["run_id"])
+        assert resumed["status"] == "queued"
+        deadline = time.monotonic() + 5
+        state = manager.get(run["run_id"])
+        while state["status"] not in ("completed", "failed") and time.monotonic() < deadline:
+            time.sleep(0.01)
+            state = manager.get(run["run_id"])
+        assert state["status"] == "completed"
+        assert state["progress"]["completed"] == state["progress"]["total"] == 3
+        assert invocation_configs == [["hybrid_max", "ppr", "fused"], ["fused"]]
+        assert [event["seq"] for event in manager.results(run["run_id"], 0, 10)["events"]] == [1, 2, 3]
+    finally:
+        continue_first_attempt.set()
         manager.shutdown()
 
 

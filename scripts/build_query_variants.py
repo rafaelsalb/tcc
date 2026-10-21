@@ -60,12 +60,18 @@ QUERIES = {
 
 
 def build_variants(source):
-    if (
-        set(source) != {"schema_version", "evaluations"}
-        or type(source["schema_version"]) is not int
-        or source["schema_version"] != 1
-    ):
-        raise ValueError("Expected a schema_version=1 batch input.")
+    if not isinstance(source, dict) or type(source.get("schema_version")) is not int:
+        raise ValueError("Expected a versioned batch input.")
+    version = source["schema_version"]
+    valid_keys = (
+        {frozenset({"schema_version", "evaluations"}),
+         frozenset({"schema_version", "evaluations", "themes"})}
+        if version == 1 else
+        {frozenset({"schema_version", "evaluations", "themes"})}
+        if version == 2 else set()
+    )
+    if frozenset(source) not in valid_keys:
+        raise ValueError("Expected a schema_version=1 or schema_version=2 batch input.")
     originals = source["evaluations"]
     if len(originals) != len(QUERIES) or {item["id"] for item in originals} != set(QUERIES):
         raise ValueError("Expected exactly the five curated theme IDs.")
@@ -82,7 +88,10 @@ def build_variants(source):
                 "query_formulation": style,
                 "relevant_urls": list(urls),
             })
-    return {"schema_version": 1, "evaluations": variants}
+    result = {"schema_version": version, "evaluations": variants}
+    if "themes" in source:
+        result["themes"] = source["themes"]
+    return result
 
 
 def main():
