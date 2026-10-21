@@ -127,7 +127,9 @@ class G1Entities(Base):
     __tablename__ = 'g1_entities'
     __table_args__ = (
         PrimaryKeyConstraint('id', name='g1_entities_pkey'),
-        UniqueConstraint('text', 'type', name='unique_entity_text_type')
+        UniqueConstraint('text', 'type', name='unique_entity_text_type'),
+        Index('ix_entities_text_type', 'text', 'type'),
+        Index('idx_g1_entities_type', 'type'),
     )
 
     id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
@@ -443,7 +445,12 @@ class ArticleEntities(Base):
     __table_args__ = (
         ForeignKeyConstraint(['g1_article_url'], ['g1_articles.url'], name='fk_article_entities_g1_articles'),
         ForeignKeyConstraint(['g1_entities_id'], ['g1_entities.id'], name='fk_article_entities_g1_entities'),
-        PrimaryKeyConstraint('id', name='article_entities_pkey')
+        PrimaryKeyConstraint('id', name='article_entities_pkey'),
+        # A mention maps article→entity once; the live database accumulated
+        # ~239k duplicate rows. Existing databases need
+        # scripts/migrate_article_entities.py (dedupe + unique index) first.
+        UniqueConstraint('g1_article_url', 'g1_entities_id', name='uq_article_entities_article_entity'),
+        Index('idx_article_g1_entities_entity_id', 'g1_entities_id'),
     )
 
     id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
@@ -460,7 +467,15 @@ class G1Chunks(Base):
         ForeignKeyConstraint(['article'], ['g1_articles.url'], name='fk_g1_chunks_g1_article'),
         PrimaryKeyConstraint('id', name='g1_chunks_pkey'),
         Index('g1_chunks_embedding_idx', 'embedding', postgresql_ops={'embedding': 'vector_cosine_ops'}, postgresql_using='hnsw'),
-        Index('ix_g1_chunks_no_embeddings', 'embedding', postgresql_where='(embedding IS NULL)')
+        Index('ix_g1_chunks_no_embeddings', 'embedding', postgresql_where='(embedding IS NULL)'),
+        # FK index: reverse joins and DELETE ... WHERE article IN (...) on
+        # g1_chunks used to scan the whole table.
+        Index('ix_g1_chunks_article', 'article'),
+        # The lexical candidate SQL in repositories/chunk.py is written against
+        # exactly these expression indexes; without them fresh databases
+        # seq-scan g1_chunks on every search.
+        Index('uq_g1_chunks_article_chunk_md5', 'article', text('md5(chunk)'), unique=True),
+        Index('idx_g1_chunks_text_search', text("to_tsvector('portuguese'::regconfig, chunk)"), postgresql_using='gin'),
     )
 
     id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
