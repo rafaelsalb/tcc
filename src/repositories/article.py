@@ -35,13 +35,22 @@ class ArticleRepository:
             # only the first article was processed per 50-row fetch.
             return session.scalars(stmt).all()
 
-    def get_all_with_no_entities(self, limit: int = 50, offset: int = 0) -> list[G1Articles]:
+    def get_all_with_no_entities(self, limit: int = 50, offset: int = 0,
+                                 worker_i: int = 0, total_workers: int = 1) -> list[G1Articles]:
+        """Articles with no mention rows yet. With `total_workers > 1`, the list
+        is partitioned deterministically by url hash so concurrent populate
+        daemons never pick the same articles ((hashtext(url) & 0x7fffffff)
+        % N == i)."""
         with Session(self.engine) as session:
             stmt = (
                 select(G1Articles)
                 .outerjoin(ArticleEntities, ArticleEntities.g1_article_url == G1Articles.url)
                 .where(ArticleEntities.g1_article_url.is_(None))
                 .where(G1Articles.text_content.is_not(None))
+                # & runs before % in SQLAlchemy's expression tree, unlike raw SQL
+                # operator precedence; masking hashtext to positive int avoids
+                # int4 abs() overflow and negative-modulo drift.
+                .where((func.hashtext(G1Articles.url).op("&")(2147483647) % total_workers) == worker_i)
                 .limit(limit)
                 .offset(offset)
             )

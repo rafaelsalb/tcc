@@ -70,19 +70,22 @@ class App:
             sleep(0.1)
             print("Finished processing batch of chunks.")
 
-    def populate_entities(self, batch_size: int = 250):
+    def populate_entities(self, batch_size: int = 250, worker_i: int = 0, total_workers: int = 1):
+        prefix = f"[worker {worker_i}/{total_workers}] " if total_workers > 1 else ""
         while True:
-            print("Checking for articles without entities...", flush=True)
-            articles = self.article_repo.get_all_with_no_entities(limit=batch_size)
+            print(f"{prefix}Checking for articles without entities...", flush=True)
+            articles = self.article_repo.get_all_with_no_entities(
+                limit=batch_size, worker_i=worker_i, total_workers=total_workers
+            )
             assert all(isinstance(article, G1Articles) for article in articles)
             if not articles:
-                print("No more articles to process.", flush=True)
+                print(f"{prefix}No more articles to process.", flush=True)
                 sleep(10)
                 continue
-            print(f"Extracting entities for {len(articles)} articles...", flush=True)
+            print(f"{prefix}Extracting entities for {len(articles)} articles...", flush=True)
             entities = self.ner_service.batch_extract_entities_and_store(articles)
             sleep(0.01)
-            print("Finished processing batch of articles.", flush=True)
+            print(f"{prefix}Finished processing batch of articles.", flush=True)
 
     def canonicalize_entities(self, limit: int | None = None):
         """Backfill entity linking: flag junk rows and set g1_entities.canonical
