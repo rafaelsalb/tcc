@@ -17,7 +17,7 @@ import urllib.request
 import xml.etree.ElementTree as ET
 import zlib
 from dataclasses import dataclass
-from datetime import date, datetime, timezone
+from datetime import date, datetime, timedelta, timezone
 
 import numpy as np
 import psycopg
@@ -128,6 +128,7 @@ class RateGovernor:
 		self.cut_factor = float(cut_factor)
 		self.ceiling_cut = float(ceiling_cut)
 		self.hard_penalty_seconds = float(hard_penalty_seconds)
+		self.consecutive_hard = 0
 		self._lock = threading.Lock()
 		self._condition = threading.Condition(self._lock)
 		self._next_slot = time.monotonic()
@@ -147,9 +148,14 @@ class RateGovernor:
 	def on_success(self) -> None:
 		with self._lock:
 			self.oks += 1
-			if self.fixed or self.oks < self.ramp_requests or self.rps >= self.safe_ceiling:
+			if self.oks < self.ramp_requests:
 				return
+			# a sustained clean window resets the ramp cycle and forgives any
+			# escalation built up while brushing the ceiling
 			self.oks = 0
+			self.consecutive_hard = 0
+			if self.fixed or self.rps >= self.safe_ceiling:
+				return
 			self.rps = min(self.safe_ceiling, self.rps * self.ramp_factor)
 			logging.info(
 				"Clean window — rate raised to %.2f req/s (ceiling %.2f)", self.rps, self.safe_ceiling
@@ -166,19 +172,29 @@ class RateGovernor:
 			self.oks = 0
 			self.rps = max(self.min_rps, min(previous * self.cut_factor, self.safe_ceiling))
 			if hard:
+				# Escalating restraint: each consecutive hard signal doubles the
+				# pause (90s -> 3min -> 6min ... capped at 30min), so a run that
+				# keeps brushing the ceiling leans further back instead of
+				# pinning against it. A clean ramp cycle resets the escalation.
+				self.consecutive_hard += 1
+				penalty = min(
+					1800.0,
+					self.hard_penalty_seconds * (2.0 ** (self.consecutive_hard - 1)),
+				)
 				self.safe_ceiling = max(self.min_rps, previous * self.ceiling_cut)
 				self.rps = max(self.min_rps, min(self.rps, self.safe_ceiling))
 				logging.warning(
-					"Throttled (HTTP %s; %s) — rate cut to %.2f req/s, ceiling ratcheted to %.2f, admissions paused %.0fs",
+					"Throttled (HTTP %s; %s) — rate cut to %.2f req/s, ceiling ratcheted to %.2f, admissions paused %.0fs (escalation %d)",
 					status,
 					detail or "unspecified",
 					self.rps,
 					self.safe_ceiling,
-					self.hard_penalty_seconds,
+					penalty,
+					self.consecutive_hard,
 				)
-				self._next_slot = max(self._next_slot, time.monotonic() + self.hard_penalty_seconds)
+				self._next_slot = max(self._next_slot, time.monotonic() + penalty)
 				self._condition.notify_all()
-				return self.hard_penalty_seconds
+				return penalty
 			logging.warning(
 				"Soft trouble (%s) — rate cut to %.2f req/s", detail or "unspecified", self.rps
 			)
@@ -889,6 +905,615 @@ def resolve_sitemap_files(
 	)
 
 
+def process_sitemap_file(
+	conn,
+	sitemap: SitemapFile,
+	xml_payload: bytes,
+	target_date: date,
+	reprocess: bool,
+	max_articles_per_sitemap: int | None,
+	dry_run: bool,
+	concurrency: int,
+	governor: "RateGovernor",
+	category: str,
+	timeout_seconds: int,
+	max_attempts: int,
+	article_base_cooldown_seconds: float,
+	article_jitter_seconds: float,
+) -> dict:
+	"""Parse one fetched daily-sitemap file, persist its seeds and article
+	rows, and mark it processed. Returns counts {'urls', 'ok', 'failed'}; the
+	pending-articles pool hides network latency while the governor keeps the
+	aggregate pace."""
+	articles = parse_sitemap_urlset(xml_payload)
+
+	if not dry_run:
+		upsert_sitemap_discovered(conn, sitemap, target_date)
+
+	now_iso = utc_now_iso()
+	for article in articles:
+		if not dry_run:
+			upsert_article_seed(conn, sitemap, article, now_iso)
+
+	pending_articles = articles
+	if not dry_run and not reprocess:
+		success_urls = get_successfully_extracted_urls(conn, [a.loc for a in articles])
+		pending_articles = [a for a in articles if a.loc not in success_urls]
+
+	if max_articles_per_sitemap and max_articles_per_sitemap > 0:
+		pending_articles = pending_articles[:max_articles_per_sitemap]
+
+	sitemap_ok = 0
+	sitemap_failed = 0
+
+	if not pending_articles:
+		logging.info(
+			"%s sitemap=%s fully scraped already (urls=%d)",
+			category, sitemap.loc, len(articles),
+		)
+		if not dry_run:
+			mark_sitemap_processed(
+				conn=conn,
+				sitemap_url=sitemap.loc,
+				sitemap_lastmod=sitemap.lastmod,
+				target_date=target_date,
+				urls_in_sitemap=len(articles),
+				extracted_ok=len(articles),
+				extracted_failed=0,
+			)
+		return {"urls": len(articles), "ok": 0, "failed": 0}
+
+	if dry_run:
+		for article_idx, article in enumerate(pending_articles, start=1):
+			logging.info(
+				"%s[%d/%d] dry-run url=%s",
+				category,
+				article_idx,
+				len(pending_articles),
+				article.loc,
+			)
+	else:
+		with concurrent.futures.ThreadPoolExecutor(
+			max_workers=concurrency, thread_name_prefix="g1-fetch"
+		) as pool:
+			futures_map = {
+				pool.submit(
+					extract_article_from_network,
+					article.loc,
+					timeout_seconds,
+					max_attempts,
+					article_base_cooldown_seconds,
+					article_jitter_seconds,
+					governor,
+				): article.loc
+				for article in pending_articles
+			}
+			for article_idx, future in enumerate(
+				concurrent.futures.as_completed(futures_map), start=1
+			):
+				url = futures_map[future]
+				try:
+					outcome = future.result()
+				except Exception as exc:  # defensive; the worker returns dicts itself
+					outcome = {
+						"status": "download_failed",
+						"http_status": None,
+						"final_url": None,
+						"meta": None,
+						"error": str(exc),
+					}
+
+				if outcome["status"] == "ok":
+					update_article_extraction(
+						conn=conn,
+						url=url,
+						http_status=outcome["http_status"],
+						final_url=outcome["final_url"],
+						extraction_status="ok",
+						extraction_error=None,
+						meta=outcome["meta"],
+					)
+					sitemap_ok += 1
+				else:
+					update_article_fetch_error(
+						conn=conn,
+						url=url,
+						status=outcome["status"],
+						error_message=outcome["error"] or outcome["status"],
+						http_status=outcome["http_status"],
+						final_url=outcome["final_url"],
+					)
+					sitemap_failed += 1
+				conn.commit()
+
+				logging.info(
+					"%s[%d/%d] status=%s url=%s",
+					category,
+					article_idx,
+					len(pending_articles),
+					outcome["status"],
+					url,
+				)
+
+	if not dry_run:
+		mark_sitemap_processed(
+			conn=conn,
+			sitemap_url=sitemap.loc,
+			sitemap_lastmod=sitemap.lastmod,
+			target_date=target_date,
+			urls_in_sitemap=len(articles),
+			extracted_ok=sitemap_ok,
+			extracted_failed=sitemap_failed,
+		)
+
+	logging.info(
+		"%s sitemap=%s | total_urls=%d | pending=%d | ok=%d | failed=%d | dry_run=%s",
+		category,
+		sitemap.loc,
+		len(articles),
+		len(pending_articles),
+		sitemap_ok,
+		sitemap_failed,
+		dry_run,
+	)
+	return {"urls": len(articles), "ok": sitemap_ok, "failed": sitemap_failed}
+
+
+@dataclass(frozen=True)
+class CrawlLane:
+	"""One lane of the multi-directional date sweep: a start date and the
+	direction it starts walking ((-1 = backward into the past, +1 = toward
+	today)). CLI --lanes items: 'YYYY-MM-DD' (forward) or 'YYYY-MM-DD:backward'."""
+
+	name: str
+	start: date
+	direction: int
+
+
+def parse_lane_spec(spec: str) -> list[CrawlLane]:
+	"""Parse --lanes value into lanes, validating dates and directions."""
+	lanes: list[CrawlLane] = []
+	for index, item in enumerate((part.strip() for part in spec.split(",")), start=1):
+		if not item:
+			continue
+		try:
+			date_text, _, direction_text = item.partition(":")
+			start = date.fromisoformat(date_text.strip())
+		except ValueError as exc:
+			raise ValueError(
+				f"Invalid --lanes item {index} ('{item}'); expected 'YYYY-MM-DD[:forward|backward]'."
+			) from exc
+		direction_text = (direction_text or "forward").strip().lower()
+		if direction_text not in ("forward", "backward"):
+			raise ValueError(
+				f"Invalid direction '{direction_text}' in --lanes item {index} ('{item}'); "
+				"use 'forward' or 'backward'."
+			)
+		lanes.append(
+			CrawlLane(
+				name=f"lane{index}",
+				start=start,
+				direction=1 if direction_text == "forward" else -1,
+			)
+		)
+	if not lanes:
+		raise ValueError("--lanes did not contain any lane items.")
+	return lanes
+
+
+class SitemapDiscovery:
+	"""Root-index listing cache for the lane sweep. The canonical G1 root
+	sitemap index lists every daily file across the whole archive (7k+ days
+	back to 2003), so it is the single discovery source: no per-month indexes
+	exist. The listing is refetched periodically so days published during a
+	Long run appear at the head."""
+
+	ROOT_REFRESH_SECONDS = 30 * 60.0
+	UNAVAILABLE_RETRY_SLEEP_SECONDS = 30.0
+	MAX_UNAVAILABLE_STREAK = 5
+	# A lane in transit walks at most this many days toward the peer snapshot
+	# before resuming normal stepping (guards against chasing a moving peer).
+	MAX_TRANSIT_DAYS = 1500
+
+	def __init__(
+		self,
+		sitemap_root: str,
+		governor: "RateGovernor",
+		timeout_seconds: int,
+		max_attempts: int,
+		sitemap_base_cooldown_seconds: float,
+		sitemap_jitter_seconds: float,
+	):
+		self.sitemap_root = sitemap_root.rstrip("/")
+		self.governor = governor
+		self.timeout_seconds = timeout_seconds
+		self.max_attempts = max_attempts
+		self.base_cooldown = sitemap_base_cooldown_seconds
+		self.jitter = sitemap_jitter_seconds
+		self._lock = threading.Lock()
+		self._root: dict | None = None
+
+	def _fetch_root(self) -> dict:
+		url = f"{self.sitemap_root}/sitemap.xml"
+		self.governor.acquire()
+		try:
+			xml_payload = fetch_xml(
+				url,
+				timeout_seconds=self.timeout_seconds,
+				max_attempts=self.max_attempts,
+				base_cooldown_seconds=self.base_cooldown,
+				jitter_seconds=self.jitter,
+			)
+		except urllib.error.HTTPError as exc:
+			self.governor.on_signal(exc.code, detail="root index fetch")
+			# failures are NOT cached: the next root_days() call refetches, so
+			# the lanes' unavailable-retry streak waits out a real throttle
+			return {"status": "unavailable", "days": {}, "fetched_at": time.monotonic()}
+		except (urllib.error.URLError, TimeoutError, OSError) as exc:
+			self.governor.on_signal(None, detail="root index fetch")
+			return {"status": "unavailable", "days": {}, "fetched_at": time.monotonic()}
+		self.governor.on_success()
+		days: dict[date, list[SitemapFile]] = {}
+		for sitemap_entry in parse_sitemap_index(xml_payload):
+			match = SITEMAP_LOC_RE.search(sitemap_entry.loc)
+			if not match:
+				continue
+			entry_day = date(int(match.group(1)), int(match.group(2)), int(match.group(3)))
+			days.setdefault(entry_day, []).append(sitemap_entry)
+		entry = {"status": "ok", "days": days, "fetched_at": time.monotonic()}
+		with self._lock:
+			self._root = entry
+		return entry
+
+	def root_days(self) -> dict:
+		with self._lock:
+			entry = self._root
+		if entry is not None and (time.monotonic() - entry["fetched_at"]) < self.ROOT_REFRESH_SECONDS:
+			return entry
+		return self._fetch_root()
+
+	def files_for_day(self, day: date) -> list[SitemapFile] | None:
+		"""Daily files for `day`; None when the listing is (still) unavailable —
+		the caller retries; an empty list means the day has no sitemap (gap)."""
+		root = self.root_days()
+		if root["status"] != "ok":
+			return None
+		return root["days"].get(day, [])
+
+
+def get_sitemap_completion_stats(conn, urls: list[str]) -> dict[str, tuple[int, int, int]]:
+	"""Tracking-row counts for sitemap files; empty map for rows missing."""
+	if not urls:
+		return {}
+	rows = conn.execute(
+		"""
+		SELECT sitemap_url, urls_in_sitemap, extracted_ok, extracted_failed
+		FROM g1_sitemaps
+		WHERE sitemap_url = ANY(%s)
+		""",
+		(urls,),
+	).fetchall()
+	return {row[0]: (row[1], row[2], row[3]) for row in rows}
+
+
+def is_day_fully_processed(conn, files: list[SitemapFile]) -> bool:
+	"""A day is done for sweep purposes when every listed daily file has a
+	tracking row and all of its URLs reached a terminal fetch status."""
+	if not files:
+		return False
+	stats = get_sitemap_completion_stats(conn, [f.loc for f in files])
+	if len(stats) < len(files):
+		return False
+	return all(urls == ok + failed for urls, ok, failed in stats.values())
+
+
+class LaneContext:
+	"""Shared state for a --lanes run: mutable cursor/direction per lane, a
+	claims map that keeps lanes from racing for the same day, and shared
+	discovery caching. The peer handoff implements the 'boundary -> flip
+	direction -> walk to the other worker's date' rule."""
+
+	def __init__(self, lanes: list[CrawlLane]):
+		self.runtimes: dict[str, dict] = {
+			lane.name: {
+				"lane": lane,
+				"cursor": lane.start,
+				"direction": lane.direction,
+				"in_transit": False,
+				"steps": 0,
+			}
+			for lane in lanes
+		}
+		self._lock = threading.Lock()
+		self._claims: dict[date, str] = {}
+
+	def cursor_of(self, lane_name: str) -> date:
+		with self._lock:
+			return self.runtimes[lane_name]["cursor"]
+
+	def flip_target_for(self, lane_name: str) -> tuple[str, date] | None:
+		"""The other lane whose current cursor the flipping lane walks to.
+		Returns None for single-lane runs."""
+		with self._lock:
+			others = [
+				(name, state["cursor"])
+				for name, state in self.runtimes.items()
+				if name != lane_name
+			]
+		return others[0] if others else None
+
+	def claim(self, day: date, lane_name: str) -> bool:
+		with self._lock:
+			owner = self._claims.get(day)
+		return owner is None or owner == lane_name
+
+	def take_claim(self, day: date, lane_name: str) -> bool:
+		with self._lock:
+			owner = self._claims.get(day)
+			if owner is not None and owner != lane_name:
+				return False
+			self._claims[day] = lane_name
+			return True
+
+	def release_claim(self, day: date, lane_name: str) -> None:
+		with self._lock:
+			if self._claims.get(day) == lane_name:
+				self._claims.pop(day)
+
+
+def run_lanes(
+	db_dsn: str,
+	lanes: list[CrawlLane],
+	sitemap_root: str,
+	governor: "RateGovernor",
+	timeout_seconds: int,
+	max_attempts: int,
+	sitemap_base_cooldown_seconds: float,
+	sitemap_jitter_seconds: float,
+	article_base_cooldown_seconds: float,
+	article_jitter_seconds: float,
+	max_articles_per_sitemap: int | None,
+	dry_run: bool,
+	reprocess: bool,
+	max_sitemaps: int | None,
+	max_lane_steps: int,
+	concurrency: int,
+) -> None:
+	"""Multi-lane date sweep. Each lane steps day by day in its direction over
+	cached month listings; when a lane hits a boundary (candidate beyond
+	today, or a month listing that is empty/unavailable) it flips direction
+	and walks to the other lane's current date before continuing — refetching
+	nothing that is already fully processed."""
+	input_lanes = lanes
+	context = LaneContext(input_lanes)
+	discovery = SitemapDiscovery(
+		sitemap_root=sitemap_root,
+		governor=governor,
+		timeout_seconds=timeout_seconds,
+		max_attempts=max_attempts,
+		sitemap_base_cooldown_seconds=sitemap_base_cooldown_seconds,
+		sitemap_jitter_seconds=sitemap_jitter_seconds,
+	)
+	stop = threading.Event()
+	done_files_lock = threading.Lock()
+	done_files = [0]
+
+	def processed_budget_reached() -> bool:
+		if not max_sitemaps or max_sitemaps <= 0:
+			return False
+		with done_files_lock:
+			return done_files[0] >= max_sitemaps
+
+	def note_processed_file(count: int) -> None:
+		if count <= 0:
+			return
+		with done_files_lock:
+			done_files[0] += count
+		if max_sitemaps and max_sitemaps > 0:
+			with done_files_lock:
+				if done_files[0] >= max_sitemaps:
+					stop.set()
+
+	def lane_loop(runtime: dict, lane_index: int) -> None:
+		lane: CrawlLane = runtime["lane"]
+		name = lane.name
+		with psycopg.connect(db_dsn) as conn:
+			ensure_tracking_tables(conn)
+			while not stop.is_set() and runtime["steps"] < max_lane_steps:
+				runtime["steps"] += 1
+				today = date.today()
+				direction: int = runtime["direction"]
+				candidate = runtime["cursor"] + timedelta(days=direction)
+				border_kind = None
+				files: list[SitemapFile] | None = None
+				if direction > 0 and candidate > today:
+					border_kind = "upper boundary (beyond today)"
+				else:
+					root_status = discovery.root_days()["status"]
+					if direction < 0 and root_status == "ok":
+						floor_day = min(discovery.root_days()["days"])
+						if candidate < floor_day:
+							border_kind = f"lower boundary (archive floor at {floor_day.isoformat()})"
+					if border_kind is None:
+						files = discovery.files_for_day(candidate)
+						if files is None:
+							streak = runtime.get("unavailable_streak", 0) + 1
+							runtime["unavailable_streak"] = streak
+							if streak >= SitemapDiscovery.MAX_UNAVAILABLE_STREAK:
+								border_kind = "lower boundary (root listing unavailable)"
+							else:
+								logging.info(
+									"[%s] root listing unavailable — retrying in %.0fs (%d/%d)",
+									name,
+									SitemapDiscovery.UNAVAILABLE_RETRY_SLEEP_SECONDS,
+									streak,
+									SitemapDiscovery.MAX_UNAVAILABLE_STREAK,
+								)
+								time.sleep(SitemapDiscovery.UNAVAILABLE_RETRY_SLEEP_SECONDS)
+								continue
+						else:
+							runtime["unavailable_streak"] = 0
+							if not files:
+								logging.info(
+									"[%s] day %s: no sitemap listing in the index (gap day)",
+									name,
+									candidate.isoformat(),
+								)
+								runtime["cursor"] = candidate
+								continue
+				if border_kind is not None:
+					# Boundary rule: flip direction and walk to the other
+					# lane's current date (snapshot — the date at flip time;
+					# the peer keeps moving and chasing it never terminates).
+					# The damping sleep keeps a permanent boundary flip-flop
+					# cheap (deep archive floor or fresh-nothing head).
+					runtime["direction"] = -direction
+					runtime["cursor"] = candidate
+					runtime["in_transit"] = False
+					peer = context.flip_target_for(name)
+					time.sleep(60.0)
+					if peer is None:
+						logging.info(
+							"[%s] hit %s — flipped direction to %s",
+							name,
+							border_kind,
+							"forward" if runtime["direction"] > 0 else "backward",
+						)
+						continue
+					peer_name, peer_cursor = peer
+					runtime["in_transit"] = True
+					runtime["transit_target"] = peer_cursor
+					runtime["transit_days"] = 0
+					logging.info(
+						"[%s] hit %s — flipped to %s, transiting to %s (snapshot of %s at %s)",
+						name,
+						border_kind,
+						"forward" if runtime["direction"] > 0 else "backward",
+						peer_cursor.isoformat(),
+						peer_name,
+						runtime["cursor"].isoformat(),
+					)
+					continue
+
+				if runtime["in_transit"]:
+					target = runtime.get("transit_target")
+					if target is None:
+						runtime["in_transit"] = False
+					else:
+						runtime["transit_days"] = runtime.get("transit_days", 0) + 1
+						behind_target = (
+							direction > 0 and candidate < target
+						) or (
+							direction < 0 and candidate > target
+						)
+						if not behind_target or runtime["transit_days"] >= SitemapDiscovery.MAX_TRANSIT_DAYS:
+							runtime["in_transit"] = False
+							logging.info(
+								"[%s] transit complete near %s (target %s, %d day(s)) — resuming %s",
+								name,
+								candidate.isoformat(),
+								target.isoformat(),
+								runtime["transit_days"],
+								"forward" if direction > 0 else "backward",
+							)
+
+				if runtime["in_transit"]:
+					if runtime.get("transit_days", 0) % 25 == 0:
+						logging.info(
+							"[%s] transit: skipping %s toward %s",
+							name,
+							candidate.isoformat(),
+							runtime["transit_target"].isoformat() if runtime["transit_target"] else "?",
+						)
+					runtime["cursor"] = candidate
+					continue
+
+				if processed_budget_reached():
+					continue
+
+				if not reprocess and is_day_fully_processed(conn, files):
+					runtime["cursor"] = candidate
+					continue
+
+				if not context.take_claim(candidate, name):
+					logging.info(
+						"[%s] day %s already claimed by another lane — skipping",
+						name,
+						candidate.isoformat(),
+					)
+					runtime["cursor"] = candidate
+					continue
+
+				batch_ok = 0
+				for file in files:
+					if stop.is_set() or processed_budget_reached():
+						break
+					if not reprocess:
+						stats = get_sitemap_completion_stats(conn, [file.loc])
+						if stats.get(file.loc) is not None and (
+							stats[file.loc][0] == stats[file.loc][1] + stats[file.loc][2]
+						):
+							continue
+					governor.acquire()
+					try:
+						xml_payload = fetch_xml(
+							file.loc,
+							timeout_seconds=timeout_seconds,
+							max_attempts=max_attempts,
+							base_cooldown_seconds=sitemap_base_cooldown_seconds,
+							jitter_seconds=sitemap_jitter_seconds,
+						)
+					except urllib.error.HTTPError as exc:
+						governor.on_signal(exc.code, detail="daily sitemap fetch")
+						break
+					except (urllib.error.URLError, TimeoutError) as exc:
+						governor.on_signal(None, detail="daily sitemap fetch")
+						break
+					governor.on_success()
+					file_counts = process_sitemap_file(
+						conn=conn,
+						sitemap=file,
+						xml_payload=xml_payload,
+						target_date=candidate,
+						reprocess=reprocess,
+						max_articles_per_sitemap=max_articles_per_sitemap,
+						dry_run=dry_run,
+						concurrency=concurrency,
+						governor=governor,
+						category=f"[{name}]",
+						timeout_seconds=timeout_seconds,
+						max_attempts=max_attempts,
+						article_base_cooldown_seconds=article_base_cooldown_seconds,
+						article_jitter_seconds=article_jitter_seconds,
+					)
+					note_processed_file(1)
+					batch_ok += file_counts["ok"]
+				context.release_claim(candidate, name)
+				runtime["cursor"] = candidate
+
+			logging.info(
+				"[%s] lane finished (steps=%d, cursor=%s)",
+				name,
+				runtime["steps"],
+				runtime["cursor"].isoformat(),
+			)
+
+	threads = []
+	for index, runtime in enumerate(context.runtimes.values(), start=1):
+		thread = threading.Thread(target=lane_loop, args=(runtime, index), name=runtime["lane"].name)
+		thread.start()
+		threads.append(thread)
+	for thread in threads:
+		thread.join()
+	logging.info("Rate governor final state: %s", governor.state())
+	logging.info(
+		"Lanes sweep done. lanes=%d files_processed=%d dry_run=%s",
+		len(input_lanes),
+		done_files[0],
+		dry_run,
+	)
+
+
 def run(
 	db_dsn: str,
 	target_date: date,
@@ -975,146 +1600,25 @@ def run(
 				governor.on_signal(None, detail="sitemap fetch")
 				raise
 			governor.on_success()
-			articles = parse_sitemap_urlset(xml_payload)
-
-			if not dry_run:
-				upsert_sitemap_discovered(conn, sitemap, target_date)
-
-			now_iso = utc_now_iso()
-			for article in articles:
-				if not dry_run:
-					upsert_article_seed(conn, sitemap, article, now_iso)
-
-			pending_articles = articles
-			if not dry_run and not reprocess:
-				success_urls = get_successfully_extracted_urls(conn, [a.loc for a in articles])
-				pending_articles = [a for a in articles if a.loc not in success_urls]
-
-			if max_articles_per_sitemap and max_articles_per_sitemap > 0:
-				pending_articles = pending_articles[:max_articles_per_sitemap]
-
-			total_urls_seen += len(articles)
-			sitemap_ok = 0
-			sitemap_failed = 0
-
-			if not pending_articles:
-				logging.info(
-					"[%d/%d] sitemap=%s fully scraped already (urls=%d)",
-					i,
-					len(daily_sitemaps),
-					sitemap.loc,
-					len(articles),
-				)
-				if not dry_run:
-					mark_sitemap_processed(
-						conn=conn,
-						sitemap_url=sitemap.loc,
-						sitemap_lastmod=sitemap.lastmod,
-						target_date=target_date,
-						urls_in_sitemap=len(articles),
-						extracted_ok=len(articles),
-						extracted_failed=0,
-					)
-				continue
-
-			if dry_run:
-				for article_idx, article in enumerate(pending_articles, start=1):
-					logging.info(
-						"[%d/%d][%d/%d] dry-run url=%s",
-						i,
-						len(daily_sitemaps),
-						article_idx,
-						len(pending_articles),
-						article.loc,
-					)
-			else:
-				with concurrent.futures.ThreadPoolExecutor(
-					max_workers=concurrency, thread_name_prefix="g1-fetch"
-				) as pool:
-					futures_map = {
-						pool.submit(
-							extract_article_from_network,
-							article.loc,
-							timeout_seconds,
-							max_attempts,
-							article_base_cooldown_seconds,
-							article_jitter_seconds,
-							governor,
-						): article.loc
-						for article in pending_articles
-					}
-					for article_idx, future in enumerate(
-						concurrent.futures.as_completed(futures_map), start=1
-					):
-						url = futures_map[future]
-						try:
-							outcome = future.result()
-						except Exception as exc:  # defensive; the worker returns dicts itself
-							outcome = {
-								"status": "download_failed",
-								"http_status": None,
-								"final_url": None,
-								"meta": None,
-								"error": str(exc),
-							}
-
-						if outcome["status"] == "ok":
-							update_article_extraction(
-								conn=conn,
-								url=url,
-								http_status=outcome["http_status"],
-								final_url=outcome["final_url"],
-								extraction_status="ok",
-								extraction_error=None,
-								meta=outcome["meta"],
-							)
-							sitemap_ok += 1
-							total_ok += 1
-						else:
-							update_article_fetch_error(
-								conn=conn,
-								url=url,
-								status=outcome["status"],
-								error_message=outcome["error"] or outcome["status"],
-								http_status=outcome["http_status"],
-								final_url=outcome["final_url"],
-							)
-							sitemap_failed += 1
-							total_failed += 1
-						conn.commit()
-
-						logging.info(
-							"[%d/%d][%d/%d] status=%s url=%s",
-							i,
-							len(daily_sitemaps),
-							article_idx,
-							len(pending_articles),
-							outcome["status"],
-							url,
-						)
-
-			if not dry_run:
-				mark_sitemap_processed(
-					conn=conn,
-					sitemap_url=sitemap.loc,
-					sitemap_lastmod=sitemap.lastmod,
-					target_date=target_date,
-					urls_in_sitemap=len(articles),
-					extracted_ok=sitemap_ok,
-					extracted_failed=sitemap_failed,
-				)
-
-			logging.info(
-				"[%d/%d] sitemap=%s | total_urls=%d | pending=%d | ok=%d | failed=%d | dry_run=%s",
-				i,
-				len(daily_sitemaps),
-				sitemap.loc,
-				len(articles),
-				len(pending_articles),
-				sitemap_ok,
-				sitemap_failed,
-				dry_run,
+			file_counts = process_sitemap_file(
+				conn=conn,
+				sitemap=sitemap,
+				xml_payload=xml_payload,
+				target_date=target_date,
+				reprocess=reprocess,
+				max_articles_per_sitemap=max_articles_per_sitemap,
+				dry_run=dry_run,
+				concurrency=concurrency,
+				governor=governor,
+				category=f"[{i}/{len(daily_sitemaps)}]",
+				timeout_seconds=timeout_seconds,
+				max_attempts=max_attempts,
+				article_base_cooldown_seconds=article_base_cooldown_seconds,
+				article_jitter_seconds=article_jitter_seconds,
 			)
+			total_urls_seen += file_counts["urls"]
+			total_ok += file_counts["ok"]
+			total_failed += file_counts["failed"]
 
 		logging.info("Rate governor final state: %s", governor.state())
 
@@ -1248,6 +1752,24 @@ def parse_args() -> argparse.Namespace:
 		default=None,
 		help="Only process sitemaps from this date backwards (YYYY-MM-DD). Never forwards.",
 	)
+	parser.add_argument(
+		"--lanes",
+		type=str,
+		default=None,
+		help=(
+			"Multi-directional date sweep (replaces the newest-first list walk). Comma list of "
+			"'YYYY-MM-DD[:forward|backward]' items, e.g. --lanes \"2026-03-31:backward,2026-10-06:forward\". "
+			"Lanes step day by day in their direction over cached month listings; when a lane hits a "
+			"boundary (beyond today or an empty/unavailable month) it flips direction and walks to the "
+			"other lane's current date before continuing. Fully processed days are skipped, not refetched."
+		),
+	)
+	parser.add_argument(
+		"--max-lane-steps",
+		type=int,
+		default=100000,
+		help="Safety cap of day-steps per lane in --lanes mode (scanning passes over processed days also consume steps). The full archive spans ~8.7k days from 2003.",
+	)
 	return parser.parse_args()
 
 
@@ -1263,6 +1785,53 @@ def main() -> None:
 	except ValueError as exc:
 		raise SystemExit(f"Invalid --date value: {args.date}") from exc
 
+	governor_defaults = dict(
+		timeout_seconds=max(5, args.timeout_seconds),
+		max_attempts=max(1, args.max_attempts),
+		sitemap_base_cooldown_seconds=max(0.0, args.sitemap_base_cooldown_seconds),
+		sitemap_jitter_seconds=max(0.0, args.sitemap_jitter_seconds),
+		article_base_cooldown_seconds=max(0.0, args.article_base_cooldown_seconds),
+		article_jitter_seconds=max(0.0, args.article_jitter_seconds),
+		start_rps=max(0.01, args.rps),
+		min_rps=max(0.01, args.min_rps),
+		max_rps=max(max(0.01, args.min_rps), args.max_rps),
+		fixed_rate=args.fixed_rate,
+		concurrency=max(1, args.concurrency),
+	)
+
+	if args.lanes:
+		if args.backward_from is not None:
+			logging.warning("--backward-from is ignored in --lanes mode (lanes define their own directions).")
+		try:
+			lanes = parse_lane_spec(args.lanes)
+		except ValueError as exc:
+			raise SystemExit(str(exc)) from exc
+		governor = RateGovernor(
+			start_rps=governor_defaults["start_rps"],
+			min_rps=governor_defaults["min_rps"],
+			max_rps=governor_defaults["max_rps"],
+			fixed=governor_defaults["fixed_rate"],
+		)
+		run_lanes(
+			db_dsn=args.db_dsn,
+			lanes=lanes,
+			sitemap_root=args.sitemap_root,
+			governor=governor,
+			timeout_seconds=governor_defaults["timeout_seconds"],
+			max_attempts=governor_defaults["max_attempts"],
+			sitemap_base_cooldown_seconds=governor_defaults["sitemap_base_cooldown_seconds"],
+			sitemap_jitter_seconds=governor_defaults["sitemap_jitter_seconds"],
+			article_base_cooldown_seconds=governor_defaults["article_base_cooldown_seconds"],
+			article_jitter_seconds=governor_defaults["article_jitter_seconds"],
+			max_articles_per_sitemap=args.max_articles_per_sitemap,
+			dry_run=args.dry_run,
+			reprocess=args.reprocess,
+			max_sitemaps=args.max_sitemaps,
+			max_lane_steps=max(1, args.max_lane_steps),
+			concurrency=governor_defaults["concurrency"],
+		)
+		return
+
 	run(
 		db_dsn=args.db_dsn,
 		target_date=target_date,
@@ -1270,20 +1839,10 @@ def main() -> None:
 		sitemap_root=args.sitemap_root,
 		max_sitemaps=args.max_sitemaps,
 		max_articles_per_sitemap=args.max_articles_per_sitemap,
-		timeout_seconds=max(5, args.timeout_seconds),
-		max_attempts=max(1, args.max_attempts),
-		sitemap_base_cooldown_seconds=max(0.0, args.sitemap_base_cooldown_seconds),
-		sitemap_jitter_seconds=max(0.0, args.sitemap_jitter_seconds),
-		article_base_cooldown_seconds=max(0.0, args.article_base_cooldown_seconds),
-		article_jitter_seconds=max(0.0, args.article_jitter_seconds),
 		dry_run=args.dry_run,
 		reprocess=args.reprocess,
 		backward_from=args.backward_from,
-		start_rps=max(0.01, args.rps),
-		min_rps=max(0.01, args.min_rps),
-		max_rps=max(max(0.01, args.min_rps), args.max_rps),
-		fixed_rate=args.fixed_rate,
-		concurrency=max(1, args.concurrency),
+		**governor_defaults,
 	)
 
 
