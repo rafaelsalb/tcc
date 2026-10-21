@@ -19,6 +19,20 @@ class RankingService:
         self.article_repository = article_repository
         self.entity_repository = ner_service.entity_repository
         self.ner_service = ner_service
+        # Graph/score caches for interactive callers (e.g. rank_results).
+        # Request paths clone via for_batch(), which resets all of these;
+        # without initializing them here, getattr(..., {}) allocated a
+        # throwaway dict on every call and identical pools rebuilt the whole
+        # graph and re-ran PageRank each time.
+        self._batch_graphs = {}
+        self._batch_scores = {}
+        self._batch_cross_encoder_scores = {}
+        self.batch_counts = {"graph_builds": 0, "ppr_runs": 0}
+        self.batch_timings = {
+            "graph_seconds": 0.0, "graph_article_fetch_seconds": 0.0,
+            "graph_entity_load_extract_seconds": 0.0, "graph_assembly_seconds": 0.0,
+            "graph_pruning_seconds": 0.0, "ppr_seconds": 0.0, "mmr_seconds": 0.0,
+        }
 
     def _save_graph_image(
         self,
@@ -527,7 +541,7 @@ class RankingService:
             ],
             "meta": {
                 "article_count": len(results),
-                "entity_count": len([node for node in G.nodes() if node not in results]),
+                "entity_count": len([node for node in G.nodes() if node not in article_set]),
                 "ppr_seed_count": len(top_entity_ids),
                 "seed_method": seed_method,
                 "effective_seed_method": scores["effective_seed_method"],

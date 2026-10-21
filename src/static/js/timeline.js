@@ -87,7 +87,7 @@ function groupChunksByArticle(response) {
         if (!map.has(result.article_url)) map.set(result.article_url, []);
         map.get(result.article_url).push({
             text: result.chunk,
-            similarity: result.distance,
+            similarity: result.similarity,
             rrfScore: result.rrf_score,
             textRank: result.text_rank,
         });

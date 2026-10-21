@@ -203,7 +203,6 @@ class ChunkRepository:
             stmt = _apply_result_window(stmt, top_k, offset)
             stmt = stmt.order_by(G1Articles.date_published)
             results = session.execute(stmt).mappings().all()
-            print("first result:", results[0])
             return results
 
     def query_chunks_hybrid(

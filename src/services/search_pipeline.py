@@ -10,6 +10,9 @@ from time import perf_counter
 
 SEARCH_VERSION = "stages_v10"
 CACHE_NAMESPACE = "v19"
+# Redis entries outlive process restarts; without a TTL the single "search_cache"
+# hash grows unboundedly (each response embeds candidate-chunk diagnostics).
+CACHE_TTL_SECONDS = 24 * 60 * 60
 SEED_METHODS = ("louvain", "hits", "ppr_top10", "query_entities")
 QUERY_SEED_FALLBACKS = ("hits", "louvain", "ppr_top10")
 STAGES = ("lexical", "hybrid", "ppr", "fused", "compare")
@@ -143,11 +146,15 @@ def search_request(searcher, ranker, cache, params, *, include_graph=None):
                                      "query_seed_fallback": query_seed_fallback,
                                      "ensemble_rankings": ensemble_rankings,
                                      "include_graph": include_graph})
-    cached = cache.hget("search_cache", response_key) if not bypass_cache else None
+    # Plain keys with an expiry instead of one unbounded hash: every entry
+    # expires on its own after CACHE_TTL_SECONDS.
+    response_stored_key = f"search_cache:{response_key}"
+    cached = cache.get(response_stored_key) if not bypass_cache else None
     if cached:
         return json.loads(cached)
     retrieval_key = key("retrieval", settings)
-    cached_retrieval = cache.hget("search_cache", retrieval_key) if not bypass_cache else None
+    retrieval_stored_key = f"search_cache:{retrieval_key}"
+    cached_retrieval = cache.get(retrieval_stored_key) if not bypass_cache else None
     if cached_retrieval:
         retrieval = json.loads(cached_retrieval)
     else:
@@ -156,7 +163,7 @@ def search_request(searcher, ranker, cache, params, *, include_graph=None):
             if article.get("date_published") is not None:
                 article["date_published"] = str(article["date_published"])
         if not bypass_cache:
-            cache.hset("search_cache", retrieval_key, json.dumps(retrieval, default=str))
+            cache.setex(retrieval_stored_key, CACHE_TTL_SECONDS, json.dumps(retrieval, default=str))
     active_ranker = ranker.for_batch() if hasattr(ranker, "for_batch") else ranker
     ranking_started = perf_counter()
     response = run_pipeline(retrieval, active_ranker, stage, method, methods, ranking=ranking, query=query,
@@ -173,7 +180,7 @@ def search_request(searcher, ranker, cache, params, *, include_graph=None):
     }
     response["cache_bypassed"] = bypass_cache
     if not bypass_cache:
-        cache.hset("search_cache", response_key, json.dumps(response, default=str))
+        cache.setex(response_stored_key, CACHE_TTL_SECONDS, json.dumps(response, default=str))
     return response
 
 

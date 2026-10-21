@@ -1,5 +1,8 @@
+import threading
+from concurrent.futures import ThreadPoolExecutor
+
+import requests
 import spacy
-import spacy_dbpedia_spotlight  # noqa: F401 — registers the 'dbpedia_spotlight' pipeline factory
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -11,52 +14,90 @@ from services.linking import SPOTLIGHT_CONFIDENCE, best_overlap
 
 class NERService:
     """Hybrid pipeline: spaCy NER (pt_core_news_sm) extracts and types entities;
-    the dbpedia_spotlight pipe links mentions to DBpedia URIs (canonical identity).
-    Linking degrades gracefully when the Spotlight service is unavailable."""
+    the DBpedia Spotlight REST service (`/rest/annotate`) provides each
+    mention's canonical identity.
 
-    def __init__(self, entity_repository: EntityRepository, spotlight_endpoint: str | None = None):
+    NER is CPU-bound, so spaCy always runs on the calling thread (nlp.pipe
+    batches it). Linking is I/O-bound — `requests` releases the GIL during the
+    socket wait — so batches annotate documents on a thread pool that overlaps
+    the spaCy pass. This replicates the old `dbpedia_spotlight` pipe component
+    (same request params, same @offset/@surfaceForm/@URI parsing, same
+    best-overlap merge) while parallelizing it and degrading gracefully when
+    the service is down (mentions stay unlinked)."""
+
+    def __init__(self, entity_repository: EntityRepository, spotlight_endpoint: str | None = None,
+                 link_workers: int = 8, link_timeout: float = 30.0):
         self.nlp = spacy.load("pt_core_news_sm")
         self.entity_repository = entity_repository
-        self.linker_available = False
+        self.spotlight_endpoint = (spotlight_endpoint or SPOTLIGHT_ENDPOINT).rstrip("/")
+        self.link_workers = link_workers
+        self.link_timeout = link_timeout
+        # Informational: flips False while the endpoint is failing; failures
+        # print once per outage window instead of once per document.
+        self.linker_available = True
+        self._failures_since_success = 0
+        self._thread_state = threading.local()
+
+    def _session(self) -> requests.Session:
+        """One pooled connection per worker thread (Session objects are not
+        thread-safe for cross-thread sharing)."""
+        session = getattr(self._thread_state, "session", None)
+        if session is None:
+            session = requests.Session()
+            session.headers.update({"accept": "application/json"})
+            self._thread_state.session = session
+        return session
+
+    def _annotate(self, text: str) -> list[tuple[int, int, str]]:
+        """POST one document to Spotlight and return (start, end, uri) char
+        triples — the same triples the pipe component fed through kb_id."""
         try:
-            self.nlp.add_pipe("dbpedia_spotlight", config={
-                "dbpedia_rest_endpoint": spotlight_endpoint or SPOTLIGHT_ENDPOINT,
-                "language_code": "pt",
-                "confidence": SPOTLIGHT_CONFIDENCE,
-                # spaCy entities stay in doc.ents; spotlight spans go to
-                # doc.spans['dbpedia_spotlight'] — no overlap conflicts
-                "overwrite_ents": False,
-                # unreachable endpoint -> unlinked doc instead of raising
-                "raise_http_errors": False,
-            })
-            self.linker_available = True
-        except Exception as e:
-            print(f"DBpedia Spotlight pipe unavailable, entity linking disabled: {e}")
+            response = self._session().post(
+                f"{self.spotlight_endpoint}/annotate",
+                data={"text": text, "confidence": SPOTLIGHT_CONFIDENCE},
+                timeout=self.link_timeout,
+            )
+            response.raise_for_status()
+        except requests.RequestException as exc:
+            self.linker_available = False
+            if self._failures_since_success == 0:
+                print(f"DBpedia Spotlight unavailable, mentions stay unlinked ({type(exc).__name__}); retrying silently.")
+            self._failures_since_success += 1
+            return []
+        self.linker_available = True
+        self._failures_since_success = 0
+        resources = response.json().get("Resources", [])
+        return [
+            (int(resource["@offset"]), int(resource["@offset"]) + len(resource["@surfaceForm"]), resource["@URI"])
+            for resource in resources
+        ]
+
+    def _compose(self, ents: list[tuple[int, int, str, str]], annotations: list[tuple[int, int, str]]) -> list[dict[str, str]]:
+        return [
+            {"text": text, "label": label, "canonical": best_overlap(start, end, annotations)}
+            for start, end, label, text in ents
+        ]
 
     def extract_entities(self, text: str) -> list[dict[str, str]]:
-        doc = self.nlp(text)
-        linked_spans = [
-            (span.start_char, span.end_char, span.kb_id_)
-            for span in doc.spans.get("dbpedia_spotlight", [])
-            if span.kb_id_
-        ]
-        entities = []
-        for ent in doc.ents:
-            if ent.label_ == "DBPEDIA_ENT":
-                continue
-            canonical = best_overlap(ent.start_char, ent.end_char, linked_spans)
-            entities.append({
-                "text": ent.text,
-                "label": ent.label_,
-                "canonical": canonical,
-            })
-        return entities
+        return self._compose(
+            [(ent.start_char, ent.end_char, ent.label_, ent.text) for ent in self.nlp(text).ents],
+            self._annotate(text),
+        )
 
     def batch_extract_entities(self, articles: list[G1Articles]) -> dict[str, list[dict[str, str]]]:
-        entities = {}
-        for article in articles:
-            entities[article.url] = self.extract_entities(article.text_content)
-        return entities
+        if not articles:
+            return {}
+        texts = [article.text_content for article in articles]
+        with ThreadPoolExecutor(max_workers=self.link_workers, thread_name_prefix="spotlight-link") as pool:
+            # map() submits every request right away, so the modeled HTTP
+            # waits (GIL-free) already run while the spaCy pass below runs on
+            # this thread.
+            annotations = pool.map(self._annotate, texts)
+            results = {}
+            for article, doc, annotation in zip(articles, self.nlp.pipe(texts, batch_size=16), annotations):
+                ents = [(ent.start_char, ent.end_char, ent.label_, ent.text) for ent in doc.ents]
+                results[article.url] = self._compose(ents, annotation)
+        return results
 
     def batch_extract_entities_and_store(self, articles: list[G1Articles]):
         article_entities = self.batch_extract_entities(articles)
@@ -90,25 +131,31 @@ class NERService:
 
     def batch_get_or_extract_entities_and_store_for_articles(self, articles: list[str], of_types: list[str] = None) -> dict[str, list[G1Entities]]:
         with Session(self.entity_repository.engine) as session:
-            # find articles with no entities
+            # find articles with no entities; text_content is feedstock for the
+            # NER pipeline (nlp(None) raises), so exclude NULL bodies up front
             stmt = (
                 select(G1Articles)
                 .outerjoin(ArticleEntities, ArticleEntities.g1_article_url == G1Articles.url)
                 .where(ArticleEntities.g1_article_url.is_(None))
                 .where(G1Articles.url.in_(articles))
+                .where(G1Articles.text_content.is_not(None))
             )
             articles_with_no_entities = session.scalars(stmt).all()
-            print("Articles with no entities:", len(articles_with_no_entities), [article.url for article in articles_with_no_entities])
-
-            # create the entities
-            for article in articles_with_no_entities:
-                print("Extracting entities for article:", article.url)
-                entities = self.extract_entities(article.text_content)
+            if articles_with_no_entities:
+                print(f"Extracting entities for {len(articles_with_no_entities)} article(s).")
+                # parallel extract, one batched write for the whole request
+                extracted = self.batch_extract_entities(articles_with_no_entities)
+                batch_articles, batch_texts, batch_types, batch_canonicals = [], [], [], []
+                for article_url, entities in extracted.items():
+                    batch_articles.extend([article_url] * len(entities))
+                    batch_texts.extend(entity["text"] for entity in entities)
+                    batch_types.extend(entity["label"] for entity in entities)
+                    batch_canonicals.extend(entity.get("canonical") for entity in entities)
                 self.entity_repository.batch_add_entities(
-                    articles=[article.url] * len(entities),
-                    texts=[entity["text"] for entity in entities],
-                    types=[entity["label"] for entity in entities],
-                    canonicals=[entity.get("canonical") for entity in entities],
+                    articles=batch_articles,
+                    texts=batch_texts,
+                    types=batch_types,
+                    canonicals=batch_canonicals,
                 )
 
             print("Retrieving entities for all articles...")

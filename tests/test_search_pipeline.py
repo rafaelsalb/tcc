@@ -50,12 +50,14 @@ class Ranker:
 class Cache:
     def __init__(self):
         self.values = {}
+        self.ttls = {}
 
-    def hget(self, name, key):
-        return self.values.get((name, key))
+    def get(self, key):
+        return self.values.get(key)
 
-    def hset(self, name, key, value):
-        self.values[name, key] = value
+    def setex(self, key, ttl, value):
+        self.values[key] = value
+        self.ttls[key] = ttl
 
 
 def test_compare_has_two_baselines_and_two_rows_per_seed_shared_pool_and_no_input_mutation():
@@ -185,7 +187,7 @@ def test_search_request_include_graph_option_is_cacheable_and_configurable():
     assert with_graph["graph"]["meta"]["graph_purpose"] == "auxiliary_visualization"
     assert "graph" not in without_graph
     assert len(ranker.calls) == 1
-    assert len([key for _, key in cache.values if ":response:" in key]) == 2
+    assert len([key for key in cache.values if ":response:" in key]) == 2
 
 
 def test_search_request_accepts_include_graph_function_argument():
@@ -562,7 +564,7 @@ def test_api_reuses_retrieval_across_stages_and_seeds_but_not_units():
     assert len(calls) == 2
     search_request(searcher, ranker, cache, {**params, "stage": "lexical"})
     assert len(calls) == 3 and calls[-1]["retrieval_stage"] == "lexical"
-    assert all(key.startswith(f"{CACHE_NAMESPACE}:{SEARCH_VERSION}:") for _, key in cache.values)
+    assert all(key.startswith(f"search_cache:{CACHE_NAMESPACE}:{SEARCH_VERSION}:") for key in cache.values)
 
 
 def test_ranking_is_not_forwarded_to_search_service():
@@ -590,7 +592,7 @@ def test_graph_query_parameters_reach_ranker_and_separate_response_cache_entries
             "graph_hop_decay": "0.4", "graph_mix": str(mix),
         })
         assert ranker.graph_call == ("hits", "hits", 0.75, 0.4)
-    response_keys = [key for _, key in cache.values if ":response:" in key]
+    response_keys = [key for key in cache.values if ":response:" in key]
     assert len(response_keys) == 2
 
 
@@ -598,10 +600,10 @@ def test_graph_query_parameters_reach_ranker_and_separate_response_cache_entries
 @pytest.mark.parametrize("value", ["true", "1", True])
 def test_bypass_never_reads_or_writes_redis_and_recomputes_each_request(stage, value):
     class NoCacheAccess:
-        def hget(self, *args):
+        def get(self, *args):
             pytest.fail("bypassed request must not read Redis")
 
-        def hset(self, *args):
+        def setex(self, *args):
             pytest.fail("bypassed request must not write Redis")
 
     calls = []

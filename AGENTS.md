@@ -24,7 +24,7 @@ uv run python src/api.py         # Flask API on :5000 (Redis-cached /search)
   uv pip install https://github.com/explosion/spacy-models/releases/download/pt_core_news_sm-3.8.0/pt_core_news_sm-3.8.0-py3-none-any.whl
   uv pip install https://github.com/explosion/spacy-models/releases/download/pt_core_news_lg-3.8.0/pt_core_news_lg-3.8.0-py3-none-any.whl
   ```
-- **Don't bump pinned versions casually**: `torch==2.1.1` (from the `pytorch-cpu` explicit index) and `numpy==2.0.0` are deliberate pins.
+- **Don't bump pinned versions casually**: `torch==2.6.0` and `numpy==2.0.0` are deliberate pins (torch comes from the `pytorch-cpu` explicit index).
 - **DBpedia Spotlight container needs its model preloaded**: the image's built-in model downloader is broken (its Databus curl fails). If `tcc-dbpedia-spotlight` crash-loops with "Invalid Spotlight model folder", load the pt model into the `tcc_spotlight_models` volume manually:
   ```bash
   curl -sL -o /tmp/spotlight-pt.tar.gz "http://downloads.dbpedia.org/repo/dbpedia/spotlight/spotlight-model/2022.03.01/spotlight-model_lang=pt.tar.gz"

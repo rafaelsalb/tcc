@@ -111,8 +111,10 @@ def main(args):
     elif args.canonicalize_entities:
         app.canonicalize_entities(limit=args.limit)
     elif args.search:
-        results = app.search_service.search(args.search, top_k=100)
-        for result in results:
+        response = app.search_service.search(args.search, top_k=100)
+        # search() returns the full response dict; per-chunk rows are under
+        # "results" (the articles view is under "articles").
+        for result in response["results"]:
             print(f"Title: {result['article_title']}")
             print(f"URL: {result['article_url']}")
             print(f"Chunk: {result['chunk']}")

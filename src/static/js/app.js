@@ -739,4 +739,9 @@ initHelpDots();
     fillForm(params, true);
     renderTimelineView();
     setActiveTab(restoredTab);
+    // A shared link with a query runs the search immediately, like navigating
+    // history does.
+    if (params.get("query")) {
+        runSearch({ push: false, restoreView: false });
+    }
 }

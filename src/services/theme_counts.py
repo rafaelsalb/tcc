@@ -297,6 +297,8 @@ def attach_theme_counts(engine, run_id, themes, date_range=None, *, main_entitie
     }
     if known_themes:
         unknown = sorted(set(themes) - known_themes)
+    else:
+        unknown = []
     if unknown:
         raise ValueError(f"unknown theme IDs for this run: {unknown}")
 
@@ -328,11 +330,15 @@ def attach_theme_counts(engine, run_id, themes, date_range=None, *, main_entitie
         raise ValueError("date_range.from must be on or before date_range.to")
 
     eligibility = _eligible_article_snapshot(engine, date_from, date_to)
+    # Membership is checked per matched URL; build the lookup set once for all
+    # themes instead of once per URL (the snapshot can hold every article in
+    # the window, so re-evaluating set(...) per URL is quadratic).
+    eligible_urls = set(eligibility["eligible_article_urls"])
     result_themes = {}
     metric_rows = []
     for theme, entities in themes.items():
         matched_urls = sorted(_matching_article_urls(engine, entities, date_from, date_to))
-        matched_urls = [url for url in matched_urls if url in set(eligibility["eligible_article_urls"])]
+        matched_urls = [url for url in matched_urls if url in eligible_urls]
         eligible_count = eligibility["eligible_articles_count"]
         difficulty_score = _difficulty_score(len(matched_urls), eligible_count)
         result_themes[theme] = {

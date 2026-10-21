@@ -73,14 +73,16 @@ class SearchService:
                 }, sort_keys=True, ensure_ascii=False).encode()).hexdigest(),
             }
         # results = []
-        cosine_distance = lambda a, b: np.dot(a, b) / (np.linalg.norm(a) * np.linalg.norm(b))
+        cosine_similarity = lambda a, b: np.dot(a, b) / (np.linalg.norm(a) * np.linalg.norm(b))
         # results = sorted(results, key=lambda x: x["date_published"])
         results = list(
             map(lambda chunk: {
                 'article_url': chunk["G1Articles"].url,
                 'article_title': chunk["G1Articles"].title,
                 'chunk': chunk["G1Chunks"].chunk,
-                'distance': float(cosine_distance(query_embedding, chunk["G1Chunks"].embedding)) if query_embedding is not None else None,
+                # cosine similarity (1 = identical); SQL orders by true cosine
+                # distance, this field is informational
+                'similarity': float(cosine_similarity(query_embedding, chunk["G1Chunks"].embedding)) if query_embedding is not None else None,
                 'rrf_score': chunk.get("rrf_score"),
                 'vector_rank': chunk.get("article_vector_rank"),
                 'text_rank': chunk.get("article_text_rank"),

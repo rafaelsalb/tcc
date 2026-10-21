@@ -45,7 +45,10 @@ class App:
                 # print("Vectorizing chunks...")
                 # embeddings = self.vectorizer.embed(chunk_texts)
                 print("Saving chunks to database...")
-                self.chunk_repo.batch_add_chunk([article.url] * len(chunks), chunk_texts, [None] * len(chunks))
+                # Degenerate text can produce zero chunks; still mark the
+                # article processed so the backfill loop doesn't refetch it
+                # forever.
+                self.chunk_repo.batch_add_chunk([article.url] * max(1, len(chunks)), chunk_texts, [None] * len(chunks))
                 sleep(0.01)
             print("Finished processing batch of articles.")
 
@@ -54,8 +57,9 @@ class App:
             print("Checking for chunks without embeddings...")
             chunks = self.chunk_repo.get_all_with_no_embeddings()
             if not chunks:
-                print("No more chunks to process.")
-                break
+                print("No more chunks to process. Sleeping for 10 seconds before checking again...")
+                sleep(10)
+                continue
             print(f"Found {len(chunks)} chunks to process.")
             ids = [chunk[0] for chunk in chunks]
             chunk_texts = [chunk[1] for chunk in chunks]
@@ -66,19 +70,19 @@ class App:
             sleep(0.1)
             print("Finished processing batch of chunks.")
 
-    def populate_entities(self):
+    def populate_entities(self, batch_size: int = 250):
         while True:
-            print("Checking for articles without entities...")
-            articles = self.article_repo.get_all_with_no_entities()
+            print("Checking for articles without entities...", flush=True)
+            articles = self.article_repo.get_all_with_no_entities(limit=batch_size)
             assert all(isinstance(article, G1Articles) for article in articles)
             if not articles:
-                print("No more articles to process.")
+                print("No more articles to process.", flush=True)
                 sleep(10)
                 continue
-            print("Extracting entities...")
+            print(f"Extracting entities for {len(articles)} articles...", flush=True)
             entities = self.ner_service.batch_extract_entities_and_store(articles)
             sleep(0.01)
-            print("Finished processing batch of articles.")
+            print("Finished processing batch of articles.", flush=True)
 
     def canonicalize_entities(self, limit: int | None = None):
         """Backfill entity linking: flag junk rows and set g1_entities.canonical
@@ -93,7 +97,9 @@ class App:
         return ranked_articles
 
     def summarize(self, articles: list[G1Articles]) -> str:
-        """ temporariamente estou passando articles como uma string que contém os conteúdos dos artigos, separados por quebras de linha"""
-        # article_texts = [article.text for article in articles]
-        summary = self.summarizer_service._completion(articles)
-        return summary
+        """Serializa os artigos selecionados em texto para o prompt do LLM."""
+        blocks = [
+            f"{article.title}\n{article.text_content or article.excerpt or ''}".strip()
+            for article in articles
+        ]
+        return self.summarizer_service._completion("\n\n".join(blocks))

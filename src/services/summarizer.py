@@ -10,8 +10,7 @@ class SummarizerService:
         pass
 
     def _completion(self, prompt: str) -> str:
-        """
-        Generate a completion for the given prompt using a language model.
+        """Generate a completion for the given prompt using a language model.
 
         Args:
             prompt (str): The input prompt to generate a completion for.
@@ -50,7 +49,10 @@ Exemplo estrito do formato de resposta esperado:
             api_key=GEMINI_API_KEY,
         )
         content = response["choices"][0]["message"]["content"]
-        data = json.loads(content)
+        try:
+            data = json.loads(content)
+        except json.JSONDecodeError as e:
+            raise ValueError(f"Resumo retornou JSON inválido ({e}): {content[:200]!r}") from e
         result = data.get("resumo", "")
 
         return result

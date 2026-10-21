@@ -26,17 +26,14 @@ class ArticleRepository:
                 stmt = stmt.offset(offset)
             if order_by:
                 stmt = stmt.order_by(getattr(G1Articles, order_by))
-            results = session.scalars(stmt).all()
-            print("Retrieved articles:", len(results), "with URLs:", [article.url for article in results])
-            return results
+            return session.scalars(stmt).all()
 
     def get_all_with_no_chunks(self, limit: int = 50, offset: int = 0) -> list[G1Articles]:
         with Session(self.engine) as session:
             stmt = select(G1Articles).where(G1Articles.text_content.is_not(None)).where(G1Articles.is_chunked.is_not(True)).limit(limit).offset(offset)
-            results = session.execute(stmt).fetchall()
-            if results:
-                results = results[0]
-                return results
+            # fetchall()[0] used to collapse the batch into a single Row, so
+            # only the first article was processed per 50-row fetch.
+            return session.scalars(stmt).all()
 
     def get_all_with_no_entities(self, limit: int = 50, offset: int = 0) -> list[G1Articles]:
         with Session(self.engine) as session:

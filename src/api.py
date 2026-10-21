@@ -292,6 +292,7 @@ def articles():
     try:
         found, total = g1_app.article_repo.search_by_title(q, limit=page_size, offset=offset)
     except Exception:
+        app.logger.exception("Erro na busca por títulos.")
         return jsonify({"error": "Erro na busca por títulos."}), 500
     return jsonify({
         "articles": [
